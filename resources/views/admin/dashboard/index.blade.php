@@ -8,7 +8,13 @@
     <p>مؤسسة الرواد للتعاون والتنمية</p>
 </div>
 
-<div class="row g-4">
+{{-- النظام الأساسي --}}
+<div class="d-flex align-items-center gap-2 mb-3">
+    <div class="bg-primary" style="width: 4px; height: 24px; border-radius: 2px;"></div>
+    <h5 class="mb-0 fw-bold">النظام الأساسي</h5>
+</div>
+
+<div class="row g-4 mb-5">
     @if ($centersCount !== null)
     <div class="col-md-3">
         <div class="card stat-card bg-primary text-white">

@@ -12,42 +12,45 @@
 </head>
 <body>
 
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <!-- Sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="brand">
             <i class="bi bi-building me-2"></i>
-            مؤسسة الرواد
+            <span class="brand-text">مؤسسة الرواد</span>
         </div>
 
         <div class="nav-section">الرئيسية</div>
         <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-            <i class="bi bi-speedometer2"></i> لوحة التحكم
+            <i class="bi bi-speedometer2"></i> <span>لوحة التحكم</span>
         </a>
 
         <div class="nav-section">الإدارة</div>
         @canPermission('App\Models\Admin\Center', 'view')
         <a href="{{ route('admin.centers.index') }}" class="nav-link {{ request()->routeIs('admin.centers.*') ? 'active' : '' }}">
-            <i class="bi bi-geo-alt"></i> المراكز
+            <i class="bi bi-geo-alt"></i> <span>المراكز</span>
         </a>
         @endcanPermission
         @canPermission('App\Models\Admin\Project', 'view')
         <a href="{{ route('admin.projects.index') }}" class="nav-link {{ request()->routeIs('admin.projects.*') ? 'active' : '' }}">
-            <i class="bi bi-briefcase"></i> المشاريع
+            <i class="bi bi-briefcase"></i> <span>المشاريع</span>
         </a>
         @endcanPermission
         @canPermission('App\Models\Admin\Group', 'view')
         <a href="{{ route('admin.groups.index') }}" class="nav-link {{ request()->routeIs('admin.groups.*') ? 'active' : '' }}">
-            <i class="bi bi-people"></i> المجموعات
+            <i class="bi bi-people"></i> <span>المجموعات</span>
         </a>
         @endcanPermission
         @canPermission('App\Models\Admin\Permission', 'view')
         <a href="{{ route('admin.permissions.index') }}" class="nav-link {{ request()->routeIs('admin.permissions.*') ? 'active' : '' }}">
-            <i class="bi bi-shield-check"></i> الصلاحيات
+            <i class="bi bi-shield-check"></i> <span>الصلاحيات</span>
         </a>
         @endcanPermission
         @canPermission('App\Models\User', 'view')
         <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-            <i class="bi bi-person-badge"></i> المستخدمين
+            <i class="bi bi-person-badge"></i> <span>المستخدمين</span>
         </a>
         @endcanPermission
     </div>
@@ -57,6 +60,9 @@
         <!-- Top Navbar -->
         <nav class="navbar-top d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-link text-dark p-0 sidebar-toggle" id="sidebarToggle" type="button">
+                    <i class="bi bi-list fs-4"></i>
+                </button>
                 <span class="text-muted small">
                     <i class="bi bi-calendar3 me-1"></i>
                     {{ now()->locale('ar')->translatedFormat('l d F Y') }}
@@ -99,5 +105,27 @@
     </div>
 
     @stack('scripts')
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            toggleBtn.addEventListener('click', function () {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.toggle('mobile-open');
+                    overlay.classList.toggle('show');
+                } else {
+                    sidebar.classList.toggle('collapsed');
+                }
+            });
+
+            overlay.addEventListener('click', function () {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('show');
+            });
+        });
+    </script>
 </body>
 </html>
