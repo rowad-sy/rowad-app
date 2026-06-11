@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() == 'ar' ? 'rtl' : 'ltr' }}" class="dark">
     <head>
         @include('partials.head')
     </head>
@@ -12,8 +12,15 @@
             </a>
 
             <flux:navlist variant="outline">
-                <flux:navlist.group heading="Platform" class="grid">
-                    <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>Dashboard</flux:navlist.item>
+                <flux:navlist.group heading="{{ __('messages.platform') }}" class="grid">
+                    <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>{{ __('messages.dashboard') }}</flux:navlist.item>
+                </flux:navlist.group>
+
+                <flux:navlist.group heading="{{ __('messages.administration') }}" class="grid">
+                    <flux:navlist.item icon="building-storefront" :href="route('admin.centers')" :current="request()->routeIs('admin.centers')" wire:navigate>{{ __('messages.centers') }}</flux:navlist.item>
+                    <flux:navlist.item icon="briefcase" :href="route('admin.projects')" :current="request()->routeIs('admin.projects')" wire:navigate>{{ __('messages.projects') }}</flux:navlist.item>
+                    <flux:navlist.item icon="users" :href="route('admin.groups')" :current="request()->routeIs('admin.groups')" wire:navigate>{{ __('messages.groups') }}</flux:navlist.item>
+                    <flux:navlist.item icon="shield-check" :href="route('admin.permissions')" :current="request()->routeIs('admin.permissions')" wire:navigate>{{ __('messages.permissions') }}</flux:navlist.item>
                 </flux:navlist.group>
             </flux:navlist>
 

@@ -1,66 +1,119 @@
-@import 'tailwindcss';
-@import '../../vendor/livewire/flux/dist/flux.css';
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
 
-@source "../views";
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
-@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
-
-@custom-variant dark (&:where(.dark, .dark *));
-
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-
-    --color-zinc-50: #fafafa;
-    --color-zinc-100: #f5f5f5;
-    --color-zinc-200: #e5e5e5;
-    --color-zinc-300: #d4d4d4;
-    --color-zinc-400: #a3a3a3;
-    --color-zinc-500: #737373;
-    --color-zinc-600: #525252;
-    --color-zinc-700: #404040;
-    --color-zinc-800: #262626;
-    --color-zinc-900: #171717;
-    --color-zinc-950: #0a0a0a;
-
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
-    --color-accent-foreground: var(--color-white);
+:root {
+    --sidebar-width: 260px;
 }
 
-@layer theme {
-    .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
-    }
+body {
+    font-family: 'Tajawal', sans-serif;
+    background-color: #f8f9fa;
 }
 
-@layer base {
-
-    *,
-    ::after,
-    ::before,
-    ::backdrop,
-    ::file-selector-button {
-        border-color: var(--color-gray-200, currentColor);
-    }
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    background: #1e293b;
+    color: #fff;
+    z-index: 100;
+    overflow-y: auto;
 }
 
-[data-flux-field] {
-    @apply grid gap-2;
+.sidebar .brand {
+    padding: 1rem 1.25rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-[data-flux-label] {
-    @apply  !mb-0 !leading-tight;
+.sidebar .nav-link {
+    color: rgba(255,255,255,0.7);
+    padding: 0.625rem 1.25rem;
+    font-size: 0.9rem;
+    transition: all 0.2s;
 }
 
-input:focus[data-flux-control],
-textarea:focus[data-flux-control],
-select:focus[data-flux-control] {
-    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+    color: #fff;
+    background: rgba(255,255,255,0.1);
 }
 
-/* \[:where(&)\]:size-4 {
-    @apply size-4;
-} */
+.sidebar .nav-link i {
+    margin-left: 0.5rem;
+    width: 1.25rem;
+    text-align: center;
+}
+
+.sidebar .nav-section {
+    padding: 0.75rem 1.25rem 0.25rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255,255,255,0.4);
+}
+
+.main-content {
+    margin-right: var(--sidebar-width);
+    min-height: 100vh;
+}
+
+.navbar-top {
+    background: #fff;
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.75rem 1.5rem;
+}
+
+.page-content {
+    padding: 1.5rem;
+}
+
+.stat-card {
+    border: none;
+    border-radius: 0.75rem;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.table-container {
+    background: #fff;
+    border-radius: 0.75rem;
+    border: 1px solid #dee2e6;
+    overflow: hidden;
+}
+
+.table-container .table {
+    margin-bottom: 0;
+}
+
+.page-header {
+    margin-bottom: 1.5rem;
+}
+
+.page-header h4 {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.page-header p {
+    color: #6c757d;
+    margin-bottom: 0;
+}
+
+.form-card {
+    background: #fff;
+    border-radius: 0.75rem;
+    border: 1px solid #dee2e6;
+    padding: 1.5rem;
+}
+
+.badge-scope {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}

@@ -3,21 +3,30 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
+    /*
+    * Seeder الرئيسي - يستدعي جميع Seeders النظام
+    * يتم تشغيله بأمر: php artisan db:seed
+    */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->call([
+            CenterSeeder::class,
+            ProjectSeeder::class,
+        ]);
 
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'مدير النظام',
+            'email' => 'admin@rowad.app',
+            'password' => bcrypt('admin123'),
+            'is_active' => true,
+        ]);
+
+        $this->call([
+            GroupSeeder::class,
         ]);
     }
 }

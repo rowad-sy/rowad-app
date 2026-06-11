@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() == 'ar' ? 'rtl' : 'ltr' }}" class="dark">
     <head>
         @include('partials.head')
     </head>
@@ -13,34 +13,14 @@
 
             <flux:navbar class="-mb-px max-lg:hidden">
                 <flux:navbar.item icon="layout-grid" href="{{ route('dashboard') }}" :current="request()->routeIs('dashboard')" wire:navigate>
-                    Dashboard
+                    {{ __('messages.dashboard') }}
                 </flux:navbar.item>
-            </flux:navbar>
-
-            <flux:spacer />
-
-            <flux:navbar class="mr-1.5 space-x-0.5 py-0!">
-                <flux:tooltip content="Search" position="bottom">
-                    <flux:navbar.item class="!h-10 [&>div>svg]:size-5" icon="magnifying-glass" href="#" label="Search" />
-                </flux:tooltip>
-                <flux:tooltip content="Repository" position="bottom">
-                    <flux:navbar.item
-                        class="h-10 max-lg:hidden [&>div>svg]:size-5"
-                        icon="folder-git-2"
-                        href="https://github.com/laravel/livewire-starter-kit"
-                        target="_blank"
-                        label="Repository"
-                    />
-                </flux:tooltip>
-                <flux:tooltip content="Documentation" position="bottom">
-                    <flux:navbar.item
-                        class="h-10 max-lg:hidden [&>div>svg]:size-5"
-                        icon="book-open-text"
-                        href="https://laravel.com/docs/starter-kits"
-                        target="_blank"
-                        label="Documentation"
-                    />
-                </flux:tooltip>
+                <flux:navbar.item icon="building-storefront" href="{{ route('admin.centers') }}" :current="request()->routeIs('admin.centers')" wire:navigate>
+                    {{ __('messages.centers') }}
+                </flux:navbar.item>
+                <flux:navbar.item icon="briefcase" href="{{ route('admin.projects') }}" :current="request()->routeIs('admin.projects')" wire:navigate>
+                    {{ __('messages.projects') }}
+                </flux:navbar.item>
             </flux:navbar>
 
             <!-- Desktop User Menu -->
@@ -97,23 +77,26 @@
             </a>
 
             <flux:navlist variant="outline">
-                <flux:navlist.group heading="Platform">
+                <flux:navlist.group heading="{{ __('messages.platform') }}">
                     <flux:navlist.item icon="layout-grid" href="{{ route('dashboard') }}" :current="request()->routeIs('dashboard')" wire:navigate>
-                        Dashboard
+                        {{ __('messages.dashboard') }}
                     </flux:navlist.item>
                 </flux:navlist.group>
-            </flux:navlist>
 
-            <flux:spacer />
-
-            <flux:navlist variant="outline">
-                <flux:navlist.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    Repository
-                </flux:navlist.item>
-
-                <flux:navlist.item icon="book-open-text" href="https://laravel.com/docs/starter-kits" target="_blank">
-                    Documentation
-                </flux:navlist.item>
+                <flux:navlist.group heading="{{ __('messages.administration') }}">
+                    <flux:navlist.item icon="building-storefront" href="{{ route('admin.centers') }}" :current="request()->routeIs('admin.centers')" wire:navigate>
+                        {{ __('messages.centers') }}
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="briefcase" href="{{ route('admin.projects') }}" :current="request()->routeIs('admin.projects')" wire:navigate>
+                        {{ __('messages.projects') }}
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="users" href="{{ route('admin.groups') }}" :current="request()->routeIs('admin.groups')" wire:navigate>
+                        {{ __('messages.groups') }}
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="shield-check" href="{{ route('admin.permissions') }}" :current="request()->routeIs('admin.permissions')" wire:navigate>
+                        {{ __('messages.permissions') }}
+                    </flux:navlist.item>
+                </flux:navlist.group>
             </flux:navlist>
         </flux:sidebar>
 
