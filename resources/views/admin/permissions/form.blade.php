@@ -83,19 +83,29 @@
                     @error('group_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
-                {{-- اسم الموديل --}}
+                {{-- الموديلات --}}
                 <div class="mb-3">
-                    <label class="form-label">الموديل <span class="text-danger">*</span></label>
-                    <select name="model_name" class="form-select @error('model_name') is-invalid @enderror">
-                        <option value="">اختر الموديل</option>
+                    <label class="form-label">الموديلات <span class="text-danger">*</span></label>
+                    <div class="row g-2 mt-1">
                         @foreach ($availableModels as $value => $label)
-                            <option value="{{ $value }}"
-                                {{ old('model_name', $permission->model_name ?? '') == $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input type="checkbox" name="model_names[]" value="{{ $value }}"
+                                           class="form-check-input @error('model_names') is-invalid @enderror"
+                                           id="model_{{ Str::slug($label) }}"
+                                           {{ in_array($value, old('model_names', isset($permission) ? [$permission->model_name] : [])) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="model_{{ Str::slug($label) }}">
+                                        {{ $label }}
+                                    </label>
+                                </div>
+                            </div>
                         @endforeach
-                    </select>
-                    @error('model_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    @error('model_names') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                    @error('model_names.*') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                    @if (!isset($permission))
+                        <small class="text-muted">يمكنك اختيار أكثر من موديل لإنشاء صلاحية واحدة لكل موديل</small>
+                    @endif
                 </div>
 
                 {{-- النطاق --}}

@@ -45,7 +45,7 @@
                                     <input type="checkbox" name="users[]" value="{{ $user->id }}"
                                            class="form-check-input"
                                            id="user_{{ $user->id }}"
-                                           {{ in_array($user->id, old('users', $group->users->pluck('id')->toArray() ?? [])) ? 'checked' : '' }}>
+                                           {{ in_array($user->id, old('users', isset($group) ? $group->users->pluck('id')->toArray() : [])) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="user_{{ $user->id }}">
                                         {{ $user->name }}
                                         <small class="text-muted">({{ $user->email }})</small>

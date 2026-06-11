@@ -45,7 +45,7 @@
                                     <input type="checkbox" name="centers[]" value="{{ $center->id }}"
                                            class="form-check-input"
                                            id="center_{{ $center->id }}"
-                                           {{ in_array($center->id, old('centers', $project->centers->pluck('id')->toArray() ?? [])) ? 'checked' : '' }}>
+                                            {{ in_array($center->id, old('centers', isset($project) ? $project->centers->pluck('id')->toArray() : [])) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="center_{{ $center->id }}">
                                         {{ $center->name }}
                                     </label>

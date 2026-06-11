@@ -54,7 +54,8 @@ class PermissionController extends Controller
             'assign_to' => 'required|in:user,group',
             'user_id' => 'required_if:assign_to,user|nullable|exists:users,id',
             'group_id' => 'required_if:assign_to,group|nullable|exists:groups,id',
-            'model_name' => 'required|string|max:255',
+            'model_names' => 'required|array|min:1',
+            'model_names.*' => 'required|string|max:255',
             'model_id' => 'nullable|integer',
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
@@ -64,10 +65,9 @@ class PermissionController extends Controller
             'can_delete' => 'boolean',
         ]);
 
-        Permission::create([
+        $base = [
             'user_id' => $validated['assign_to'] === 'user' ? $validated['user_id'] : null,
             'group_id' => $validated['assign_to'] === 'group' ? $validated['group_id'] : null,
-            'model_name' => $validated['model_name'],
             'model_id' => $validated['model_id'] ?? null,
             'center_id' => $validated['center_id'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
@@ -75,10 +75,15 @@ class PermissionController extends Controller
             'can_create' => $validated['can_create'] ?? false,
             'can_edit' => $validated['can_edit'] ?? false,
             'can_delete' => $validated['can_delete'] ?? false,
-        ]);
+        ];
 
+        foreach ($validated['model_names'] as $model) {
+            Permission::create(array_merge($base, ['model_name' => $model]));
+        }
+
+        $count = count($validated['model_names']);
         return redirect()->route('admin.permissions.index')
-            ->with('success', 'تم إضافة الصلاحية بنجاح');
+            ->with('success', "تم إضافة {$count} صلاحية بنجاح");
     }
 
     public function edit(Permission $permission)
@@ -104,7 +109,8 @@ class PermissionController extends Controller
             'assign_to' => 'required|in:user,group',
             'user_id' => 'required_if:assign_to,user|nullable|exists:users,id',
             'group_id' => 'required_if:assign_to,group|nullable|exists:groups,id',
-            'model_name' => 'required|string|max:255',
+            'model_names' => 'required|array|min:1',
+            'model_names.*' => 'required|string|max:255',
             'model_id' => 'nullable|integer',
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
@@ -114,10 +120,9 @@ class PermissionController extends Controller
             'can_delete' => 'boolean',
         ]);
 
-        $permission->update([
+        $base = [
             'user_id' => $validated['assign_to'] === 'user' ? $validated['user_id'] : null,
             'group_id' => $validated['assign_to'] === 'group' ? $validated['group_id'] : null,
-            'model_name' => $validated['model_name'],
             'model_id' => $validated['model_id'] ?? null,
             'center_id' => $validated['center_id'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
@@ -125,10 +130,26 @@ class PermissionController extends Controller
             'can_create' => $validated['can_create'] ?? false,
             'can_edit' => $validated['can_edit'] ?? false,
             'can_delete' => $validated['can_delete'] ?? false,
-        ]);
+        ];
+
+        // تحديث الصلاحية الحالية بأول موديل
+        $firstModel = array_shift($validated['model_names']);
+        $permission->update(array_merge($base, ['model_name' => $firstModel]));
+
+        // إنشاء صلاحيات جديدة للموديلات الإضافية
+        $created = 0;
+        foreach ($validated['model_names'] as $model) {
+            Permission::create(array_merge($base, ['model_name' => $model]));
+            $created++;
+        }
+
+        $msg = 'تم تحديث الصلاحية بنجاح';
+        if ($created) {
+            $msg .= " وتم إضافة {$created} صلاحية جديدة";
+        }
 
         return redirect()->route('admin.permissions.index')
-            ->with('success', 'تم تحديث الصلاحية بنجاح');
+            ->with('success', $msg);
     }
 
     public function destroy(Permission $permission)
