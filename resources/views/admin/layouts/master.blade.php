@@ -23,6 +23,9 @@
         </div>
 
         <div class="nav-section">الرئيسية</div>
+        <a href="{{ route('admin.home') }}" class="nav-link {{ request()->routeIs('admin.home') ? 'active' : '' }}">
+            <i class="bi bi-grid-3x3-gap"></i> <span>التطبيقات</span>
+        </a>
         <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
             <i class="bi bi-speedometer2"></i> <span>لوحة التحكم</span>
         </a>
@@ -38,6 +41,11 @@
             <i class="bi bi-briefcase"></i> <span>المشاريع</span>
         </a>
         @endcanPermission
+        @canPermission('App\Models\Admin\Department', 'view')
+        <a href="{{ route('admin.departments.index') }}" class="nav-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">
+            <i class="bi bi-diagram-3"></i> <span>الإدارات</span>
+        </a>
+        @endcanPermission
         @canPermission('App\Models\Admin\Group', 'view')
         <a href="{{ route('admin.groups.index') }}" class="nav-link {{ request()->routeIs('admin.groups.*') ? 'active' : '' }}">
             <i class="bi bi-people"></i> <span>المجموعات</span>
@@ -51,6 +59,18 @@
         @canPermission('App\Models\User', 'view')
         <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
             <i class="bi bi-person-badge"></i> <span>المستخدمين</span>
+        </a>
+        @endcanPermission
+
+        <div class="nav-section">الموارد البشرية</div>
+        @canPermission('App\Models\Admin\Hr\Employee', 'view')
+        <a href="{{ route('admin.hr.employees.index') }}" class="nav-link {{ request()->routeIs('admin.hr.employees.*') ? 'active' : '' }}">
+            <i class="bi bi-person-workspace"></i> <span>الموظفين</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Hr\JobPosition', 'view')
+        <a href="{{ route('admin.hr.job-positions.index') }}" class="nav-link {{ request()->routeIs('admin.hr.job-positions.*') ? 'active' : '' }}">
+            <i class="bi bi-badge-tm"></i> <span>المناصب الوظيفية</span>
         </a>
         @endcanPermission
     </div>
@@ -75,7 +95,7 @@
                         {{ auth()->user()->name }}
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>الملف الشخصي</a></li>
+                        <li><a class="dropdown-item" href="{{ route('admin.profile') }}"><i class="bi bi-person me-2"></i>الملف الشخصي</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form method="POST" action="{{ route('logout') }}">

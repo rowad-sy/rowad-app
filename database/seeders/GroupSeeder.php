@@ -17,7 +17,7 @@ class GroupSeeder extends Seeder
         $supervisor = Group::create(['name' => 'مشرف', 'description' => 'مشرف - يمكنه عرض كل شيء']);
         $hrOfficer = Group::create(['name' => 'مسؤول الموارد البشرية', 'description' => 'يدير المستخدمين والصلاحيات']);
 
-        $models = [
+        $allModels = [
             'App\Models\Admin\Center',
             'App\Models\Admin\Project',
             'App\Models\User',
@@ -25,67 +25,54 @@ class GroupSeeder extends Seeder
             'App\Models\Admin\Permission',
         ];
 
-        foreach ($models as $model) {
-            Permission::create([
-                'group_id' => $superAdmin->id,
-                'model_name' => $model,
-                'can_view' => true,
-                'can_create' => true,
-                'can_edit' => true,
-                'can_delete' => true,
-            ]);
-        }
+        // مدير النظام - صلاحية واحدة تشمل جميع الموديلات
+        Permission::create([
+            'group_id' => $superAdmin->id,
+            'model_names' => $allModels,
+            'can_view' => true,
+            'can_create' => true,
+            'can_edit' => true,
+            'can_delete' => true,
+        ]);
 
+        // مسؤول المراكز
         Permission::create([
             'group_id' => $centersAdmin->id,
-            'model_name' => 'App\Models\Admin\Center',
+            'model_names' => ['App\Models\Admin\Center'],
             'can_view' => true,
             'can_create' => true,
             'can_edit' => true,
             'can_delete' => true,
         ]);
 
+        // مسؤول المشاريع
         Permission::create([
             'group_id' => $projectsAdmin->id,
-            'model_name' => 'App\Models\Admin\Project',
+            'model_names' => ['App\Models\Admin\Project'],
             'can_view' => true,
             'can_create' => true,
             'can_edit' => true,
             'can_delete' => true,
         ]);
 
-        foreach ($models as $model) {
-            Permission::create([
-                'group_id' => $supervisor->id,
-                'model_name' => $model,
-                'can_view' => true,
-                'can_create' => false,
-                'can_edit' => false,
-                'can_delete' => false,
-            ]);
-        }
-
+        // مشرف - صلاحية واحدة تشمل جميع الموديلات (عرض فقط)
         Permission::create([
-            'group_id' => $hrOfficer->id,
-            'model_name' => 'App\Models\User',
+            'group_id' => $supervisor->id,
+            'model_names' => $allModels,
             'can_view' => true,
-            'can_create' => true,
-            'can_edit' => true,
-            'can_delete' => true,
+            'can_create' => false,
+            'can_edit' => false,
+            'can_delete' => false,
         ]);
 
+        // مسؤول الموارد البشرية - صلاحية واحدة للمستخدمين والمجموعات والصلاحيات
         Permission::create([
             'group_id' => $hrOfficer->id,
-            'model_name' => 'App\Models\Admin\Group',
-            'can_view' => true,
-            'can_create' => true,
-            'can_edit' => true,
-            'can_delete' => true,
-        ]);
-
-        Permission::create([
-            'group_id' => $hrOfficer->id,
-            'model_name' => 'App\Models\Admin\Permission',
+            'model_names' => [
+                'App\Models\User',
+                'App\Models\Admin\Group',
+                'App\Models\Admin\Permission',
+            ],
             'can_view' => true,
             'can_create' => true,
             'can_edit' => true,

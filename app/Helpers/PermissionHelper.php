@@ -77,13 +77,13 @@ class PermissionHelper
     {
         // صلاحيات المستخدم المباشرة
         $directPermissions = Permission::where('user_id', $user->id)
-            ->where('model_name', $modelName)
+            ->whereJsonContains('model_names', $modelName)
             ->get();
 
         // صلاحيات المجموعات التي ينتمي إليها المستخدم
         $groupIds = $user->groups()->pluck('groups.id');
         $groupPermissions = Permission::whereIn('group_id', $groupIds)
-            ->where('model_name', $modelName)
+            ->whereJsonContains('model_names', $modelName)
             ->get();
 
         return $directPermissions->concat($groupPermissions);

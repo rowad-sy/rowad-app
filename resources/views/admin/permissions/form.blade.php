@@ -93,7 +93,7 @@
                                     <input type="checkbox" name="model_names[]" value="{{ $value }}"
                                            class="form-check-input @error('model_names') is-invalid @enderror"
                                            id="model_{{ Str::slug($label) }}"
-                                           {{ in_array($value, old('model_names', isset($permission) ? [$permission->model_name] : [])) ? 'checked' : '' }}>
+                                           {{ in_array($value, old('model_names', isset($permission) ? ($permission->model_names ?? []) : [])) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="model_{{ Str::slug($label) }}">
                                         {{ $label }}
                                     </label>
@@ -103,9 +103,7 @@
                     </div>
                     @error('model_names') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     @error('model_names.*') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                    @if (!isset($permission))
-                        <small class="text-muted">يمكنك اختيار أكثر من موديل لإنشاء صلاحية واحدة لكل موديل</small>
-                    @endif
+                    <small class="text-muted">اختر موديل واحد أو أكثر لإنشاء صلاحية واحدة تشمل جميع الموديلات المحددة</small>
                 </div>
 
                 {{-- النطاق --}}

@@ -25,7 +25,10 @@ class PermissionController extends Controller
         $search = $request->input('search');
         $permissions = Permission::with(['user', 'group', 'center', 'project'])
             ->when($search, function ($q, $search) {
-                return $q->where('model_name', 'like', "%{$search}%");
+                return $q->where(function ($q) use ($search) {
+                    $q->whereHas('user', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                      ->orWhereHas('group', fn($q) => $q->where('name', 'like', "%{$search}%"));
+                });
             })->orderBy('id', 'desc')->paginate(10);
 
         return view('admin.permissions.index', compact('permissions', 'search'));
@@ -40,9 +43,13 @@ class PermissionController extends Controller
         $availableModels = [
             'App\Models\Admin\Center' => 'المراكز',
             'App\Models\Admin\Project' => 'المشاريع',
+            'App\Models\Admin\Department' => 'الإدارات',
             'App\Models\User' => 'المستخدمين',
             'App\Models\Admin\Group' => 'المجموعات',
             'App\Models\Admin\Permission' => 'الصلاحيات',
+            'App\Models\Admin\Hr\Employee' => 'الموظفين',
+            'App\Models\Admin\Hr\JobPosition' => 'المناصب الوظيفية',
+            'App\Models\Admin\Hr\Warning' => 'التنبيهات',
         ];
 
         return view('admin.permissions.form', compact('users', 'groups', 'centers', 'projects', 'availableModels'));
@@ -65,9 +72,10 @@ class PermissionController extends Controller
             'can_delete' => 'boolean',
         ]);
 
-        $base = [
+        Permission::create([
             'user_id' => $validated['assign_to'] === 'user' ? $validated['user_id'] : null,
             'group_id' => $validated['assign_to'] === 'group' ? $validated['group_id'] : null,
+            'model_names' => $validated['model_names'],
             'model_id' => $validated['model_id'] ?? null,
             'center_id' => $validated['center_id'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
@@ -75,15 +83,10 @@ class PermissionController extends Controller
             'can_create' => $validated['can_create'] ?? false,
             'can_edit' => $validated['can_edit'] ?? false,
             'can_delete' => $validated['can_delete'] ?? false,
-        ];
+        ]);
 
-        foreach ($validated['model_names'] as $model) {
-            Permission::create(array_merge($base, ['model_name' => $model]));
-        }
-
-        $count = count($validated['model_names']);
         return redirect()->route('admin.permissions.index')
-            ->with('success', "تم إضافة {$count} صلاحية بنجاح");
+            ->with('success', 'تم إضافة الصلاحية بنجاح');
     }
 
     public function edit(Permission $permission)
@@ -95,9 +98,13 @@ class PermissionController extends Controller
         $availableModels = [
             'App\Models\Admin\Center' => 'المراكز',
             'App\Models\Admin\Project' => 'المشاريع',
+            'App\Models\Admin\Department' => 'الإدارات',
             'App\Models\User' => 'المستخدمين',
             'App\Models\Admin\Group' => 'المجموعات',
             'App\Models\Admin\Permission' => 'الصلاحيات',
+            'App\Models\Admin\Hr\Employee' => 'الموظفين',
+            'App\Models\Admin\Hr\JobPosition' => 'المناصب الوظيفية',
+            'App\Models\Admin\Hr\Warning' => 'التنبيهات',
         ];
 
         return view('admin.permissions.form', compact('permission', 'users', 'groups', 'centers', 'projects', 'availableModels'));
@@ -120,9 +127,10 @@ class PermissionController extends Controller
             'can_delete' => 'boolean',
         ]);
 
-        $base = [
+        $permission->update([
             'user_id' => $validated['assign_to'] === 'user' ? $validated['user_id'] : null,
             'group_id' => $validated['assign_to'] === 'group' ? $validated['group_id'] : null,
+            'model_names' => $validated['model_names'],
             'model_id' => $validated['model_id'] ?? null,
             'center_id' => $validated['center_id'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
@@ -130,26 +138,10 @@ class PermissionController extends Controller
             'can_create' => $validated['can_create'] ?? false,
             'can_edit' => $validated['can_edit'] ?? false,
             'can_delete' => $validated['can_delete'] ?? false,
-        ];
-
-        // تحديث الصلاحية الحالية بأول موديل
-        $firstModel = array_shift($validated['model_names']);
-        $permission->update(array_merge($base, ['model_name' => $firstModel]));
-
-        // إنشاء صلاحيات جديدة للموديلات الإضافية
-        $created = 0;
-        foreach ($validated['model_names'] as $model) {
-            Permission::create(array_merge($base, ['model_name' => $model]));
-            $created++;
-        }
-
-        $msg = 'تم تحديث الصلاحية بنجاح';
-        if ($created) {
-            $msg .= " وتم إضافة {$created} صلاحية جديدة";
-        }
+        ]);
 
         return redirect()->route('admin.permissions.index')
-            ->with('success', $msg);
+            ->with('success', 'تم تحديث الصلاحية بنجاح');
     }
 
     public function destroy(Permission $permission)

@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CenterSeeder::class,
             ProjectSeeder::class,
+            DepartmentSeeder::class,
         ]);
 
         User::factory()->create([
@@ -27,6 +28,10 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             GroupSeeder::class,
+        ]);
+
+        $this->call([
+            EmployeeSeeder::class,
         ]);
     }
 }

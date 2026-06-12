@@ -52,7 +52,11 @@
                                 —
                             @endif
                         </td>
-                        <td><code>{{ class_basename($perm->model_name) }}</code></td>
+                        <td>
+                            @foreach ($perm->model_names ?? [] as $model)
+                                <code>{{ class_basename($model) }}</code>@if (!$loop->last), @endif
+                            @endforeach
+                        </td>
                         <td>
                             @if ($perm->center)
                                 <span class="badge bg-primary badge-scope">{{ $perm->center->name }}</span>
