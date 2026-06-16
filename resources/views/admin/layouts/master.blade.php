@@ -73,6 +73,12 @@
             <i class="bi bi-badge-tm"></i> <span>المناصب الوظيفية</span>
         </a>
         @endcanPermission
+        <div class="nav-section">الطلاب</div>
+        @canPermission('App\Models\Admin\Student\Student', 'view')
+        <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.*') ? 'active' : '' }}">
+            <i class="bi bi-mortarboard"></i> <span>الطلاب</span>
+        </a>
+        @endcanPermission
     </div>
 
     <!-- Main Content -->

@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\Hr\EmployeeController;
+use App\Http\Controllers\Admin\Student\StudentController;
 use App\Http\Controllers\Admin\Hr\JobPositionController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProfileController;
@@ -35,6 +36,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('profile', [ProfileController::class, 'index'])->name('profile');
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::put('profile/password', [ProfileController::class, 'password'])->name('profile.password');
+
+        Route::resource('students', StudentController::class)->except(['show']);
 
         Route::prefix('hr')->name('hr.')->group(function () {
             Route::resource('employees', EmployeeController::class);

@@ -244,3 +244,33 @@ body {
 .app-card-hr .app-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
 .app-card-students .app-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); }
 .app-card-health .app-icon { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+/* Select box improvements */
+select.form-select {
+    border-color: #cbd5e1;
+    background-color: #f8fafc;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+select.form-select:hover {
+    border-color: #94a3b8;
+    background-color: #fff;
+}
+select.form-select:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    background-color: #fff;
+}
+select.form-select-sm {
+    font-size: 0.8125rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+}
+select.form-select option {
+    background: #fff;
+    color: #1e293b;
+}
+select.form-select option:checked {
+    background: #eef2ff;
+    color: #4338ca;
+}

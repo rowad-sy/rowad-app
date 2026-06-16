@@ -12,6 +12,32 @@
     .perm-checkboxes label {
         margin-left: 1rem;
     }
+    .model-category { margin-bottom: 1.25rem; }
+    .model-category:last-child { margin-bottom: 0; }
+    .model-category-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px 6px 0 0;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+    }
+    .model-category-body {
+        border: 1px solid #dee2e6;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        padding: 0.75rem;
+    }
+    .category-toggle-all {
+        font-size: 0.8rem;
+        cursor: pointer;
+        color: #0d6efd;
+    }
+    .category-toggle-all:hover { text-decoration: underline; }
 </style>
 @endpush
 
@@ -38,17 +64,20 @@
                 <div class="mb-3">
                     <label class="form-label">تعيين إلى</label>
                     <div class="model-radio-group">
+                        @php
+                            $assignToDefault = isset($permission) ? ($permission->user_id ? 'user' : ($permission->group_id ? 'group' : 'user')) : 'user';
+                        @endphp
                         <div class="form-check">
                             <input type="radio" name="assign_to" value="user" class="form-check-input"
                                    id="assign_user"
-                                   {{ old('assign_to', $permission->user_id ?? 'user') === 'user' ? 'checked' : '' }}
+                                   {{ old('assign_to', $assignToDefault) === 'user' ? 'checked' : '' }}
                                    onchange="toggleAssignType()">
                             <label class="form-check-label" for="assign_user">مستخدم</label>
                         </div>
                         <div class="form-check">
                             <input type="radio" name="assign_to" value="group" class="form-check-input"
                                    id="assign_group"
-                                   {{ old('assign_to', $permission->group_id ?? '') === 'group' ? 'checked' : '' }}
+                                   {{ old('assign_to', $assignToDefault) === 'group' ? 'checked' : '' }}
                                    onchange="toggleAssignType()">
                             <label class="form-check-label" for="assign_group">مجموعة</label>
                         </div>
@@ -83,20 +112,39 @@
                     @error('group_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
-                {{-- الموديلات --}}
+                {{-- الموديلات - مجمعة حسب القسم --}}
                 <div class="mb-3">
                     <label class="form-label">الموديلات <span class="text-danger">*</span></label>
-                    <div class="row g-2 mt-1">
-                        @foreach ($availableModels as $value => $label)
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input type="checkbox" name="model_names[]" value="{{ $value }}"
-                                           class="form-check-input @error('model_names') is-invalid @enderror"
-                                           id="model_{{ Str::slug($label) }}"
-                                           {{ in_array($value, old('model_names', isset($permission) ? ($permission->model_names ?? []) : [])) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="model_{{ Str::slug($label) }}">
-                                        {{ $label }}
-                                    </label>
+                    <div class="d-flex gap-2 mb-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllModels(true)">تحديد الكل</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllModels(false)">إلغاء التحديد</button>
+                    </div>
+                    <div class="model-categories">
+                        @foreach ($modelGroups as $category => $models)
+                            @php $catId = 'cat_' . $loop->index; @endphp
+                            <div class="model-category">
+                                <div class="model-category-header" onclick="toggleCategory(this)">
+                                    <span>{{ $category }}</span>
+                                    <span class="category-toggle-all" onclick="event.stopPropagation(); toggleCategoryModels('{{ $catId }}', true)">تحديد الكل</span>
+                                </div>
+                                <div class="model-category-body">
+                                    <div class="row g-2" data-category="{{ $catId }}">
+                                        @foreach ($models as $value => $label)
+                                            @php $itemId = $catId . '_' . $loop->index; @endphp
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input type="checkbox" name="model_names[]" value="{{ $value }}"
+                                                           class="form-check-input category-checkbox @error('model_names') is-invalid @enderror"
+                                                           id="{{ $itemId }}"
+                                                           data-category="{{ $catId }}"
+                                                           {{ in_array($value, old('model_names', isset($permission) ? ($permission->model_names ?? []) : [])) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="{{ $itemId }}">
+                                                        {{ $label }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
@@ -182,6 +230,24 @@ function toggleAssignType() {
     document.getElementById('user_select_div').style.display = userRadio.checked ? 'block' : 'none';
     document.getElementById('group_select_div').style.display = userRadio.checked ? 'none' : 'block';
 }
+
+function toggleCategory(header) {
+    var body = header.nextElementSibling;
+    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleCategoryModels(category, select) {
+    document.querySelectorAll('[data-category="' + category + '"] .category-checkbox').forEach(function (cb) {
+        cb.checked = select;
+    });
+}
+
+function selectAllModels(select) {
+    document.querySelectorAll('.category-checkbox').forEach(function (cb) {
+        cb.checked = select;
+    });
+}
+
 document.addEventListener('DOMContentLoaded', toggleAssignType);
 </script>
 @endpush

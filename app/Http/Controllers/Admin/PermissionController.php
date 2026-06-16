@@ -40,19 +40,10 @@ class PermissionController extends Controller
         $groups = Group::orderBy('name')->get();
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
-        $availableModels = [
-            'App\Models\Admin\Center' => 'المراكز',
-            'App\Models\Admin\Project' => 'المشاريع',
-            'App\Models\Admin\Department' => 'الإدارات',
-            'App\Models\User' => 'المستخدمين',
-            'App\Models\Admin\Group' => 'المجموعات',
-            'App\Models\Admin\Permission' => 'الصلاحيات',
-            'App\Models\Admin\Hr\Employee' => 'الموظفين',
-            'App\Models\Admin\Hr\JobPosition' => 'المناصب الوظيفية',
-            'App\Models\Admin\Hr\Warning' => 'التنبيهات',
-        ];
+        $modelGroups = $this->modelGroups();
+        $availableModels = array_merge(...array_map('array_values', array_values($modelGroups)));
 
-        return view('admin.permissions.form', compact('users', 'groups', 'centers', 'projects', 'availableModels'));
+        return view('admin.permissions.form', compact('users', 'groups', 'centers', 'projects', 'modelGroups', 'availableModels'));
     }
 
     public function store(Request $request)
@@ -95,19 +86,10 @@ class PermissionController extends Controller
         $groups = Group::orderBy('name')->get();
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
-        $availableModels = [
-            'App\Models\Admin\Center' => 'المراكز',
-            'App\Models\Admin\Project' => 'المشاريع',
-            'App\Models\Admin\Department' => 'الإدارات',
-            'App\Models\User' => 'المستخدمين',
-            'App\Models\Admin\Group' => 'المجموعات',
-            'App\Models\Admin\Permission' => 'الصلاحيات',
-            'App\Models\Admin\Hr\Employee' => 'الموظفين',
-            'App\Models\Admin\Hr\JobPosition' => 'المناصب الوظيفية',
-            'App\Models\Admin\Hr\Warning' => 'التنبيهات',
-        ];
+        $modelGroups = $this->modelGroups();
+        $availableModels = array_merge(...array_values($modelGroups));
 
-        return view('admin.permissions.form', compact('permission', 'users', 'groups', 'centers', 'projects', 'availableModels'));
+        return view('admin.permissions.form', compact('permission', 'users', 'groups', 'centers', 'projects', 'modelGroups', 'availableModels'));
     }
 
     public function update(Request $request, Permission $permission)
@@ -150,5 +132,31 @@ class PermissionController extends Controller
 
         return redirect()->route('admin.permissions.index')
             ->with('success', 'تم حذف الصلاحية بنجاح');
+    }
+
+    private function modelGroups(): array
+    {
+        return [
+            'الإدارة' => [
+                'App\Models\Admin\Center' => 'المراكز',
+                'App\Models\Admin\Project' => 'المشاريع',
+                'App\Models\Admin\Department' => 'الإدارات',
+                'App\Models\User' => 'المستخدمين',
+                'App\Models\Admin\Group' => 'المجموعات',
+                'App\Models\Admin\Permission' => 'الصلاحيات',
+            ],
+            'الموارد البشرية' => [
+                'App\Models\Admin\Hr\Employee' => 'الموظفين',
+                'App\Models\Admin\Hr\JobPosition' => 'المناصب الوظيفية',
+                'App\Models\Admin\Hr\Warning' => 'التنبيهات',
+            ],
+            'الطلاب' => [
+                'App\Models\Admin\Student\Student' => 'الطلاب',
+                'App\Models\Admin\Student\Course' => 'الدورات',
+                'App\Models\Admin\Student\Period' => 'الفترات',
+                'App\Models\Admin\Student\StudentEnrollment' => 'التسجيلات',
+                'App\Models\Admin\Student\Attendance' => 'الحضور',
+            ],
+        ];
     }
 }
