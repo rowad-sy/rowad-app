@@ -61,6 +61,29 @@ class Employee extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::created(function (Employee $employee) {
+            $defaults = [
+                0 => ['start_time' => null, 'end_time' => null, 'is_day_off' => true],
+                1 => ['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                2 => ['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                3 => ['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                4 => ['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                5 => ['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                6 => ['start_time' => null, 'end_time' => null, 'is_day_off' => true],
+            ];
+            foreach ($defaults as $day => $data) {
+                $employee->workSchedules()->create([
+                    'day_of_week' => $day,
+                    'start_time' => $data['start_time'],
+                    'end_time' => $data['end_time'],
+                    'is_day_off' => $data['is_day_off'],
+                ]);
+            }
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

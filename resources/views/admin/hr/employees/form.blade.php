@@ -8,6 +8,50 @@
     .inline-table th { white-space: nowrap; }
     .tab-content { padding-top: 1.5rem; }
     .schedule-row td { vertical-align: middle; }
+
+    .user-search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        max-height: 220px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 4px 16px rgba(0,0,0,.12);
+        display: none;
+    }
+    .user-search-results.show { display: block; }
+    .user-search-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background .12s;
+    }
+    .user-search-item:last-child { border-bottom: none; }
+    .user-search-item:hover,
+    .user-search-item.highlighted { background: #f0f7ff; }
+    .user-search-item.selected { background: #e9ecef; font-weight: 500; }
+    .user-search-item small { color: #6c757d; }
+    .user-search-clear {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #999;
+        cursor: pointer;
+        display: none;
+        padding: 2px 8px;
+        font-size: 20px;
+        line-height: 1;
+        z-index: 2;
+    }
+    .user-search-clear:hover { color: #dc3545; }
 </style>
 @endpush
 
@@ -52,34 +96,47 @@
         {{-- TAB 1: BASIC INFO --}}
         <div class="tab-pane fade show active" id="basic" role="tabpanel">
             <div class="row g-3">
-                <div class="col-md-3">
+                {{-- User --}}
+                <div class="col-md-4" id="userSelectWrapper">
+                    <label class="form-label">المستخدم (اختياري)</label>
+                    <input type="hidden" name="user_id" id="userId" value="{{ old('user_id', $employee->user_id ?? '') }}">
+                    <div class="position-relative">
+                        <input type="text" class="form-control" id="userSearchInput" placeholder="ابحث عن مستخدم..."
+                               autocomplete="off"
+                               value="{{ old('user_name', $employee->user->name ?? '') }}">
+                        <button type="button" class="user-search-clear" id="userSearchClear">&times;</button>
+                        <div class="user-search-results" id="userSearchResults">
+                            <div class="user-search-item" data-value="">— بدون مستخدم —</div>
+                            @foreach ($users as $user)
+                                <div class="user-search-item" data-value="{{ $user->id }}">{{ $user->name }} <small>{{ $user->email }}</small></div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @error('user_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                </div>
+
+                {{-- Employee Code --}}
+                <div class="col-md-2">
                     <label class="form-label">كود الموظف <span class="text-danger">*</span></label>
                     <input type="text" name="employee_code" class="form-control @error('employee_code') is-invalid @enderror"
                            value="{{ old('employee_code', $employee->employee_code ?? '') }}" required>
                     @error('employee_code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">الحالة</label>
                     <select name="status" class="form-select">
                         <option value="active" {{ old('status', $employee->status ?? 'active') === 'active' ? 'selected' : '' }}>فعال</option>
                         <option value="inactive" {{ old('status', $employee->status ?? '') === 'inactive' ? 'selected' : '' }}>غير فعال</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">رقم الهوية / جواز السفر</label>
                     <input type="text" name="id_number" class="form-control @error('id_number') is-invalid @enderror"
                            value="{{ old('id_number', $employee->id_number ?? '') }}">
                     @error('id_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">الجنس <span class="text-danger">*</span></label>
-                    <select name="gender" class="form-select @error('gender') is-invalid @enderror" required>
-                        <option value="male" {{ old('gender', $employee->gender ?? '') === 'male' ? 'selected' : '' }}>ذكر</option>
-                        <option value="female" {{ old('gender', $employee->gender ?? '') === 'female' ? 'selected' : '' }}>أنثى</option>
-                    </select>
-                    @error('gender') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
 
+                {{-- Name AR --}}
                 <div class="col-md-6">
                     <label class="form-label">الاسم AR <span class="text-danger">*</span></label>
                     <div class="row g-2">
@@ -96,6 +153,7 @@
                     @error('last_name_ar') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
+                {{-- Name EN --}}
                 <div class="col-md-6">
                     <label class="form-label">الاسم EN</label>
                     <div class="row g-2">
@@ -110,6 +168,7 @@
                     </div>
                 </div>
 
+                {{-- Parents --}}
                 <div class="col-md-3">
                     <label class="form-label">اسم الأب AR</label>
                     <input type="text" name="father_name_ar" class="form-control"
@@ -131,7 +190,16 @@
                            value="{{ old('mother_name_en', $employee->mother_name_en ?? '') }}" dir="ltr">
                 </div>
 
-                <div class="col-md-3">
+                {{-- Personal details --}}
+                <div class="col-md-2">
+                    <label class="form-label">الجنس <span class="text-danger">*</span></label>
+                    <select name="gender" class="form-select @error('gender') is-invalid @enderror" required>
+                        <option value="male" {{ old('gender', $employee->gender ?? '') === 'male' ? 'selected' : '' }}>ذكر</option>
+                        <option value="female" {{ old('gender', $employee->gender ?? '') === 'female' ? 'selected' : '' }}>أنثى</option>
+                    </select>
+                    @error('gender') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+                <div class="col-md-2">
                     <label class="form-label">الحالة الاجتماعية</label>
                     <select name="marital_status" class="form-select">
                         <option value="">اختر</option>
@@ -152,18 +220,19 @@
                            value="{{ old('birth_date', $employee->birth_date ?? '') }}">
                     @error('birth_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label">مكان الميلاد</label>
                     <input type="text" name="birth_place" class="form-control"
                            value="{{ old('birth_place', $employee->birth_place ?? '') }}">
                 </div>
-                <div class="col-md-2">
+
+                {{-- Nationality + Center + Department + Project --}}
+                <div class="col-md-3">
                     <label class="form-label">الجنسية</label>
                     <input type="text" name="nationality" class="form-control"
                            value="{{ old('nationality', $employee->nationality ?? '') }}">
                 </div>
-
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">المركز</label>
                     <select name="center_id" class="form-select">
                         <option value="">اختر مركز</option>
@@ -172,7 +241,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">الإدارة</label>
                     <select name="department_id" class="form-select">
                         <option value="">اختر إدارة</option>
@@ -181,7 +250,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">المشروع</label>
                     <select name="project_id" class="form-select">
                         <option value="">اختر مشروع</option>
@@ -205,7 +274,15 @@
 
             @php
                 $days = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
-                $savedSchedules = isset($employee) ? $employee->workSchedules->keyBy('day_of_week') : collect();
+                $savedSchedules = isset($employee) ? $employee->workSchedules->keyBy('day_of_week') : collect([
+                    0 => (object)['start_time' => null,    'end_time' => null,    'is_day_off' => true],
+                    1 => (object)['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                    2 => (object)['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                    3 => (object)['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                    4 => (object)['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                    5 => (object)['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
+                    6 => (object)['start_time' => null,    'end_time' => null,    'is_day_off' => true],
+                ]);
             @endphp
 
             <div class="table-responsive">
@@ -718,6 +795,101 @@ document.addEventListener('DOMContentLoaded', function () {
             </tr>
         `);
     });
+
+    // ---- User search ----
+    (function() {
+        var input = document.getElementById('userSearchInput');
+        if (!input) return;
+        var hidden = document.getElementById('userId');
+        var results = document.getElementById('userSearchResults');
+        var clearBtn = document.getElementById('userSearchClear');
+        var items = results.querySelectorAll('.user-search-item');
+        var selectedVal = hidden.value;
+
+        function selectItem(item) {
+            items.forEach(function(i) { i.classList.remove('selected'); });
+            item.classList.add('selected');
+            selectedVal = item.dataset.value;
+            hidden.value = selectedVal;
+            input.value = item.textContent.trim().replace(/\s+/g, ' ').split(' <')[0];
+            clearBtn.style.display = 'block';
+        }
+
+        // Pre-select
+        items.forEach(function(item) {
+            if (item.dataset.value === selectedVal) {
+                item.classList.add('selected');
+                input.value = item.textContent.trim().replace(/\s+/g, ' ').split(' <')[0];
+                clearBtn.style.display = 'block';
+            }
+        });
+
+        input.addEventListener('focus', function () {
+            results.classList.add('show');
+            filterItems(this.value);
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!document.getElementById('userSelectWrapper').contains(e.target)) {
+                results.classList.remove('show');
+            }
+        });
+
+        input.addEventListener('input', function () {
+            filterItems(this.value);
+            results.classList.add('show');
+            clearBtn.style.display = this.value ? 'block' : 'none';
+        });
+
+        function filterItems(q) {
+            q = q.toLowerCase().trim();
+            items.forEach(function (item) {
+                item.style.display = (!q || item.textContent.toLowerCase().includes(q)) ? 'block' : 'none';
+            });
+        }
+
+        items.forEach(function (item) {
+            item.addEventListener('click', function () {
+                selectItem(this);
+                results.classList.remove('show');
+            });
+        });
+
+        clearBtn.addEventListener('click', function () {
+            hidden.value = '';
+            input.value = '';
+            items.forEach(function (i) { i.classList.remove('selected'); });
+            clearBtn.style.display = 'none';
+            input.focus();
+            filterItems('');
+            results.classList.add('show');
+        });
+
+        input.addEventListener('keydown', function (e) {
+            var visible = Array.from(items).filter(function (i) { return i.style.display !== 'none'; });
+            if (!visible.length) return;
+            var hl = results.querySelector('.highlighted');
+            var idx = hl ? visible.indexOf(hl) : -1;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                var next = (idx + 1) % visible.length;
+                if (hl) hl.classList.remove('highlighted');
+                visible[next].classList.add('highlighted');
+                visible[next].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                var prev = (idx - 1 + visible.length) % visible.length;
+                if (hl) hl.classList.remove('highlighted');
+                visible[prev].classList.add('highlighted');
+                visible[prev].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (hl) { selectItem(hl); results.classList.remove('show'); }
+            } else if (e.key === 'Escape') {
+                results.classList.remove('show');
+            }
+        });
+    })();
 });
 </script>
 @endpush

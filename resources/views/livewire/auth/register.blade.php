@@ -8,7 +8,7 @@ use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.auth')] class extends Component {
+new #[Layout('components.layouts.auth-bootstrap', ['title' => 'إنشاء حساب جديد', 'description' => 'أدخل بياناتك لإنشاء حساب في النظام'])] class extends Component {
     public string $name = '';
     public string $email = '';
     public string $password = '';
@@ -35,60 +35,50 @@ new #[Layout('components.layouts.auth')] class extends Component {
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header title="Create an account" description="Enter your details below to create your account" />
-
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
-
-    <form wire:submit="register" class="flex flex-col gap-6">
-        <!-- Name -->
-        <div class="grid gap-2">
-            <flux:input wire:model="name" id="name" label="{{ __('Name') }}" type="text" name="name" required autofocus autocomplete="name" placeholder="Full name" />
+<div>
+    <form wire:submit="register">
+        <div class="mb-3">
+            <label for="name" class="form-label">الاسم الكامل</label>
+            <input type="text" id="name" wire:model="name" class="form-control @error('name') is-invalid @enderror"
+                   placeholder="الاسم الأول واللقب" required autofocus autocomplete="name">
+            @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <!-- Email Address -->
-        <div class="grid gap-2">
-            <flux:input wire:model="email" id="email" label="{{ __('Email address') }}" type="email" name="email" required autocomplete="email" placeholder="email@example.com" />
+        <div class="mb-3">
+            <label for="email" class="form-label">البريد الإلكتروني</label>
+            <input type="email" id="email" wire:model="email" class="form-control @error('email') is-invalid @enderror"
+                   placeholder="example@example.com" required autocomplete="email">
+            @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <!-- Password -->
-        <div class="grid gap-2">
-            <flux:input
-                wire:model="password"
-                id="password"
-                label="{{ __('Password') }}"
-                type="password"
-                name="password"
-                required
-                autocomplete="new-password"
-                placeholder="Password"
-            />
+        <div class="mb-3">
+            <label for="password" class="form-label">كلمة المرور</label>
+            <input type="password" id="password" wire:model="password" class="form-control @error('password') is-invalid @enderror"
+                   placeholder="••••••••" required autocomplete="new-password">
+            @error('password') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <!-- Confirm Password -->
-        <div class="grid gap-2">
-            <flux:input
-                wire:model="password_confirmation"
-                id="password_confirmation"
-                label="{{ __('Confirm password') }}"
-                type="password"
-                name="password_confirmation"
-                required
-                autocomplete="new-password"
-                placeholder="Confirm password"
-            />
+        <div class="mb-4">
+            <label for="password_confirmation" class="form-label">تأكيد كلمة المرور</label>
+            <input type="password" id="password_confirmation" wire:model="password_confirmation"
+                   class="form-control @error('password_confirmation') is-invalid @enderror"
+                   placeholder="••••••••" required autocomplete="new-password">
+            @error('password_confirmation') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <div class="flex items-center justify-end">
-            <flux:button type="submit" variant="primary" class="w-full">
-                {{ __('Create account') }}
-            </flux:button>
-        </div>
+        <button type="submit" class="btn btn-auth" wire:loading.attr="disabled">
+            <span wire:loading.remove>إنشاء الحساب</span>
+            <span wire:loading>
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                جاري الإنشاء...
+            </span>
+        </button>
     </form>
 
-    <div class="space-x-1 text-center text-sm text-zinc-600 dark:text-zinc-400">
-        Already have an account?
-        <x-text-link href="{{ route('login') }}">Log in</x-text-link>
+    <div class="auth-divider"><span>أو</span></div>
+
+    <div class="auth-footer">
+        لديك حساب بالفعل؟
+        <a href="{{ route('login') }}">تسجيل الدخول</a>
     </div>
 </div>

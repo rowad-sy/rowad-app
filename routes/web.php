@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CenterController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\GroupController;
+use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\Hr\EmployeeController;
 use App\Http\Controllers\Admin\Hr\JobPositionController;
@@ -29,7 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('groups', GroupController::class);
         Route::resource('permissions', PermissionController::class);
 
-        Route::get('users', [UserController::class, 'index'])->name('users.index');
+        Route::resource('users', UserController::class)->except(['show']);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
         Route::get('profile', [ProfileController::class, 'index'])->name('profile');
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -38,6 +39,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('hr')->name('hr.')->group(function () {
             Route::resource('employees', EmployeeController::class);
             Route::resource('job-positions', JobPositionController::class);
+            Route::post('employees/export', [ExportController::class, 'employees'])->name('employees.export');
+            Route::post('employees/export-full', [ExportController::class, 'employeesFullExport'])->name('employees.export-full');
+            Route::post('employees/import', [ExportController::class, 'importEmployees'])->name('employees.import');
+            Route::post('employees/import-full', [ExportController::class, 'importEmployeesFull'])->name('employees.import-full');
         });
     });
 

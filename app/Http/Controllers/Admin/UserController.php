@@ -5,24 +5,95 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
     public function __construct()
     {
         $this->middleware('permission:App\Models\User,view')->only(['index']);
+        $this->middleware('permission:App\Models\User,create')->only(['create', 'store']);
+        $this->middleware('permission:App\Models\User,edit')->only(['edit', 'update']);
+        $this->middleware('permission:App\Models\User,delete')->only(['destroy']);
     }
 
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $status = $request->input('status');
+        $type = $request->input('type');
+        $perPage = (int) $request->input('per_page', 10);
+
         $users = User::withCount('groups')
             ->when($search, function ($q, $search) {
                 return $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
-            })->orderBy('name')->paginate(10);
+            })
+            ->when($status && $status !== 'all', function ($q) use ($status) {
+                return $q->where('is_active', $status === 'active');
+            })
+            ->when($type && $type !== 'all', function ($q) use ($type) {
+                return $q->where('type', $type);
+            })
+            ->orderBy('name')
+            ->paginate($perPage)
+            ->appends($request->only(['search', 'status', 'type', 'per_page']));
 
-        return view('admin.users.index', compact('users', 'search'));
+        return view('admin.users.index', compact('users', 'search', 'status', 'type', 'perPage'));
+    }
+
+    public function create()
+    {
+        return view('admin.users.form');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'is_active' => 'boolean',
+            'type' => 'nullable|string|in:employee,beneficiary,student',
+        ]);
+
+        User::create($validated);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'تم إضافة المستخدم بنجاح');
+    }
+
+    public function edit(User $user)
+    {
+        return view('admin.users.form', compact('user'));
+    }
+
+    public function update(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'password' => 'nullable|string|min:8|confirmed',
+            'is_active' => 'boolean',
+            'type' => 'nullable|string|in:employee,beneficiary,student',
+        ]);
+
+        if (empty($validated['password'])) {
+            unset($validated['password']);
+        }
+
+        $user->update($validated);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'تم تحديث المستخدم بنجاح');
+    }
+
+    public function destroy(User $user)
+    {
+        $user->delete();
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'تم حذف المستخدم بنجاح');
     }
 
     public function toggleStatus(User $user)

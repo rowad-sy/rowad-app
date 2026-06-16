@@ -10,7 +10,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.auth')] class extends Component {
+new #[Layout('components.layouts.auth-bootstrap', ['title' => 'إعادة تعيين كلمة المرور', 'description' => 'أدخل كلمة المرور الجديدة أدناه'])] class extends Component {
     #[Locked]
     public string $token = '';
     public string $email = '';
@@ -38,9 +38,6 @@ new #[Layout('components.layouts.auth')] class extends Component {
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Here we will attempt to reset the user's password. If it is successful we
-        // will update the password on an actual user model and persist it to the
-        // database. Otherwise we will parse the error and return the response.
         $status = Password::reset(
             $this->only('email', 'password', 'password_confirmation', 'token'),
             function ($user) {
@@ -53,12 +50,8 @@ new #[Layout('components.layouts.auth')] class extends Component {
             }
         );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
         if ($status != Password::PasswordReset) {
             $this->addError('email', __($status));
-
             return;
         }
 
@@ -68,50 +61,36 @@ new #[Layout('components.layouts.auth')] class extends Component {
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header title="Reset password" description="Please enter your new password below" />
-
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
-
-    <form wire:submit="resetPassword" class="flex flex-col gap-6">
-        <!-- Email Address -->
-        <div class="grid gap-2">
-            <flux:input wire:model="email" id="email" label="{{ __('Email') }}" type="email" name="email" required autocomplete="email" />
+<div>
+    <form wire:submit="resetPassword">
+        <div class="mb-3">
+            <label for="email" class="form-label">البريد الإلكتروني</label>
+            <input type="email" id="email" wire:model="email" class="form-control @error('email') is-invalid @enderror"
+                   required autocomplete="email" readonly>
+            @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <!-- Password -->
-        <div class="grid gap-2">
-            <flux:input
-                wire:model="password"
-                id="password"
-                label="{{ __('Password') }}"
-                type="password"
-                name="password"
-                required
-                autocomplete="new-password"
-                placeholder="Password"
-            />
+        <div class="mb-3">
+            <label for="password" class="form-label">كلمة المرور الجديدة</label>
+            <input type="password" id="password" wire:model="password" class="form-control @error('password') is-invalid @enderror"
+                   placeholder="••••••••" required autocomplete="new-password">
+            @error('password') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <!-- Confirm Password -->
-        <div class="grid gap-2">
-            <flux:input
-                wire:model="password_confirmation"
-                id="password_confirmation"
-                label="{{ __('Confirm password') }}"
-                type="password"
-                name="password_confirmation"
-                required
-                autocomplete="new-password"
-                placeholder="Confirm password"
-            />
+        <div class="mb-4">
+            <label for="password_confirmation" class="form-label">تأكيد كلمة المرور</label>
+            <input type="password" id="password_confirmation" wire:model="password_confirmation"
+                   class="form-control @error('password_confirmation') is-invalid @enderror"
+                   placeholder="••••••••" required autocomplete="new-password">
+            @error('password_confirmation') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <div class="flex items-center justify-end">
-            <flux:button type="submit" variant="primary" class="w-full">
-                {{ __('Reset password') }}
-            </flux:button>
-        </div>
+        <button type="submit" class="btn btn-auth" wire:loading.attr="disabled">
+            <span wire:loading.remove>إعادة تعيين كلمة المرور</span>
+            <span wire:loading>
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                جاري الحفظ...
+            </span>
+        </button>
     </form>
 </div>

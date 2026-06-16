@@ -5,7 +5,7 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.auth')] class extends Component {
+new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تأكيد كلمة المرور', 'description' => 'هذه منطقة آمنة، يرجى تأكيد كلمة المرور قبل المتابعة'])] class extends Component {
     public string $password = '';
 
     /**
@@ -32,30 +32,21 @@ new #[Layout('components.layouts.auth')] class extends Component {
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header
-        title="Confirm password"
-        description="This is a secure area of the application. Please confirm your password before continuing."
-    />
-
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
-
-    <form wire:submit="confirmPassword" class="flex flex-col gap-6">
-        <!-- Password -->
-        <div class="grid gap-2">
-            <flux:input
-                wire:model="password"
-                id="password"
-                label="{{ __('Password') }}"
-                type="password"
-                name="password"
-                required
-                autocomplete="new-password"
-                placeholder="Password"
-            />
+<div>
+    <form wire:submit="confirmPassword">
+        <div class="mb-4">
+            <label for="password" class="form-label">كلمة المرور</label>
+            <input type="password" id="password" wire:model="password" class="form-control @error('password') is-invalid @enderror"
+                   placeholder="••••••••" required autocomplete="current-password">
+            @error('password') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <flux:button variant="primary" type="submit" class="w-full">{{ __('Confirm') }}</flux:button>
+        <button type="submit" class="btn btn-auth" wire:loading.attr="disabled">
+            <span wire:loading.remove>تأكيد</span>
+            <span wire:loading>
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                جاري التحقق...
+            </span>
+        </button>
     </form>
 </div>

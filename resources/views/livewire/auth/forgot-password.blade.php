@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Password;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.auth')] class extends Component {
+new #[Layout('components.layouts.auth-bootstrap', ['title' => 'استعادة كلمة المرور', 'description' => 'أدخل بريدك الإلكتروني لاستلام رابط إعادة تعيين كلمة المرور'])] class extends Component {
     public string $email = '';
 
     /**
@@ -18,27 +18,32 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         Password::sendResetLink($this->only('email'));
 
-        session()->flash('status', __('A reset link will be sent if the account exists.'));
+        session()->flash('status', 'تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني إن كان الحساب موجوداً.');
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header title="Forgot password" description="Enter your email to receive a password reset link" />
-
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
-
-    <form wire:submit="sendPasswordResetLink" class="flex flex-col gap-6">
-        <!-- Email Address -->
-        <div class="grid gap-2">
-            <flux:input wire:model="email" label="{{ __('Email Address') }}" type="email" name="email" required autofocus placeholder="email@example.com" />
+<div>
+    <form wire:submit="sendPasswordResetLink">
+        <div class="mb-4">
+            <label for="email" class="form-label">البريد الإلكتروني</label>
+            <input type="email" id="email" wire:model="email" class="form-control @error('email') is-invalid @enderror"
+                   placeholder="example@example.com" required autofocus>
+            @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        <flux:button variant="primary" type="submit" class="w-full">{{ __('Email password reset link') }}</flux:button>
+        <button type="submit" class="btn btn-auth" wire:loading.attr="disabled">
+            <span wire:loading.remove>إرسال رابط إعادة التعيين</span>
+            <span wire:loading>
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                جاري الإرسال...
+            </span>
+        </button>
     </form>
 
-    <div class="space-x-1 text-center text-sm text-zinc-400">
-        Or, return to
-        <x-text-link href="{{ route('login') }}">log in</x-text-link>
+    <div class="auth-divider"><span>أو</span></div>
+
+    <div class="auth-footer">
+        تذكرت كلمة المرور؟
+        <a href="{{ route('login') }}">تسجيل الدخول</a>
     </div>
 </div>

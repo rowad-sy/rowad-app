@@ -8,6 +8,7 @@ use App\Models\Admin\Department;
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Hr\JobPosition;
 use App\Models\Admin\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -24,15 +25,37 @@ class EmployeeController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $status = $request->input('status');
+        $centerId = $request->input('center_id');
+        $projectId = $request->input('project_id');
+        $perPage = (int) $request->input('per_page', 10);
+
         $employees = Employee::with(['center', 'department', 'project'])
             ->when($search, function ($q, $search) {
-                return $q->where('first_name_ar', 'like', "%{$search}%")
-                    ->orWhere('last_name_ar', 'like', "%{$search}%")
-                    ->orWhere('employee_code', 'like', "%{$search}%")
-                    ->orWhere('id_number', 'like', "%{$search}%");
-            })->orderBy('id', 'desc')->paginate(10);
+                return $q->where(function ($q) use ($search) {
+                    $q->where('first_name_ar', 'like', "%{$search}%")
+                        ->orWhere('last_name_ar', 'like', "%{$search}%")
+                        ->orWhere('employee_code', 'like', "%{$search}%")
+                        ->orWhere('id_number', 'like', "%{$search}%");
+                });
+            })
+            ->when($status && $status !== 'all', function ($q) use ($status) {
+                return $q->where('status', $status);
+            })
+            ->when($centerId, function ($q, $centerId) {
+                return $q->where('center_id', $centerId);
+            })
+            ->when($projectId, function ($q, $projectId) {
+                return $q->where('project_id', $projectId);
+            })
+            ->orderBy('id', 'desc')
+            ->paginate($perPage)
+            ->appends($request->only(['search', 'status', 'center_id', 'project_id', 'per_page']));
 
-        return view('admin.hr.employees.index', compact('employees', 'search'));
+        $centers = Center::orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
+
+        return view('admin.hr.employees.index', compact('employees', 'search', 'status', 'centerId', 'projectId', 'perPage', 'centers', 'projects'));
     }
 
     public function create()
@@ -41,13 +64,15 @@ class EmployeeController extends Controller
         $departments = Department::where('is_active', true)->orderBy('name_ar')->get();
         $projects = Project::orderBy('name')->get();
         $positions = JobPosition::orderBy('title_ar')->get();
+        $users = User::orderBy('name')->get();
 
-        return view('admin.hr.employees.form', compact('centers', 'departments', 'projects', 'positions'));
+        return view('admin.hr.employees.form', compact('centers', 'departments', 'projects', 'positions', 'users'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'user_id' => 'nullable|exists:users,id',
             'employee_code' => 'required|string|max:20|unique:hr_employees,employee_code',
             'status' => 'required|in:active,inactive',
             'id_number' => 'nullable|string|max:50',
@@ -87,13 +112,15 @@ class EmployeeController extends Controller
         $departments = Department::where('is_active', true)->orderBy('name_ar')->get();
         $projects = Project::orderBy('name')->get();
         $positions = JobPosition::orderBy('title_ar')->get();
+        $users = User::orderBy('name')->get();
 
-        return view('admin.hr.employees.form', compact('employee', 'centers', 'departments', 'projects', 'positions'));
+        return view('admin.hr.employees.form', compact('employee', 'centers', 'departments', 'projects', 'positions', 'users'));
     }
 
     public function update(Request $request, Employee $employee)
     {
         $validated = $request->validate([
+            'user_id' => 'nullable|exists:users,id',
             'employee_code' => 'required|string|max:20|unique:hr_employees,employee_code,' . $employee->id,
             'status' => 'required|in:active,inactive',
             'id_number' => 'nullable|string|max:50',
