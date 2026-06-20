@@ -156,6 +156,8 @@ class PermissionController extends Controller
                 'App\Models\Admin\Student\Period' => 'الفترات',
                 'App\Models\Admin\Student\StudentEnrollment' => 'التسجيلات',
                 'App\Models\Admin\Student\Attendance' => 'الحضور',
+                'App\Models\Admin\Student\Certificate' => 'الشهادات',
+                'App\Models\Admin\Student\CertificateDesign' => 'تصاميم الشهادات',
             ],
         ];
     }

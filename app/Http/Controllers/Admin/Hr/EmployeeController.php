@@ -26,9 +26,12 @@ class EmployeeController extends Controller
     {
         $search = $request->input('search');
         $status = $request->input('status');
-        $centerId = $request->input('center_id');
-        $projectId = $request->input('project_id');
         $perPage = (int) $request->input('per_page', 10);
+
+        // Default filters to current user's center/project (only when filter not explicitly submitted)
+        $userEmployee = Employee::where('user_id', auth()->id())->first();
+        $centerId = $request->has('center_id') ? $request->input('center_id') : ($userEmployee?->center_id ?? '');
+        $projectId = $request->has('project_id') ? $request->input('project_id') : ($userEmployee?->project_id ?? '');
 
         $employees = Employee::with(['center', 'department', 'project'])
             ->when($search, function ($q, $search) {
@@ -66,7 +69,15 @@ class EmployeeController extends Controller
         $positions = JobPosition::orderBy('title_ar')->get();
         $users = User::orderBy('name')->get();
 
-        return view('admin.hr.employees.form', compact('centers', 'departments', 'projects', 'positions', 'users'));
+        // Default center/project from current user's employee record
+        $userEmployee = Employee::where('user_id', auth()->id())->first();
+        $defaultCenterId = $userEmployee?->center_id;
+        $defaultProjectId = $userEmployee?->project_id;
+
+        return view('admin.hr.employees.form', compact(
+            'centers', 'departments', 'projects', 'positions', 'users',
+            'defaultCenterId', 'defaultProjectId'
+        ));
     }
 
     public function store(Request $request)

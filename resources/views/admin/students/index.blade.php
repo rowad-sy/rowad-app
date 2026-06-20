@@ -8,9 +8,14 @@
         <h4>الطلاب</h4>
         <p>إدارة بيانات الطلاب</p>
     </div>
-    <a href="{{ route('admin.students.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> إضافة طالب
-    </a>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-success" id="issueCertBtn" style="display:none;" onclick="issueCertificates()">
+            <i class="bi bi-file-earmark-check me-1"></i> إصدار شهادة
+        </button>
+        <a href="{{ route('admin.students.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> إضافة طالب
+        </a>
+    </div>
 </div>
 
 <div class="table-container">
@@ -68,11 +73,12 @@
         </form>
     </div>
 
+    <form id="certForm" method="GET" action="{{ route('admin.students.certificates.issue') }}">
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
-                    <th>#</th>
+                    <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
                     <th>الكود</th>
                     <th>الاسم</th>
                     <th>الجنس</th>
@@ -86,7 +92,7 @@
             <tbody>
                 @forelse ($students as $student)
                     <tr>
-                        <td>{{ $student->id }}</td>
+                        <td><input type="checkbox" name="student_ids[]" value="{{ $student->id }}" class="student-check" onchange="updateIssueBtn()"></td>
                         <td><code>{{ $student->student_code }}</code></td>
                         <td class="fw-medium">{{ $student->first_name_ar }} {{ $student->last_name_ar }}</td>
                         <td>
@@ -111,6 +117,9 @@
                             @endif
                         </td>
                         <td>
+                            <a href="{{ route('admin.students.show', $student) }}" class="btn btn-sm btn-outline-info">
+                                <i class="bi bi-eye"></i>
+                            </a>
                             <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
@@ -126,7 +135,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
+                        <td colspan="10" class="text-center py-4 text-muted">
                             <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                             لا يوجد طلاب
                         </td>
@@ -144,5 +153,22 @@
             {{ $students->links() }}
         </div>
     </div>
+    </form>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+function toggleSelectAll(master) {
+    document.querySelectorAll('.student-check').forEach(cb => cb.checked = master.checked);
+    updateIssueBtn();
+}
+function updateIssueBtn() {
+    const checked = document.querySelectorAll('.student-check:checked').length;
+    document.getElementById('issueCertBtn').style.display = checked > 0 ? 'inline-block' : 'none';
+}
+function issueCertificates() {
+    document.getElementById('certForm').submit();
+}
+</script>
+@endpush

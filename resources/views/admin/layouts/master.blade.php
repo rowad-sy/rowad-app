@@ -75,8 +75,38 @@
         @endcanPermission
         <div class="nav-section">الطلاب</div>
         @canPermission('App\Models\Admin\Student\Student', 'view')
-        <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.*') ? 'active' : '' }}">
+        <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.index') || request()->routeIs('admin.students.create') || request()->routeIs('admin.students.edit') || request()->routeIs('admin.students.show') || request()->routeIs('admin.students.attendance') || request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
             <i class="bi bi-mortarboard"></i> <span>الطلاب</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Student\Course', 'view')
+        <a href="{{ route('admin.students.courses.index') }}" class="nav-link {{ request()->routeIs('admin.students.courses.*') ? 'active' : '' }}">
+            <i class="bi bi-book"></i> <span>المقررات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Student\Period', 'view')
+        <a href="{{ route('admin.students.periods.index') }}" class="nav-link {{ request()->routeIs('admin.students.periods.*') ? 'active' : '' }}">
+            <i class="bi bi-calendar-range"></i> <span>الفترات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Student\Attendance', 'view')
+        <a href="{{ route('admin.students.attendance') }}" class="nav-link {{ request()->routeIs('admin.students.attendance') ? 'active' : '' }}">
+            <i class="bi bi-clipboard-check"></i> <span>الحضور</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Student\Student', 'view')
+        <a href="{{ route('admin.students.statistics') }}" class="nav-link {{ request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
+            <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Student\Certificate', 'view')
+        <a href="{{ route('admin.students.certificates.index') }}" class="nav-link {{ request()->routeIs('admin.students.certificates.*') && !request()->routeIs('admin.students.certificates.designs') && !request()->routeIs('admin.students.certificates.designer.*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-check"></i> <span>الشهادات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Student\Certificate', 'view')
+        <a href="{{ route('admin.students.certificates.designs') }}" class="nav-link {{ request()->routeIs('admin.students.certificates.designs') || request()->routeIs('admin.students.certificates.designer.*') ? 'active' : '' }}">
+            <i class="bi bi-palette"></i> <span>تصاميم الشهادات</span>
         </a>
         @endcanPermission
     </div>

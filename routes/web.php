@@ -7,7 +7,12 @@ use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\Hr\EmployeeController;
+use App\Http\Controllers\Admin\Student\AttendanceController;
+use App\Http\Controllers\Admin\Student\CertificateController;
+use App\Http\Controllers\Admin\Student\CourseController;
+use App\Http\Controllers\Admin\Student\PeriodController;
 use App\Http\Controllers\Admin\Student\StudentController;
+use App\Http\Controllers\Admin\Student\StudentStatisticsController;
 use App\Http\Controllers\Admin\Hr\JobPositionController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProfileController;
@@ -37,7 +42,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::put('profile/password', [ProfileController::class, 'password'])->name('profile.password');
 
-        Route::resource('students', StudentController::class)->except(['show']);
+        // Literal routes before wildcard {student}
+        Route::get('students/attendance', [AttendanceController::class, 'index'])->name('students.attendance');
+        Route::post('students/attendance', [AttendanceController::class, 'store'])->name('students.attendance.store');
+        Route::resource('students/courses', CourseController::class)->except(['show'])->names(['index' => 'students.courses.index', 'create' => 'students.courses.create', 'store' => 'students.courses.store', 'edit' => 'students.courses.edit', 'update' => 'students.courses.update', 'destroy' => 'students.courses.destroy']);
+        Route::resource('students/periods', PeriodController::class)->except(['show'])->names(['index' => 'students.periods.index', 'create' => 'students.periods.create', 'store' => 'students.periods.store', 'edit' => 'students.periods.edit', 'update' => 'students.periods.update', 'destroy' => 'students.periods.destroy']);
+        // Student resource (with wildcard {student})
+        Route::get('students/statistics', [StudentStatisticsController::class, 'index'])->name('students.statistics');
+        // Certificates
+        Route::get('students/certificates', [CertificateController::class, 'index'])->name('students.certificates.index');
+        Route::get('students/certificates/designs', [CertificateController::class, 'designs'])->name('students.certificates.designs');
+        Route::get('students/certificates/designs/create', [CertificateController::class, 'createDesign'])->name('students.certificates.designer.create');
+        Route::post('students/certificates/designs', [CertificateController::class, 'storeDesign'])->name('students.certificates.designs.store');
+        Route::get('students/certificates/designs/{id}/edit', [CertificateController::class, 'editDesign'])->name('students.certificates.designer.edit');
+        Route::put('students/certificates/designs/{id}', [CertificateController::class, 'updateDesign'])->name('students.certificates.designs.update');
+        Route::delete('students/certificates/designs/{id}', [CertificateController::class, 'destroyDesign'])->name('students.certificates.designs.destroy');
+        Route::get('students/certificates/issue', [CertificateController::class, 'issue'])->name('students.certificates.issue');
+        Route::post('students/certificates/generate', [CertificateController::class, 'generateCertificates'])->name('students.certificates.generate');
+        Route::get('students/certificates/{id}/preview', [CertificateController::class, 'preview'])->name('students.certificates.preview');
+        Route::get('students/certificates/print-batch', [CertificateController::class, 'printBatch'])->name('students.certificates.print-batch');
+        Route::resource('students', StudentController::class);
+        Route::post('students/{student}/create-user', [StudentController::class, 'createUser'])->name('students.create-user');
 
         Route::prefix('hr')->name('hr.')->group(function () {
             Route::resource('employees', EmployeeController::class);
@@ -50,5 +75,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
 });
+
+// Public certificate verification
+Route::get('verify-certificate/{hash}', [CertificateController::class, 'verifyCertificate']);
 
 require __DIR__.'/auth.php';

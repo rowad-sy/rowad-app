@@ -84,32 +84,22 @@ class GroupSeeder extends Seeder
             $adminUser->groups()->attach($superAdmin->id);
         }
 
-        $user1 = User::factory()->create([
-            'name' => 'أحمد محمد',
-            'email' => 'ahmed@rowad.app',
-            'password' => bcrypt('password'),
-        ]);
-        $user1->groups()->attach($centersAdmin->id);
+        $testUsers = [
+            ['ahmed@rowad.app', 'أحمد محمد', $centersAdmin],
+            ['sara@rowad.app', 'سارة خالد', $projectsAdmin],
+            ['mahmoud@rowad.app', 'محمود علي', $supervisor],
+            ['noor@rowad.app', 'نور حسن', $hrOfficer],
+        ];
 
-        $user2 = User::factory()->create([
-            'name' => 'سارة خالد',
-            'email' => 'sara@rowad.app',
-            'password' => bcrypt('password'),
-        ]);
-        $user2->groups()->attach($projectsAdmin->id);
-
-        $user3 = User::factory()->create([
-            'name' => 'محمود علي',
-            'email' => 'mahmoud@rowad.app',
-            'password' => bcrypt('password'),
-        ]);
-        $user3->groups()->attach($supervisor->id);
-
-        $user4 = User::factory()->create([
-            'name' => 'نور حسن',
-            'email' => 'noor@rowad.app',
-            'password' => bcrypt('password'),
-        ]);
-        $user4->groups()->attach($hrOfficer->id);
+        foreach ($testUsers as [$email, $name, $group]) {
+            $user = User::firstOrCreate(['email' => $email], [
+                'name' => $name,
+                'password' => bcrypt('password'),
+                'is_active' => true,
+            ]);
+            if (!$user->groups()->where('group_id', $group->id)->exists()) {
+                $user->groups()->attach($group->id);
+            }
+        }
     }
 }

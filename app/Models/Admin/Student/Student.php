@@ -5,6 +5,7 @@ namespace App\Models\Admin\Student;
 use App\Models\Admin\Center;
 use App\Models\Admin\Project;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Student extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'students';
 
@@ -57,5 +58,10 @@ class Student extends Model
     public function attendance(): HasMany
     {
         return $this->hasMany(Attendance::class, 'student_id');
+    }
+
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class, 'student_id');
     }
 }

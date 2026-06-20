@@ -13,8 +13,8 @@ class StudentController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\Student\Student,view')->only(['index']);
-        $this->middleware('permission:App\Models\Admin\Student\Student,create')->only(['create', 'store']);
+        $this->middleware('permission:App\Models\Admin\Student\Student,view')->only(['index', 'show']);
+        $this->middleware('permission:App\Models\Admin\Student\Student,create')->only(['create', 'store', 'createUser']);
         $this->middleware('permission:App\Models\Admin\Student\Student,edit')->only(['edit', 'update']);
         $this->middleware('permission:App\Models\Admin\Student\Student,delete')->only(['destroy']);
     }
@@ -23,10 +23,13 @@ class StudentController extends Controller
     {
         $search = $request->input('search');
         $status = $request->input('status');
-        $centerId = $request->input('center_id');
-        $projectId = $request->input('project_id');
         $gender = $request->input('gender');
         $perPage = (int) $request->input('per_page', 10);
+
+        // Default filters to current user's center/project
+        $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();
+        $centerId = $request->has('center_id') ? $request->input('center_id') : ($userEmployee?->center_id ?? '');
+        $projectId = $request->has('project_id') ? $request->input('project_id') : ($userEmployee?->project_id ?? '');
 
         $students = Student::with(['center', 'project'])
             ->when($search, function ($q, $search) {
@@ -66,7 +69,12 @@ class StudentController extends Controller
         $projects = Project::orderBy('name')->get();
         $users = User::orderBy('name')->get();
 
-        return view('admin.students.form', compact('centers', 'projects', 'users'));
+        // Default center/project from current user's employee record
+        $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();
+        $defaultCenterId = $userEmployee?->center_id;
+        $defaultProjectId = $userEmployee?->project_id;
+
+        return view('admin.students.form', compact('centers', 'projects', 'users', 'defaultCenterId', 'defaultProjectId'));
     }
 
     public function store(Request $request)
@@ -138,6 +146,48 @@ class StudentController extends Controller
 
         return redirect()->route('admin.students.index')
             ->with('success', 'تم تحديث بيانات الطالب بنجاح');
+    }
+
+    public function show(Student $student)
+    {
+        $student->load(['center', 'project', 'user', 'enrollments.course', 'enrollments.period']);
+
+        $attendanceSummary = $student->attendance()
+            ->selectRaw("status, COUNT(*) as count")
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $recentAttendance = $student->attendance()
+            ->with('createdBy')
+            ->orderBy('date', 'desc')
+            ->limit(30)
+            ->get();
+
+        return view('admin.students.profile', compact('student', 'attendanceSummary', 'recentAttendance'));
+    }
+
+    public function createUser(Student $student)
+    {
+        if ($student->user_id) {
+            return redirect()->route('admin.students.show', $student)
+                ->with('error', 'الطالب لديه حساب مستخدم بالفعل');
+        }
+
+        $email = $student->email ?? $student->student_code . '@student.rowad.app';
+        $password = 'student123';
+
+        $user = User::create([
+            'name' => $student->first_name_ar . ' ' . $student->last_name_ar,
+            'email' => $email,
+            'password' => bcrypt($password),
+            'type' => 'student',
+            'is_active' => true,
+        ]);
+
+        $student->update(['user_id' => $user->id]);
+
+        return redirect()->route('admin.students.show', $student)
+            ->with('success', "تم إنشاء حساب المستخدم بنجاح. البريد: {$user->email} | كلمة المرور: {$password}");
     }
 
     public function destroy(Student $student)

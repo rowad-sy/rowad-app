@@ -4,9 +4,11 @@ namespace App\Models;
 
 use App\Models\Admin\Group;
 use App\Models\Admin\Permission;
+use App\Models\Admin\Student\Student;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -54,5 +56,10 @@ class User extends Authenticatable
     public function permissions(): HasMany
     {
         return $this->hasMany(Permission::class, 'user_id');
+    }
+
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class, 'user_id');
     }
 }

@@ -32,10 +32,12 @@ class ProjectSeeder extends Seeder
         ];
 
         foreach ($projects as $data) {
-            $project = Project::create($data);
-            $project->centers()->attach(
-                $centers->random(min(3, $centers->count()))->pluck('id')->toArray()
-            );
+            $project = Project::firstOrCreate(['name' => $data['name']], $data);
+            if ($project->centers()->count() === 0) {
+                $project->centers()->attach(
+                    $centers->random(min(3, $centers->count()))->pluck('id')->toArray()
+                );
+            }
         }
     }
 }

@@ -19,12 +19,14 @@ class DatabaseSeeder extends Seeder
             DepartmentSeeder::class,
         ]);
 
-        User::factory()->create([
-            'name' => 'مدير النظام',
-            'email' => 'admin@rowad.app',
-            'password' => bcrypt('admin123'),
-            'is_active' => true,
-        ]);
+        if (!User::where('email', 'admin@rowad.app')->exists()) {
+            User::factory()->create([
+                'name' => 'مدير النظام',
+                'email' => 'admin@rowad.app',
+                'password' => bcrypt('admin123'),
+                'is_active' => true,
+            ]);
+        }
 
         $this->call([
             GroupSeeder::class,
@@ -32,6 +34,18 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             EmployeeSeeder::class,
+        ]);
+
+        $this->call([
+            EmployeeUserSeeder::class,
+        ]);
+
+        $this->call([
+            StudentSeeder::class,
+        ]);
+
+        $this->call([
+            CoursePeriodSeeder::class,
         ]);
     }
 }

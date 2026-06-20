@@ -142,7 +142,7 @@
             <select name="center_id" class="form-select">
                 <option value="">اختر مركز</option>
                 @foreach ($centers as $center)
-                    <option value="{{ $center->id }}" {{ old('center_id', $student->center_id ?? '') == $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
+                    <option value="{{ $center->id }}" {{ old('center_id', $student->center_id ?? $defaultCenterId ?? '') == $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
                 @endforeach
             </select>
         </div>
@@ -152,7 +152,7 @@
             <select name="project_id" class="form-select">
                 <option value="">اختر مشروع</option>
                 @foreach ($projects as $project)
-                    <option value="{{ $project->id }}" {{ old('project_id', $student->project_id ?? '') == $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+                    <option value="{{ $project->id }}" {{ old('project_id', $student->project_id ?? $defaultProjectId ?? '') == $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
                 @endforeach
             </select>
         </div>
