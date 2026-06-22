@@ -159,6 +159,10 @@ class PermissionController extends Controller
                 'App\Models\Admin\Student\Certificate' => 'الشهادات',
                 'App\Models\Admin\Student\CertificateDesign' => 'تصاميم الشهادات',
             ],
+            'التقنية' => [
+                'App\Models\Admin\Tech\TechIssue' => 'التذاكر',
+                'App\Models\Admin\Tech\TechEquipment' => 'المعدات',
+            ],
         ];
     }
 }

@@ -75,6 +75,11 @@
             <i class="bi bi-badge-tm"></i> <span>المناصب الوظيفية</span>
         </a>
         @endcanPermission
+        @canPermission('App\Models\Admin\Hr\Employee', 'view')
+        <a href="{{ route('admin.hr.employees.statistics') }}" class="nav-link {{ request()->routeIs('admin.hr.employees.statistics') ? 'active' : '' }}">
+            <i class="bi bi-bar-chart"></i> <span>إحصائيات الموظفين</span>
+        </a>
+        @endcanPermission
         <div class="nav-section">الطلاب</div>
         @canPermission('App\Models\Admin\Student\Student', 'view')
         <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.index') || request()->routeIs('admin.students.create') || request()->routeIs('admin.students.edit') || request()->routeIs('admin.students.show') || request()->routeIs('admin.students.attendance') || request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
@@ -109,6 +114,28 @@
         @canPermission('App\Models\Admin\Student\Certificate', 'view')
         <a href="{{ route('admin.students.certificates.designs') }}" class="nav-link {{ request()->routeIs('admin.students.certificates.designs') || request()->routeIs('admin.students.certificates.designer.*') ? 'active' : '' }}">
             <i class="bi bi-palette"></i> <span>تصاميم الشهادات</span>
+        </a>
+        @endcanPermission
+
+        <div class="nav-section">التقنية</div>
+        @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
+        <a href="{{ route('admin.tech.issues.index') }}" class="nav-link {{ request()->routeIs('admin.tech.issues.*') ? 'active' : '' }}">
+            <i class="bi bi-ticket"></i> <span>التذاكر الفنية</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Tech\TechEquipment', 'view')
+        <a href="{{ route('admin.tech.equipment.index') }}" class="nav-link {{ request()->routeIs('admin.tech.equipment.*') ? 'active' : '' }}">
+            <i class="bi bi-pc-display"></i> <span>المعدات التقنية</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
+        <a href="{{ route('admin.tech.statistics') }}" class="nav-link {{ request()->routeIs('admin.tech.statistics') ? 'active' : '' }}">
+            <i class="bi bi-bar-chart"></i> <span>إحصائيات التقنية</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\User', 'view')
+        <a href="{{ route('admin.tech.emails') }}" class="nav-link {{ request()->routeIs('admin.tech.emails') ? 'active' : '' }}">
+            <i class="bi bi-envelope"></i> <span>البريد الرسمي</span>
         </a>
         @endcanPermission
         @endif

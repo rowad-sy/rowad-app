@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\Hr\EmployeeController;
+use App\Http\Controllers\Admin\Hr\EmployeeStatisticsController;
 use App\Http\Controllers\Admin\Student\AttendanceController;
 use App\Http\Controllers\Admin\Student\CertificateController;
 use App\Http\Controllers\Admin\Student\CourseController;
@@ -18,6 +19,10 @@ use App\Http\Controllers\Admin\Hr\JobPositionController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\Tech\TechController;
+use App\Http\Controllers\Admin\Tech\TechEquipmentController;
+use App\Http\Controllers\Admin\Tech\TechIssueController;
+use App\Http\Controllers\Admin\Tech\TechStatisticsController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -68,11 +73,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::prefix('hr')->name('hr.')->group(function () {
             Route::resource('employees', EmployeeController::class);
+            Route::get('employees/statistics', [EmployeeStatisticsController::class, 'index'])->name('employees.statistics');
             Route::resource('job-positions', JobPositionController::class)->except(['show']);
             Route::post('employees/export', [ExportController::class, 'employees'])->name('employees.export');
             Route::post('employees/export-full', [ExportController::class, 'employeesFullExport'])->name('employees.export-full');
             Route::post('employees/import', [ExportController::class, 'importEmployees'])->name('employees.import');
             Route::post('employees/import-full', [ExportController::class, 'importEmployeesFull'])->name('employees.import-full');
+        });
+
+        Route::prefix('tech')->name('tech.')->group(function () {
+            Route::resource('issues', TechIssueController::class);
+            Route::post('issues/{issue}/respond', [TechIssueController::class, 'respond'])->name('issues.respond');
+            Route::resource('equipment', TechEquipmentController::class);
+            Route::get('statistics', [TechStatisticsController::class, 'index'])->name('statistics');
+            Route::get('emails', [TechController::class, 'emails'])->name('emails');
         });
     });
 

@@ -244,6 +244,7 @@ body {
 .app-card-hr .app-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
 .app-card-students .app-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); }
 .app-card-health .app-icon { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.app-card-tech .app-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
 
 /* Select box improvements */
 select.form-select {

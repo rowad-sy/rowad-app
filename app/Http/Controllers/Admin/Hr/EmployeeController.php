@@ -99,6 +99,8 @@ class EmployeeController extends Controller
             ['route' => 'admin.students.attendance', 'label' => 'الحضور', 'icon' => 'bi-clipboard-check', 'model' => 'App\Models\Admin\Student\Attendance'],
             ['route' => 'admin.students.statistics', 'label' => 'الإحصائيات', 'icon' => 'bi-bar-chart', 'model' => 'App\Models\Admin\Student\Student'],
             ['route' => 'admin.students.certificates.index', 'label' => 'الشهادات', 'icon' => 'bi-file-earmark-check', 'model' => 'App\Models\Admin\Student\Certificate'],
+            ['route' => 'admin.tech.issues.index', 'label' => 'التذاكر الفنية', 'icon' => 'bi-ticket', 'model' => 'App\Models\Admin\Tech\TechIssue'],
+            ['route' => 'admin.tech.equipment.index', 'label' => 'المعدات التقنية', 'icon' => 'bi-pc-display', 'model' => 'App\Models\Admin\Tech\TechEquipment'],
         ])->filter(function ($link) use ($user) {
             if (isset($link['model'])) {
                 return \App\Helpers\PermissionHelper::can($user, $link['model'], 'view');

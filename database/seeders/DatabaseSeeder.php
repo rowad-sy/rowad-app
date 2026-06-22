@@ -48,5 +48,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CoursePeriodSeeder::class,
         ]);
+
+        $this->call([
+            TechSeeder::class,
+        ]);
     }
 }

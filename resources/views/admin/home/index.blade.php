@@ -49,6 +49,19 @@
     </div>
 
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+        <a href="{{ route('admin.tech.issues.index') }}" class="text-decoration-none">
+            <div class="card app-card app-card-tech">
+                <div class="card-body text-center">
+                    <div class="app-icon">
+                        <i class="bi bi-gear"></i>
+                    </div>
+                    <h6 class="app-title">التقنية</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <a href="#" class="text-decoration-none">
             <div class="card app-card app-card-health">
                 <div class="card-body text-center">

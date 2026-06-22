@@ -17,10 +17,85 @@
 @endpush
 
 @section('content')
-<div class="page-header">
-    <h4>إحصائيات الطلاب</h4>
-    <p>نظرة شاملة على بيانات الطلاب والتسجيلات والحضور</p>
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4>إحصائيات الطلاب</h4>
+        <p>نظرة شاملة على بيانات الطلاب والتسجيلات والحضور</p>
+    </div>
+    @if (array_filter($filters))
+    <div>
+        <a href="{{ route('admin.students.statistics') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-circle me-1"></i> إلغاء الفلاتر
+        </a>
+    </div>
+    @endif
 </div>
+
+{{-- ─── Filter Form ─── --}}
+<form method="GET" action="{{ route('admin.students.statistics') }}" class="mb-4">
+    <div class="table-container">
+        <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
+            <h6 class="mb-0"><i class="bi bi-funnel me-1"></i> الفلاتر</h6>
+            <small class="text-muted">تصفية الإحصائيات حسب المعايير أدناه</small>
+        </div>
+        <div class="p-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small">المركز</label>
+                    <select name="center_id" class="form-select form-select-sm">
+                        <option value="">كل المراكز</option>
+                        @foreach ($centers as $c)
+                            <option value="{{ $c->id }}" {{ ($filters['center_id'] ?? '') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">المشروع</label>
+                    <select name="project_id" class="form-select form-select-sm">
+                        <option value="">كل المشاريع</option>
+                        @foreach ($projects as $p)
+                            <option value="{{ $p->id }}" {{ ($filters['project_id'] ?? '') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">المقرر</label>
+                    <select name="course_id" class="form-select form-select-sm">
+                        <option value="">كل المقررات</option>
+                        @foreach ($courses as $c)
+                            <option value="{{ $c->id }}" {{ ($filters['course_id'] ?? '') == $c->id ? 'selected' : '' }}>{{ $c->name_ar }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">الفترة</label>
+                    <select name="period_id" class="form-select form-select-sm">
+                        <option value="">كل الفترات</option>
+                        @foreach ($periods as $p)
+                            <option value="{{ $p->id }}" {{ ($filters['period_id'] ?? '') == $p->id ? 'selected' : '' }}>{{ $p->name_ar }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3 mt-2">
+                    <label class="form-label small">من تاريخ</label>
+                    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ $filters['date_from'] ?? '' }}">
+                </div>
+                <div class="col-md-3 mt-2">
+                    <label class="form-label small">إلى تاريخ</label>
+                    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ $filters['date_to'] ?? '' }}">
+                </div>
+                <div class="col-md-6 mt-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-search me-1"></i> تطبيق
+                    </button>
+                    <a href="{{ route('admin.students.statistics') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> إعادة تعيين
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
 
 {{-- ─── Summary Cards ─── --}}
 <div class="row g-3 mb-4">
