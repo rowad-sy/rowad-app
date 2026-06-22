@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Admin\Hr\Employee;
+use App\Models\Admin\Student\Student;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
@@ -31,7 +33,24 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'إنشاء حسا
 
         Auth::login($user);
 
-        $this->redirect(route('dashboard', absolute: false), navigate: true);
+        // Redirect based on user type
+        $redirectRoute = route('admin.dashboard', absolute: false);
+
+        if ($user->type === 'employee') {
+            $employee = Employee::where('user_id', $user->id)->first();
+            if ($employee) {
+                $redirectRoute = route('admin.hr.employees.show', $employee, absolute: false);
+            }
+        } elseif ($user->type === 'student') {
+            $student = Student::where('user_id', $user->id)->first();
+            if ($student) {
+                $redirectRoute = route('admin.students.show', $student, absolute: false);
+            }
+        } elseif ($user->type === 'beneficiary') {
+            $redirectRoute = route('admin.beneficiary.dashboard', absolute: false);
+        }
+
+        $this->redirect($redirectRoute, navigate: true);
     }
 }; ?>
 

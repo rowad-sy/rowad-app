@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\BeneficiaryController;
 use App\Http\Controllers\Admin\CenterController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepartmentController;
@@ -30,11 +31,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [HomeController::class, 'index'])->name('home');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-        Route::resource('centers', CenterController::class);
-        Route::resource('projects', ProjectController::class);
-        Route::resource('departments', DepartmentController::class);
-        Route::resource('groups', GroupController::class);
-        Route::resource('permissions', PermissionController::class);
+        Route::get('beneficiary/dashboard', [BeneficiaryController::class, 'dashboard'])->name('beneficiary.dashboard');
+        Route::resource('centers', CenterController::class)->except(['show']);
+        Route::resource('projects', ProjectController::class)->except(['show']);
+        Route::resource('departments', DepartmentController::class)->except(['show']);
+        Route::resource('groups', GroupController::class)->except(['show']);
+        Route::resource('permissions', PermissionController::class)->except(['show']);
 
         Route::resource('users', UserController::class)->except(['show']);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
@@ -66,7 +68,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::prefix('hr')->name('hr.')->group(function () {
             Route::resource('employees', EmployeeController::class);
-            Route::resource('job-positions', JobPositionController::class);
+            Route::resource('job-positions', JobPositionController::class)->except(['show']);
             Route::post('employees/export', [ExportController::class, 'employees'])->name('employees.export');
             Route::post('employees/export-full', [ExportController::class, 'employeesFullExport'])->name('employees.export-full');
             Route::post('employees/import', [ExportController::class, 'importEmployees'])->name('employees.import');

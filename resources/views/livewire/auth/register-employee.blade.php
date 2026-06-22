@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Admin\Center;
+use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Project;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -43,7 +44,9 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل موظ
 
         Auth::login($user);
 
-        $this->redirect(route('dashboard', absolute: false), navigate: true);
+        $employee = Employee::where('user_id', $user->id)->first();
+        $redirectRoute = $employee ? route('admin.hr.employees.show', $employee, absolute: false) : route('admin.dashboard', absolute: false);
+        $this->redirect($redirectRoute, navigate: true);
     }
 }; ?>
 

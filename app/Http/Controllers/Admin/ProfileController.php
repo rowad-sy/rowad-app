@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\Hr\Employee;
+use App\Models\Admin\Student\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -21,7 +23,18 @@ class ProfileController extends Controller
     public function index()
     {
         $user = auth()->user();
-        return view('admin.profile.index', compact('user'));
+
+        // Pass user-specific data based on type
+        $employee = null;
+        $student = null;
+
+        if ($user->type === 'employee') {
+            $employee = Employee::where('user_id', $user->id)->with(['center', 'department', 'project'])->first();
+        } elseif ($user->type === 'student') {
+            $student = Student::where('user_id', $user->id)->first();
+        }
+
+        return view('admin.profile.index', compact('user', 'employee', 'student'));
     }
 
     public function update(Request $request)

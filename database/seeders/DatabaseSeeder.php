@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
                 'email' => 'admin@rowad.app',
                 'password' => bcrypt('admin123'),
                 'is_active' => true,
+                'type' => 'employee',
             ]);
         }
 

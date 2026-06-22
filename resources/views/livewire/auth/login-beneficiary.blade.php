@@ -31,7 +31,7 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل دخو
 
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: route('admin.beneficiary.dashboard', absolute: false), navigate: true);
     }
 
     protected function ensureIsNotRateLimited(): void

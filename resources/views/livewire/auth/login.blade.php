@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Admin\Hr\Employee;
+use App\Models\Admin\Student\Student;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -39,7 +41,25 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل الد
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        // Redirect based on user type
+        $user = auth()->user();
+        $redirectRoute = route('admin.dashboard', absolute: false);
+
+        if ($user->type === 'employee') {
+            $employee = Employee::where('user_id', $user->id)->first();
+            if ($employee) {
+                $redirectRoute = route('admin.hr.employees.show', $employee, absolute: false);
+            }
+        } elseif ($user->type === 'student') {
+            $student = Student::where('user_id', $user->id)->first();
+            if ($student) {
+                $redirectRoute = route('admin.students.show', $student, absolute: false);
+            }
+        } elseif ($user->type === 'beneficiary') {
+            $redirectRoute = route('admin.beneficiary.dashboard', absolute: false);
+        }
+
+        $this->redirectIntended(default: $redirectRoute, navigate: true);
     }
 
     /**

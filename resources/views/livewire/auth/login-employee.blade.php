@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Admin\Hr\Employee;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -31,7 +32,11 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل دخو
 
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+
+        // Redirect to employee profile if found, otherwise to dashboard
+        $employee = Employee::where('user_id', auth()->id())->first();
+        $redirectRoute = $employee ? route('admin.hr.employees.show', $employee, absolute: false) : route('admin.dashboard', absolute: false);
+        $this->redirectIntended(default: $redirectRoute, navigate: true);
     }
 
     protected function ensureIsNotRateLimited(): void

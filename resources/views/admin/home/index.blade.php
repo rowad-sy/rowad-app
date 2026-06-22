@@ -36,7 +36,7 @@
     </div>
 
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <a href="#" class="text-decoration-none">
+        <a href="{{ route('admin.students.index') }}" class="text-decoration-none">
             <div class="card app-card app-card-students">
                 <div class="card-body text-center">
                     <div class="app-icon">

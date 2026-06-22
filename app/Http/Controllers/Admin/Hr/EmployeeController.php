@@ -16,7 +16,7 @@ class EmployeeController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\Hr\Employee,view')->only(['index', 'show']);
+        $this->middleware('permission:App\Models\Admin\Hr\Employee,view')->only(['index']);
         $this->middleware('permission:App\Models\Admin\Hr\Employee,create')->only(['create', 'store']);
         $this->middleware('permission:App\Models\Admin\Hr\Employee,edit')->only(['edit', 'update']);
         $this->middleware('permission:App\Models\Admin\Hr\Employee,delete')->only(['destroy']);
@@ -59,6 +59,54 @@ class EmployeeController extends Controller
         $projects = Project::orderBy('name')->get();
 
         return view('admin.hr.employees.index', compact('employees', 'search', 'status', 'centerId', 'projectId', 'perPage', 'centers', 'projects'));
+    }
+
+    public function show(Employee $employee)
+    {
+        $user = auth()->user();
+
+        // Allow viewing own profile without explicit permission
+        $userEmployee = Employee::where('user_id', $user->id)->first();
+        if (!$userEmployee || $userEmployee->id !== $employee->id) {
+            if (!\App\Helpers\PermissionHelper::can($user, 'App\Models\Admin\Hr\Employee', 'view')) {
+                abort(403);
+            }
+        }
+
+        $employee->load([
+            'center', 'department', 'project', 'user',
+            'educations', 'contacts', 'workSchedules', 'contracts',
+            'salaries', 'warnings', 'notesRelation.user', 'documents',
+        ]);
+
+        $position = \App\Models\Admin\Hr\JobPosition::find($employee->job_position_id);
+
+        // Gather permission-based navigation links
+        $navLinks = collect([
+            ['route' => 'admin.home', 'label' => 'التطبيقات', 'icon' => 'bi-grid-3x3-gap', 'permission' => true],
+            ['route' => 'admin.dashboard', 'label' => 'لوحة التحكم', 'icon' => 'bi-speedometer2', 'permission' => true],
+            ['route' => 'admin.centers.index', 'label' => 'المراكز', 'icon' => 'bi-geo-alt', 'model' => 'App\Models\Admin\Center'],
+            ['route' => 'admin.projects.index', 'label' => 'المشاريع', 'icon' => 'bi-briefcase', 'model' => 'App\Models\Admin\Project'],
+            ['route' => 'admin.departments.index', 'label' => 'الإدارات', 'icon' => 'bi-diagram-3', 'model' => 'App\Models\Admin\Department'],
+            ['route' => 'admin.groups.index', 'label' => 'المجموعات', 'icon' => 'bi-people', 'model' => 'App\Models\Admin\Group'],
+            ['route' => 'admin.permissions.index', 'label' => 'الصلاحيات', 'icon' => 'bi-shield-check', 'model' => 'App\Models\Admin\Permission'],
+            ['route' => 'admin.users.index', 'label' => 'المستخدمين', 'icon' => 'bi-person-badge', 'model' => 'App\Models\User'],
+            ['route' => 'admin.hr.employees.index', 'label' => 'الموظفين', 'icon' => 'bi-person-workspace', 'model' => 'App\Models\Admin\Hr\Employee'],
+            ['route' => 'admin.hr.job-positions.index', 'label' => 'المناصب الوظيفية', 'icon' => 'bi-badge-tm', 'model' => 'App\Models\Admin\Hr\JobPosition'],
+            ['route' => 'admin.students.index', 'label' => 'الطلاب', 'icon' => 'bi-mortarboard', 'model' => 'App\Models\Admin\Student\Student'],
+            ['route' => 'admin.students.courses.index', 'label' => 'المقررات', 'icon' => 'bi-book', 'model' => 'App\Models\Admin\Student\Course'],
+            ['route' => 'admin.students.periods.index', 'label' => 'الفترات', 'icon' => 'bi-calendar-range', 'model' => 'App\Models\Admin\Student\Period'],
+            ['route' => 'admin.students.attendance', 'label' => 'الحضور', 'icon' => 'bi-clipboard-check', 'model' => 'App\Models\Admin\Student\Attendance'],
+            ['route' => 'admin.students.statistics', 'label' => 'الإحصائيات', 'icon' => 'bi-bar-chart', 'model' => 'App\Models\Admin\Student\Student'],
+            ['route' => 'admin.students.certificates.index', 'label' => 'الشهادات', 'icon' => 'bi-file-earmark-check', 'model' => 'App\Models\Admin\Student\Certificate'],
+        ])->filter(function ($link) use ($user) {
+            if (isset($link['model'])) {
+                return \App\Helpers\PermissionHelper::can($user, $link['model'], 'view');
+            }
+            return true;
+        });
+
+        return view('admin.hr.employees.show', compact('employee', 'position', 'navLinks'));
     }
 
     public function create()

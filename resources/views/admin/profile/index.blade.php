@@ -3,9 +3,23 @@
 @section('title', 'الملف الشخصي')
 
 @section('content')
-<div class="page-header">
-    <h4>الملف الشخصي</h4>
-    <p>عرض وتعديل معلومات حسابك</p>
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4>الملف الشخصي</h4>
+        <p>عرض وتعديل معلومات حسابك</p>
+    </div>
+    <div>
+        @if ($employee)
+            <a href="{{ route('admin.hr.employees.show', $employee) }}" class="btn btn-outline-primary">
+                <i class="bi bi-person-workspace me-1"></i> الملف الوظيفي
+            </a>
+        @endif
+        @if ($student)
+            <a href="{{ route('admin.students.show', $student) }}" class="btn btn-outline-primary">
+                <i class="bi bi-mortarboard me-1"></i> الملف الدراسي
+            </a>
+        @endif
+    </div>
 </div>
 
 <div class="row g-4">
@@ -16,6 +30,69 @@
                 <i class="bi bi-person-circle me-1"></i> معلومات الحساب
             </h5>
 
+            @if ($user->type === 'employee' && $employee)
+            <div class="mb-3 p-3 rounded" style="background:#e8f4fd;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-person-workspace text-primary"></i>
+                    <span class="fw-bold">موظف</span>
+                    <span class="badge bg-primary">{{ $employee->employee_code }}</span>
+                </div>
+                <small class="text-muted d-block">{{ $employee->first_name_ar }} {{ $employee->last_name_ar }}</small>
+                @if ($employee->center || $employee->department)
+                <small class="text-muted d-block">
+                    {{ $employee->center?->name ?? '' }}
+                    {{ $employee->center && $employee->department ? '|' : '' }}
+                    {{ $employee->department?->name_ar ?? '' }}
+                </small>
+                @endif
+                <a href="{{ route('admin.hr.employees.show', $employee) }}" class="btn btn-sm btn-outline-primary mt-2">
+                    <i class="bi bi-eye me-1"></i> عرض الملف الوظيفي
+                </a>
+            </div>
+            @endif
+
+            @if ($user->type === 'student' && $student)
+            <div class="mb-3 p-3 rounded" style="background:#e8fde8;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-mortarboard text-success"></i>
+                    <span class="fw-bold">طالب</span>
+                    <span class="badge bg-success">{{ $student->student_code }}</span>
+                </div>
+                <small class="text-muted d-block">{{ $student->first_name_ar }} {{ $student->last_name_ar }}</small>
+                @if ($student->center || $student->project)
+                <small class="text-muted d-block">
+                    {{ $student->center?->name ?? '' }}
+                    {{ $student->center && $student->project ? '|' : '' }}
+                    {{ $student->project?->name ?? '' }}
+                </small>
+                @endif
+                <a href="{{ route('admin.students.show', $student) }}" class="btn btn-sm btn-outline-success mt-2">
+                    <i class="bi bi-eye me-1"></i> عرض الملف الدراسي
+                </a>
+            </div>
+            @endif
+
+            @if ($user->type === 'beneficiary')
+            <div class="mb-3 p-3 rounded" style="background:#fff3cd;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-person-heart text-warning"></i>
+                    <span class="fw-bold">مستفيد</span>
+                </div>
+                <a href="{{ route('admin.beneficiary.dashboard') }}" class="btn btn-sm btn-outline-warning mt-2">
+                    <i class="bi bi-speedometer2 me-1"></i> لوحة المستفيد
+                </a>
+            </div>
+            @elseif ($user->type === 'employee' && !$employee)
+            <div class="mb-3 p-3 rounded" style="background:#e8f4fd;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-shield-lock text-primary"></i>
+                    <span class="fw-bold">مدير النظام</span>
+                </div>
+                <a href="{{ route('admin.dashboard') }}" class="btn btn-sm btn-outline-primary mt-2">
+                    <i class="bi bi-speedometer2 me-1"></i> لوحة التحكم
+                </a>
+            </div>
+            @endif
             <form method="POST" action="{{ route('admin.profile.update') }}">
                 @csrf
                 @method('PUT')

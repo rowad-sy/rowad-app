@@ -22,6 +22,8 @@
             <span class="brand-text">مؤسسة الرواد</span>
         </div>
 
+        {{-- Employee/Admin Navigation --}}
+        @if (auth()->user()->type === 'employee')
         <div class="nav-section">الرئيسية</div>
         <a href="{{ route('admin.home') }}" class="nav-link {{ request()->routeIs('admin.home') ? 'active' : '' }}">
             <i class="bi bi-grid-3x3-gap"></i> <span>التطبيقات</span>
@@ -109,6 +111,37 @@
             <i class="bi bi-palette"></i> <span>تصاميم الشهادات</span>
         </a>
         @endcanPermission
+        @endif
+
+        {{-- Student Navigation --}}
+        @if (auth()->user()->type === 'student')
+        <div class="nav-section">الرئيسية</div>
+        <a href="{{ route('admin.home') }}" class="nav-link {{ request()->routeIs('admin.home') ? 'active' : '' }}">
+            <i class="bi bi-grid-3x3-gap"></i> <span>التطبيقات</span>
+        </a>
+        <div class="nav-section">حسابي</div>
+        <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
+            <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
+        </a>
+        @php $stu = auth()->user()->student; @endphp
+        @if ($stu)
+        <a href="{{ route('admin.students.show', $stu) }}" class="nav-link {{ request()->routeIs('admin.students.show') ? 'active' : '' }}">
+            <i class="bi bi-mortarboard"></i> <span>ملفي الدراسي</span>
+        </a>
+        @endif
+        @endif
+
+        {{-- Beneficiary Navigation --}}
+        @if (auth()->user()->type === 'beneficiary')
+        <div class="nav-section">الرئيسية</div>
+        <a href="{{ route('admin.beneficiary.dashboard') }}" class="nav-link {{ request()->routeIs('admin.beneficiary.dashboard') ? 'active' : '' }}">
+            <i class="bi bi-speedometer2"></i> <span>لوحة المستفيد</span>
+        </a>
+        <div class="nav-section">حسابي</div>
+        <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
+            <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
+        </a>
+        @endif
     </div>
 
     <!-- Main Content -->
