@@ -63,6 +63,7 @@
                     <label class="form-label">النوع</label>
                     <select name="type" class="form-select @error('type') is-invalid @enderror">
                         <option value="">— عادي —</option>
+                        <option value="super-admin" {{ old('type', $user->type ?? '') == 'super-admin' ? 'selected' : '' }}>سوبر أدمن</option>
                         <option value="employee" {{ old('type', $user->type ?? '') == 'employee' ? 'selected' : '' }}>موظف</option>
                         <option value="beneficiary" {{ old('type', $user->type ?? '') == 'beneficiary' ? 'selected' : '' }}>مستفيد</option>
                         <option value="student" {{ old('type', $user->type ?? '') == 'student' ? 'selected' : '' }}>طالب</option>

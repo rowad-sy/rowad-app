@@ -13,7 +13,7 @@ class StudentController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\Student\Student,view')->only(['index', 'show']);
+        $this->middleware('permission:App\Models\Admin\Student\Student,view')->only(['index']);
         $this->middleware('permission:App\Models\Admin\Student\Student,create')->only(['create', 'store', 'createUser']);
         $this->middleware('permission:App\Models\Admin\Student\Student,edit')->only(['edit', 'update']);
         $this->middleware('permission:App\Models\Admin\Student\Student,delete')->only(['destroy']);
@@ -150,6 +150,11 @@ class StudentController extends Controller
 
     public function show(Student $student)
     {
+        // Allow if user has permission OR is the student owner
+        if (!\App\Helpers\PermissionHelper::can(auth()->user(), 'App\Models\Admin\Student\Student', 'view') && auth()->id() !== $student->user_id) {
+            abort(403, 'ليس لديك صلاحية للوصول إلى هذه الصفحة');
+        }
+
         $student->load(['center', 'project', 'user', 'enrollments.course', 'enrollments.period']);
 
         $attendanceSummary = $student->attendance()

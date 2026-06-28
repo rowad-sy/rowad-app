@@ -29,8 +29,22 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
+        if (!User::where('email', 'superadmin@rowad.app')->exists()) {
+            User::factory()->create([
+                'name' => 'سوبر أدمن',
+                'email' => 'superadmin@rowad.app',
+                'password' => bcrypt('superadmin123'),
+                'is_active' => true,
+                'type' => 'super-admin',
+            ]);
+        }
+
         $this->call([
             GroupSeeder::class,
+        ]);
+
+        $this->call([
+            LeaveTypeSeeder::class,
         ]);
 
         $this->call([

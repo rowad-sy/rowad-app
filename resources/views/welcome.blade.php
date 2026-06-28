@@ -163,10 +163,10 @@
         <h1>مؤسسة الرواد للتنمية</h1>
         <p>منصة إدارية متكاملة لإدارة شؤون الموظفين، والمستفيدين، والمشاريع التنموية. نسعى لتمكين الكوادر البشرية وتحقيق التميز المؤسسي.</p>
         <div class="hero-buttons">
-            <a href="{{ route('auth.choose') }}" class="btn-hero btn-hero-primary">
+            <a href="{{ route('login') }}" class="btn-hero btn-hero-primary">
                 <i class="bi bi-person"></i> تسجيل الدخول
             </a>
-            <a href="{{ route('auth.choose') }}?action=register" class="btn-hero btn-hero-outline">
+            <a href="{{ route('auth.choose') }}" class="btn-hero btn-hero-outline">
                 <i class="bi bi-person-plus"></i> إنشاء حساب جديد
             </a>
         </div>

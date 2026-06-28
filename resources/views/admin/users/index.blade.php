@@ -29,6 +29,7 @@
                 <label class="form-label small mb-1">النوع</label>
                 <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="all" {{ ($type ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
+                    <option value="super-admin" {{ ($type ?? '') === 'super-admin' ? 'selected' : '' }}>سوبر أدمن</option>
                     <option value="employee" {{ ($type ?? '') === 'employee' ? 'selected' : '' }}>موظف</option>
                     <option value="beneficiary" {{ ($type ?? '') === 'beneficiary' ? 'selected' : '' }}>مستفيد</option>
                     <option value="student" {{ ($type ?? '') === 'student' ? 'selected' : '' }}>طالب</option>
@@ -68,7 +69,9 @@
                     <td class="fw-medium">{{ $user->name }}</td>
                     <td dir="ltr">{{ $user->email }}</td>
                     <td>
-                        @if ($user->type === 'employee')
+                        @if ($user->type === 'super-admin')
+                            <span class="badge bg-danger text-white">سوبر أدمن</span>
+                        @elseif ($user->type === 'employee')
                             <span class="badge bg-info text-white">موظف</span>
                         @elseif ($user->type === 'beneficiary')
                             <span class="badge bg-secondary text-white">مستفيد</span>

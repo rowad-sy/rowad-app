@@ -5,21 +5,20 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
 Route::middleware('guest')->group(function () {
-    // Choose user type first
+    // Single unified login page — detects user type and redirects accordingly
+    Volt::route('login', 'auth.login')
+        ->name('login');
+
+    // Choose user type (for registration)
     Volt::route('choose', 'auth.choose')
         ->name('auth.choose');
 
-    // Redirect old /login and /register to /choose
-    Route::redirect('login', '/choose');
+    // Redirect old separate login URLs to unified login
+    Route::redirect('login/employee', '/login');
+    Route::redirect('login/beneficiary', '/login');
+
+    // Redirect old /register to /choose
     Route::redirect('register', '/choose');
-
-    // Beneficiary login
-    Volt::route('login/beneficiary', 'auth.login-beneficiary')
-        ->name('login.beneficiary');
-
-    // Employee login
-    Volt::route('login/employee', 'auth.login-employee')
-        ->name('login.employee');
 
     // Employee registration (with center/project)
     Volt::route('register/employee', 'auth.register-employee')

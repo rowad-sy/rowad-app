@@ -43,20 +43,20 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل الد
 
         // Redirect based on user type
         $user = auth()->user();
-        $redirectRoute = route('admin.dashboard', absolute: false);
 
-        if ($user->type === 'employee') {
-            $employee = Employee::where('user_id', $user->id)->first();
-            if ($employee) {
-                $redirectRoute = route('admin.hr.employees.show', $employee, absolute: false);
-            }
-        } elseif ($user->type === 'student') {
+        if ($user->type === 'student') {
             $student = Student::where('user_id', $user->id)->first();
-            if ($student) {
-                $redirectRoute = route('admin.students.show', $student, absolute: false);
-            }
+            $redirectRoute = $student
+                ? route('admin.students.show', $student, absolute: false)
+                : route('admin.profile', absolute: false);
         } elseif ($user->type === 'beneficiary') {
             $redirectRoute = route('admin.beneficiary.dashboard', absolute: false);
+        } else {
+            // employee, super-admin, or any other type
+            $employee = Employee::where('user_id', $user->id)->first();
+            $redirectRoute = $employee
+                ? route('admin.hr.employees.show', $employee, absolute: false)
+                : route('admin.dashboard', absolute: false);
         }
 
         $this->redirectIntended(default: $redirectRoute, navigate: true);
@@ -135,6 +135,6 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل الد
 
     <div class="auth-footer">
         ليس لديك حساب؟
-        <a href="{{ route('register') }}">إنشاء حساب جديد</a>
+        <a href="{{ route('auth.choose') }}">إنشاء حساب جديد</a>
     </div>
 </div>

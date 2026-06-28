@@ -42,6 +42,11 @@ class PermissionHelper
      */
     public static function can(User $user, string $modelName, string $action, ?int $modelId = null, ?int $centerId = null, ?int $projectId = null): bool
     {
+        // Super-admin has all permissions
+        if ($user->type === 'super-admin') {
+            return true;
+        }
+
         $column = 'can_' . $action;
 
         $permissions = self::getUserPermissions($user, $modelName);

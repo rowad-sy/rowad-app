@@ -33,9 +33,10 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل دخو
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();
 
-        // Redirect to employee profile if found, otherwise to dashboard
         $employee = Employee::where('user_id', auth()->id())->first();
-        $redirectRoute = $employee ? route('admin.hr.employees.show', $employee, absolute: false) : route('admin.dashboard', absolute: false);
+        $redirectRoute = $employee
+            ? route('admin.hr.employees.show', $employee, absolute: false)
+            : route('admin.dashboard', absolute: false);
         $this->redirectIntended(default: $redirectRoute, navigate: true);
     }
 

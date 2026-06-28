@@ -54,7 +54,7 @@ class UserController extends Controller
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'is_active' => 'boolean',
-            'type' => 'nullable|string|in:employee,beneficiary,student',
+            'type' => 'nullable|string|in:employee,beneficiary,student,super-admin',
         ]);
 
         User::create($validated);
@@ -75,7 +75,7 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => 'nullable|string|min:8|confirmed',
             'is_active' => 'boolean',
-            'type' => 'nullable|string|in:employee,beneficiary,student',
+            'type' => 'nullable|string|in:employee,beneficiary,student,super-admin',
         ]);
 
         if (empty($validated['password'])) {

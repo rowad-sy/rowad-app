@@ -149,6 +149,9 @@ class PermissionController extends Controller
                 'App\Models\Admin\Hr\Employee' => 'الموظفين',
                 'App\Models\Admin\Hr\JobPosition' => 'المناصب الوظيفية',
                 'App\Models\Admin\Hr\Warning' => 'التنبيهات',
+                'App\Models\Admin\Hr\LeaveType' => 'سياسة الإجازات',
+                'App\Models\Admin\Hr\LeaveRequest' => 'طلبات الإجازات',
+                'App\Models\Admin\Hr\EmployeeAttendance' => 'دوام الموظفين',
             ],
             'الطلاب' => [
                 'App\Models\Admin\Student\Student' => 'الطلاب',

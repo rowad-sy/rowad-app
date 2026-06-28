@@ -9,6 +9,11 @@ use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\Hr\EmployeeController;
 use App\Http\Controllers\Admin\Hr\EmployeeStatisticsController;
+use App\Http\Controllers\Admin\Hr\HrAttendanceController;
+use App\Http\Controllers\Admin\Hr\LeaveApprovalController;
+use App\Http\Controllers\Admin\Hr\LeavePolicyController;
+use App\Http\Controllers\Admin\Hr\LeaveRequestController;
+use App\Http\Controllers\Admin\Hr\TimesheetController;
 use App\Http\Controllers\Admin\Student\AttendanceController;
 use App\Http\Controllers\Admin\Student\CertificateController;
 use App\Http\Controllers\Admin\Student\CourseController;
@@ -27,6 +32,23 @@ use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
+    if (auth()->check()) {
+        $user = auth()->user();
+        if ($user->type === 'student') {
+            $student = \App\Models\Admin\Student\Student::where('user_id', $user->id)->first();
+            if ($student) {
+                return redirect()->route('admin.students.show', $student);
+            }
+        } elseif ($user->type === 'beneficiary') {
+            return redirect()->route('admin.beneficiary.dashboard');
+        } else {
+            $employee = \App\Models\Admin\Hr\Employee::where('user_id', $user->id)->first();
+            if ($employee) {
+                return redirect()->route('admin.hr.employees.show', $employee);
+            }
+        }
+        return redirect()->route('admin.home');
+    }
     return view('welcome');
 })->name('home');
 
@@ -79,6 +101,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('employees/export-full', [ExportController::class, 'employeesFullExport'])->name('employees.export-full');
             Route::post('employees/import', [ExportController::class, 'importEmployees'])->name('employees.import');
             Route::post('employees/import-full', [ExportController::class, 'importEmployeesFull'])->name('employees.import-full');
+
+            Route::resource('leave-requests', LeaveRequestController::class)->only(['index', 'create', 'store', 'destroy']);
+            Route::prefix('leave-approvals')->name('leave-approvals.')->group(function () {
+                Route::get('/', [LeaveApprovalController::class, 'index'])->name('index');
+                Route::post('{leaveRequest}/approve', [LeaveApprovalController::class, 'approve'])->name('approve');
+                Route::post('{leaveRequest}/reject', [LeaveApprovalController::class, 'reject'])->name('reject');
+            });
+            Route::resource('leave-policies', LeavePolicyController::class)->only(['index', 'store', 'update', 'destroy']);
+            Route::get('attendances', [HrAttendanceController::class, 'index'])->name('attendances.index');
+            Route::post('attendances', [HrAttendanceController::class, 'store'])->name('attendances.store');
+            Route::post('attendances/{employeeId}', [HrAttendanceController::class, 'update'])->name('attendances.update');
+            Route::get('timesheets', [TimesheetController::class, 'index'])->name('timesheets.index');
+            Route::get('timesheets/print', [TimesheetController::class, 'print'])->name('timesheets.print');
         });
 
         Route::prefix('tech')->name('tech.')->group(function () {

@@ -30,7 +30,7 @@
                 <i class="bi bi-person-circle me-1"></i> معلومات الحساب
             </h5>
 
-            @if ($user->type === 'employee' && $employee)
+            @if (($user->type === 'employee' || $user->type === 'super-admin') && $employee)
             <div class="mb-3 p-3 rounded" style="background:#e8f4fd;">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <i class="bi bi-person-workspace text-primary"></i>
@@ -82,7 +82,7 @@
                     <i class="bi bi-speedometer2 me-1"></i> لوحة المستفيد
                 </a>
             </div>
-            @elseif ($user->type === 'employee' && !$employee)
+            @elseif (($user->type === 'employee' || $user->type === 'super-admin') && !$employee)
             <div class="mb-3 p-3 rounded" style="background:#e8f4fd;">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <i class="bi bi-shield-lock text-primary"></i>

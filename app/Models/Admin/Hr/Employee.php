@@ -143,4 +143,19 @@ class Employee extends Model
     {
         return $this->hasMany(EmployeeNote::class, 'employee_id');
     }
+
+    public function leaveRequests(): HasMany
+    {
+        return $this->hasMany(LeaveRequest::class, 'employee_id');
+    }
+
+    public function leaveBalances(): HasMany
+    {
+        return $this->hasMany(LeaveBalance::class, 'employee_id');
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(EmployeeAttendance::class, 'employee_id');
+    }
 }

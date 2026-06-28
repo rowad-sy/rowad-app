@@ -28,7 +28,7 @@ class ProfileController extends Controller
         $employee = null;
         $student = null;
 
-        if ($user->type === 'employee') {
+        if ($user->type === 'employee' || $user->type === 'super-admin') {
             $employee = Employee::where('user_id', $user->id)->with(['center', 'department', 'project'])->first();
         } elseif ($user->type === 'student') {
             $student = Student::where('user_id', $user->id)->first();

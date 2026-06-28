@@ -23,7 +23,7 @@
         </div>
 
         {{-- Employee/Admin Navigation --}}
-        @if (auth()->user()->type === 'employee')
+        @if (auth()->user()->type === 'employee' || auth()->user()->type === 'super-admin')
         <div class="nav-section">الرئيسية</div>
         <a href="{{ route('admin.home') }}" class="nav-link {{ request()->routeIs('admin.home') ? 'active' : '' }}">
             <i class="bi bi-grid-3x3-gap"></i> <span>التطبيقات</span>
@@ -78,6 +78,31 @@
         @canPermission('App\Models\Admin\Hr\Employee', 'view')
         <a href="{{ route('admin.hr.employees.statistics') }}" class="nav-link {{ request()->routeIs('admin.hr.employees.statistics') ? 'active' : '' }}">
             <i class="bi bi-bar-chart"></i> <span>إحصائيات الموظفين</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Hr\LeaveRequest', 'view')
+        <a href="{{ route('admin.hr.leave-requests.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-requests.*') ? 'active' : '' }}">
+            <i class="bi bi-calendar-check"></i> <span>طلبات الإجازات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Hr\LeaveRequest', 'edit')
+        <a href="{{ route('admin.hr.leave-approvals.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-approvals.*') ? 'active' : '' }}">
+            <i class="bi bi-check2-square"></i> <span>الموافقات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Hr\LeaveType', 'view')
+        <a href="{{ route('admin.hr.leave-policies.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-policies.*') ? 'active' : '' }}">
+            <i class="bi bi-gear"></i> <span>سياسات الإجازات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Hr\EmployeeAttendance', 'view')
+        <a href="{{ route('admin.hr.attendances.index') }}" class="nav-link {{ request()->routeIs('admin.hr.attendances.*') ? 'active' : '' }}">
+            <i class="bi bi-clipboard-data"></i> <span>الحضور والغياب</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Hr\Employee', 'view')
+        <a href="{{ route('admin.hr.timesheets.index') }}" class="nav-link {{ request()->routeIs('admin.hr.timesheets.*') ? 'active' : '' }}">
+            <i class="bi bi-table"></i> <span>التايم شيت</span>
         </a>
         @endcanPermission
         <div class="nav-section">الطلاب</div>

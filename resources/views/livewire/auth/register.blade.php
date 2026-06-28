@@ -34,20 +34,20 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'إنشاء حسا
         Auth::login($user);
 
         // Redirect based on user type
-        $redirectRoute = route('admin.dashboard', absolute: false);
+        $user = auth()->user();
 
-        if ($user->type === 'employee') {
-            $employee = Employee::where('user_id', $user->id)->first();
-            if ($employee) {
-                $redirectRoute = route('admin.hr.employees.show', $employee, absolute: false);
-            }
-        } elseif ($user->type === 'student') {
+        if ($user->type === 'student') {
             $student = Student::where('user_id', $user->id)->first();
-            if ($student) {
-                $redirectRoute = route('admin.students.show', $student, absolute: false);
-            }
+            $redirectRoute = $student
+                ? route('admin.students.show', $student, absolute: false)
+                : route('admin.profile', absolute: false);
         } elseif ($user->type === 'beneficiary') {
             $redirectRoute = route('admin.beneficiary.dashboard', absolute: false);
+        } else {
+            $employee = Employee::where('user_id', $user->id)->first();
+            $redirectRoute = $employee
+                ? route('admin.hr.employees.show', $employee, absolute: false)
+                : route('admin.dashboard', absolute: false);
         }
 
         $this->redirect($redirectRoute, navigate: true);
