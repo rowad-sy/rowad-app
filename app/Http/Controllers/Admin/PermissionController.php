@@ -173,6 +173,9 @@ class PermissionController extends Controller
                 'App\Models\Admin\Logistics\Asset' => 'الأصول',
                 'App\Models\Admin\Logistics\LogisticsSetting' => 'إعدادات اللوجستي',
             ],
+            'إدارة المشاريع' => [
+                'App\Models\Admin\ProjectTask' => 'المهام',
+            ],
             'الصفحات' => [
                 'page:admin.logistics.statistics' => 'إحصائيات اللوجستي',
             ],

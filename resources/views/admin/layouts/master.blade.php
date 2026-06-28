@@ -8,6 +8,16 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700&display=swap" rel="stylesheet">
     @vite(['resources/js/app.js'])
+    <style>
+        .sidebar-section .nav-section { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+        .sidebar-section .nav-section:hover { background: rgba(255,255,255,0.05); }
+        .sidebar-section .section-arrow { transition: transform 0.2s; font-size: 0.75rem; }
+        .sidebar-section.collapsed .section-arrow { transform: rotate(-90deg); }
+        .sidebar-section.collapsed .section-items { display: none; }
+        .sidebar.collapsed .sidebar-section .section-arrow { display: none; }
+        .sidebar.collapsed .sidebar-section .section-items { display: none; }
+        .sidebar.collapsed .sidebar-section .nav-section { cursor: default; }
+    </style>
     @stack('styles')
 </head>
 <body>
@@ -24,203 +34,291 @@
 
         {{-- Employee/Admin Navigation --}}
         @if (auth()->user()->type === 'employee' || auth()->user()->type === 'super-admin')
-        <div class="nav-section">الرئيسية</div>
-        <a href="{{ route('admin.home') }}" class="nav-link {{ request()->routeIs('admin.home') ? 'active' : '' }}">
-            <i class="bi bi-grid-3x3-gap"></i> <span>التطبيقات</span>
-        </a>
-        <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-            <i class="bi bi-speedometer2"></i> <span>لوحة التحكم</span>
-        </a>
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>الرئيسية</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                <a href="{{ route('admin.home') }}" class="nav-link {{ request()->routeIs('admin.home') ? 'active' : '' }}">
+                    <i class="bi bi-grid-3x3-gap"></i> <span>التطبيقات</span>
+                </a>
+                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                    <i class="bi bi-speedometer2"></i> <span>لوحة التحكم</span>
+                </a>
+            </div>
+        </div>
 
-        <div class="nav-section">الإدارة</div>
-        @canPermission('App\Models\Admin\Center', 'view')
-        <a href="{{ route('admin.centers.index') }}" class="nav-link {{ request()->routeIs('admin.centers.*') ? 'active' : '' }}">
-            <i class="bi bi-geo-alt"></i> <span>المراكز</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Project', 'view')
-        <a href="{{ route('admin.projects.index') }}" class="nav-link {{ request()->routeIs('admin.projects.*') ? 'active' : '' }}">
-            <i class="bi bi-briefcase"></i> <span>المشاريع</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Department', 'view')
-        <a href="{{ route('admin.departments.index') }}" class="nav-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">
-            <i class="bi bi-diagram-3"></i> <span>الإدارات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Group', 'view')
-        <a href="{{ route('admin.groups.index') }}" class="nav-link {{ request()->routeIs('admin.groups.*') ? 'active' : '' }}">
-            <i class="bi bi-people"></i> <span>المجموعات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Permission', 'view')
-        <a href="{{ route('admin.permissions.index') }}" class="nav-link {{ request()->routeIs('admin.permissions.*') ? 'active' : '' }}">
-            <i class="bi bi-shield-check"></i> <span>الصلاحيات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\User', 'view')
-        <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-            <i class="bi bi-person-badge"></i> <span>المستخدمين</span>
-        </a>
-        @endcanPermission
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>الإدارة</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                @canPermission('App\Models\Admin\Center', 'view')
+                <a href="{{ route('admin.centers.index') }}" class="nav-link {{ request()->routeIs('admin.centers.*') ? 'active' : '' }}">
+                    <i class="bi bi-geo-alt"></i> <span>المراكز</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Project', 'view')
+                <a href="{{ route('admin.projects.index') }}" class="nav-link {{ request()->routeIs('admin.projects.*') ? 'active' : '' }}">
+                    <i class="bi bi-briefcase"></i> <span>المشاريع</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Department', 'view')
+                <a href="{{ route('admin.departments.index') }}" class="nav-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">
+                    <i class="bi bi-diagram-3"></i> <span>الإدارات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Group', 'view')
+                <a href="{{ route('admin.groups.index') }}" class="nav-link {{ request()->routeIs('admin.groups.*') ? 'active' : '' }}">
+                    <i class="bi bi-people"></i> <span>المجموعات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Permission', 'view')
+                <a href="{{ route('admin.permissions.index') }}" class="nav-link {{ request()->routeIs('admin.permissions.*') ? 'active' : '' }}">
+                    <i class="bi bi-shield-check"></i> <span>الصلاحيات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\User', 'view')
+                <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                    <i class="bi bi-person-badge"></i> <span>المستخدمين</span>
+                </a>
+                @endcanPermission
+            </div>
+        </div>
 
-        <div class="nav-section">الموارد البشرية</div>
-        @canPermission('App\Models\Admin\Hr\Employee', 'view')
-        <a href="{{ route('admin.hr.employees.index') }}" class="nav-link {{ request()->routeIs('admin.hr.employees.*') ? 'active' : '' }}">
-            <i class="bi bi-person-workspace"></i> <span>الموظفين</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Hr\JobPosition', 'view')
-        <a href="{{ route('admin.hr.job-positions.index') }}" class="nav-link {{ request()->routeIs('admin.hr.job-positions.*') ? 'active' : '' }}">
-            <i class="bi bi-badge-tm"></i> <span>المناصب الوظيفية</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Hr\Employee', 'view')
-        <a href="{{ route('admin.hr.employees.statistics') }}" class="nav-link {{ request()->routeIs('admin.hr.employees.statistics') ? 'active' : '' }}">
-            <i class="bi bi-bar-chart"></i> <span>إحصائيات الموظفين</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Hr\LeaveRequest', 'view')
-        <a href="{{ route('admin.hr.leave-requests.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-requests.*') ? 'active' : '' }}">
-            <i class="bi bi-calendar-check"></i> <span>طلبات الإجازات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Hr\LeaveRequest', 'edit')
-        <a href="{{ route('admin.hr.leave-approvals.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-approvals.*') ? 'active' : '' }}">
-            <i class="bi bi-check2-square"></i> <span>الموافقات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Hr\LeaveType', 'view')
-        <a href="{{ route('admin.hr.leave-policies.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-policies.*') ? 'active' : '' }}">
-            <i class="bi bi-gear"></i> <span>سياسات الإجازات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Hr\EmployeeAttendance', 'view')
-        <a href="{{ route('admin.hr.attendances.index') }}" class="nav-link {{ request()->routeIs('admin.hr.attendances.*') ? 'active' : '' }}">
-            <i class="bi bi-clipboard-data"></i> <span>الحضور والغياب</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Hr\Employee', 'view')
-        <a href="{{ route('admin.hr.timesheets.index') }}" class="nav-link {{ request()->routeIs('admin.hr.timesheets.*') ? 'active' : '' }}">
-            <i class="bi bi-table"></i> <span>التايم شيت</span>
-        </a>
-        @endcanPermission
-        <div class="nav-section">اللوجستي</div>
-        @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'view')
-        <a href="{{ route('admin.logistics.statistics') }}" class="nav-link {{ request()->routeIs('admin.logistics.statistics') ? 'active' : '' }}">
-            <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'view')
-        <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.purchase-requests.*') && !request()->routeIs('admin.logistics.purchase-requests.show') ? 'active' : '' }}">
-            <i class="bi bi-cart"></i> <span>طلبات الشراء</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Logistics\ApprovalRule', 'view')
-        <a href="{{ route('admin.logistics.approval-rules.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.approval-rules.*') ? 'active' : '' }}">
-            <i class="bi bi-check2-square"></i> <span>قواعد الموافقات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Logistics\Warehouse', 'view')
-        <a href="{{ route('admin.logistics.warehouses.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.warehouses.*') ? 'active' : '' }}">
-            <i class="bi bi-shop"></i> <span>المخازن</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Logistics\Asset', 'view')
-        <a href="{{ route('admin.logistics.assets.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.assets.*') ? 'active' : '' }}">
-            <i class="bi bi-boxes"></i> <span>الأصول</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Logistics\LogisticsSetting', 'view')
-        <a href="{{ route('admin.logistics.settings.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.settings.*') ? 'active' : '' }}">
-            <i class="bi bi-gear"></i> <span>الإعدادات</span>
-        </a>
-        @endcanPermission
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>الموارد البشرية</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                @canPermission('App\Models\Admin\Hr\Employee', 'view')
+                <a href="{{ route('admin.hr.employees.index') }}" class="nav-link {{ request()->routeIs('admin.hr.employees.*') ? 'active' : '' }}">
+                    <i class="bi bi-person-workspace"></i> <span>الموظفين</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Hr\JobPosition', 'view')
+                <a href="{{ route('admin.hr.job-positions.index') }}" class="nav-link {{ request()->routeIs('admin.hr.job-positions.*') ? 'active' : '' }}">
+                    <i class="bi bi-badge-tm"></i> <span>المناصب الوظيفية</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Hr\Employee', 'view')
+                <a href="{{ route('admin.hr.employees.statistics') }}" class="nav-link {{ request()->routeIs('admin.hr.employees.statistics') ? 'active' : '' }}">
+                    <i class="bi bi-bar-chart"></i> <span>إحصائيات الموظفين</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Hr\LeaveRequest', 'view')
+                <a href="{{ route('admin.hr.leave-requests.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-requests.*') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-check"></i> <span>طلبات الإجازات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Hr\LeaveRequest', 'edit')
+                <a href="{{ route('admin.hr.leave-approvals.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-approvals.*') ? 'active' : '' }}">
+                    <i class="bi bi-check2-square"></i> <span>الموافقات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Hr\LeaveType', 'view')
+                <a href="{{ route('admin.hr.leave-policies.index') }}" class="nav-link {{ request()->routeIs('admin.hr.leave-policies.*') ? 'active' : '' }}">
+                    <i class="bi bi-gear"></i> <span>سياسات الإجازات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Hr\EmployeeAttendance', 'view')
+                <a href="{{ route('admin.hr.attendances.index') }}" class="nav-link {{ request()->routeIs('admin.hr.attendances.*') ? 'active' : '' }}">
+                    <i class="bi bi-clipboard-data"></i> <span>الحضور والغياب</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Hr\Employee', 'view')
+                <a href="{{ route('admin.hr.timesheets.index') }}" class="nav-link {{ request()->routeIs('admin.hr.timesheets.*') ? 'active' : '' }}">
+                    <i class="bi bi-table"></i> <span>التايم شيت</span>
+                </a>
+                @endcanPermission
+            </div>
+        </div>
 
-        <div class="nav-section">الطلاب</div>
-        @canPermission('App\Models\Admin\Student\Student', 'view')
-        <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.index') || request()->routeIs('admin.students.create') || request()->routeIs('admin.students.edit') || request()->routeIs('admin.students.show') || request()->routeIs('admin.students.attendance') || request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
-            <i class="bi bi-mortarboard"></i> <span>الطلاب</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Student\Course', 'view')
-        <a href="{{ route('admin.students.courses.index') }}" class="nav-link {{ request()->routeIs('admin.students.courses.*') ? 'active' : '' }}">
-            <i class="bi bi-book"></i> <span>المقررات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Student\Period', 'view')
-        <a href="{{ route('admin.students.periods.index') }}" class="nav-link {{ request()->routeIs('admin.students.periods.*') ? 'active' : '' }}">
-            <i class="bi bi-calendar-range"></i> <span>الفترات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Student\Attendance', 'view')
-        <a href="{{ route('admin.students.attendance') }}" class="nav-link {{ request()->routeIs('admin.students.attendance') ? 'active' : '' }}">
-            <i class="bi bi-clipboard-check"></i> <span>الحضور</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Student\Student', 'view')
-        <a href="{{ route('admin.students.statistics') }}" class="nav-link {{ request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
-            <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Student\Certificate', 'view')
-        <a href="{{ route('admin.students.certificates.index') }}" class="nav-link {{ request()->routeIs('admin.students.certificates.*') && !request()->routeIs('admin.students.certificates.designs') && !request()->routeIs('admin.students.certificates.designer.*') ? 'active' : '' }}">
-            <i class="bi bi-file-earmark-check"></i> <span>الشهادات</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Student\Certificate', 'view')
-        <a href="{{ route('admin.students.certificates.designs') }}" class="nav-link {{ request()->routeIs('admin.students.certificates.designs') || request()->routeIs('admin.students.certificates.designer.*') ? 'active' : '' }}">
-            <i class="bi bi-palette"></i> <span>تصاميم الشهادات</span>
-        </a>
-        @endcanPermission
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>اللوجستي</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'view')
+                <a href="{{ route('admin.logistics.statistics') }}" class="nav-link {{ request()->routeIs('admin.logistics.statistics') ? 'active' : '' }}">
+                    <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'view')
+                <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.purchase-requests.*') && !request()->routeIs('admin.logistics.purchase-requests.show') ? 'active' : '' }}">
+                    <i class="bi bi-cart"></i> <span>طلبات الشراء</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Logistics\ApprovalRule', 'view')
+                <a href="{{ route('admin.logistics.approval-rules.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.approval-rules.*') ? 'active' : '' }}">
+                    <i class="bi bi-check2-square"></i> <span>قواعد الموافقات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Logistics\Warehouse', 'view')
+                <a href="{{ route('admin.logistics.warehouses.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.warehouses.*') ? 'active' : '' }}">
+                    <i class="bi bi-shop"></i> <span>المخازن</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Logistics\Asset', 'view')
+                <a href="{{ route('admin.logistics.assets.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.assets.*') ? 'active' : '' }}">
+                    <i class="bi bi-boxes"></i> <span>الأصول</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Logistics\LogisticsSetting', 'view')
+                <a href="{{ route('admin.logistics.settings.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.settings.*') ? 'active' : '' }}">
+                    <i class="bi bi-gear"></i> <span>الإعدادات</span>
+                </a>
+                @endcanPermission
+            </div>
+        </div>
 
-        <div class="nav-section">التقنية</div>
-        @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
-        <a href="{{ route('admin.tech.issues.index') }}" class="nav-link {{ request()->routeIs('admin.tech.issues.*') ? 'active' : '' }}">
-            <i class="bi bi-ticket"></i> <span>التذاكر الفنية</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Tech\TechEquipment', 'view')
-        <a href="{{ route('admin.tech.equipment.index') }}" class="nav-link {{ request()->routeIs('admin.tech.equipment.*') ? 'active' : '' }}">
-            <i class="bi bi-pc-display"></i> <span>المعدات التقنية</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
-        <a href="{{ route('admin.tech.statistics') }}" class="nav-link {{ request()->routeIs('admin.tech.statistics') ? 'active' : '' }}">
-            <i class="bi bi-bar-chart"></i> <span>إحصائيات التقنية</span>
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\User', 'view')
-        <a href="{{ route('admin.tech.emails') }}" class="nav-link {{ request()->routeIs('admin.tech.emails') ? 'active' : '' }}">
-            <i class="bi bi-envelope"></i> <span>البريد الرسمي</span>
-        </a>
-        @endcanPermission
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>الطلاب</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                @canPermission('App\Models\Admin\Student\Student', 'view')
+                <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.index') || request()->routeIs('admin.students.create') || request()->routeIs('admin.students.edit') || request()->routeIs('admin.students.show') || request()->routeIs('admin.students.attendance') || request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
+                    <i class="bi bi-mortarboard"></i> <span>الطلاب</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Student\Course', 'view')
+                <a href="{{ route('admin.students.courses.index') }}" class="nav-link {{ request()->routeIs('admin.students.courses.*') ? 'active' : '' }}">
+                    <i class="bi bi-book"></i> <span>المقررات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Student\Period', 'view')
+                <a href="{{ route('admin.students.periods.index') }}" class="nav-link {{ request()->routeIs('admin.students.periods.*') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-range"></i> <span>الفترات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Student\Attendance', 'view')
+                <a href="{{ route('admin.students.attendance') }}" class="nav-link {{ request()->routeIs('admin.students.attendance') ? 'active' : '' }}">
+                    <i class="bi bi-clipboard-check"></i> <span>الحضور</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Student\Student', 'view')
+                <a href="{{ route('admin.students.statistics') }}" class="nav-link {{ request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
+                    <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Student\Certificate', 'view')
+                <a href="{{ route('admin.students.certificates.index') }}" class="nav-link {{ request()->routeIs('admin.students.certificates.*') && !request()->routeIs('admin.students.certificates.designs') && !request()->routeIs('admin.students.certificates.designer.*') ? 'active' : '' }}">
+                    <i class="bi bi-file-earmark-check"></i> <span>الشهادات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Student\Certificate', 'view')
+                <a href="{{ route('admin.students.certificates.designs') }}" class="nav-link {{ request()->routeIs('admin.students.certificates.designs') || request()->routeIs('admin.students.certificates.designer.*') ? 'active' : '' }}">
+                    <i class="bi bi-palette"></i> <span>تصاميم الشهادات</span>
+                </a>
+                @endcanPermission
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>إدارة المشاريع</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                @canPermission('App\Models\Admin\ProjectTask', 'view')
+                <a href="{{ route('admin.projects.tasks.index') }}" class="nav-link {{ request()->routeIs('admin.projects.tasks.*') ? 'active' : '' }}">
+                    <i class="bi bi-list-task"></i> <span>المهام</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\ProjectTask', 'view')
+                <a href="{{ route('admin.projects.calendar') }}" class="nav-link {{ request()->routeIs('admin.projects.calendar') ? 'active' : '' }}">
+                    <i class="bi bi-calendar3"></i> <span>التقويم الزمني</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\ProjectTask', 'view')
+                <a href="{{ route('admin.projects.statistics') }}" class="nav-link {{ request()->routeIs('admin.projects.statistics') ? 'active' : '' }}">
+                    <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
+                </a>
+                @endcanPermission
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>التقنية</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
+                <a href="{{ route('admin.tech.issues.index') }}" class="nav-link {{ request()->routeIs('admin.tech.issues.*') ? 'active' : '' }}">
+                    <i class="bi bi-ticket"></i> <span>التذاكر الفنية</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Tech\TechEquipment', 'view')
+                <a href="{{ route('admin.tech.equipment.index') }}" class="nav-link {{ request()->routeIs('admin.tech.equipment.*') ? 'active' : '' }}">
+                    <i class="bi bi-pc-display"></i> <span>المعدات التقنية</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
+                <a href="{{ route('admin.tech.statistics') }}" class="nav-link {{ request()->routeIs('admin.tech.statistics') ? 'active' : '' }}">
+                    <i class="bi bi-bar-chart"></i> <span>إحصائيات التقنية</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\User', 'view')
+                <a href="{{ route('admin.tech.emails') }}" class="nav-link {{ request()->routeIs('admin.tech.emails') ? 'active' : '' }}">
+                    <i class="bi bi-envelope"></i> <span>البريد الرسمي</span>
+                </a>
+                @endcanPermission
+            </div>
+        </div>
         @endif
 
         {{-- Student Navigation --}}
         @if (auth()->user()->type === 'student')
-        <div class="nav-section">حسابي</div>
-        <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
-            <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
-        </a>
-        @php $stu = auth()->user()->student; @endphp
-        @if ($stu)
-        <a href="{{ route('admin.students.show', $stu) }}" class="nav-link {{ request()->routeIs('admin.students.show') ? 'active' : '' }}">
-            <i class="bi bi-mortarboard"></i> <span>ملفي الدراسي</span>
-        </a>
-        @endif
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>حسابي</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
+                    <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
+                </a>
+                @php $stu = auth()->user()->student; @endphp
+                @if ($stu)
+                <a href="{{ route('admin.students.show', $stu) }}" class="nav-link {{ request()->routeIs('admin.students.show') ? 'active' : '' }}">
+                    <i class="bi bi-mortarboard"></i> <span>ملفي الدراسي</span>
+                </a>
+                @endif
+            </div>
+        </div>
         @endif
 
         {{-- Beneficiary Navigation --}}
         @if (auth()->user()->type === 'beneficiary')
-        <div class="nav-section">الرئيسية</div>
-        <a href="{{ route('admin.beneficiary.dashboard') }}" class="nav-link {{ request()->routeIs('admin.beneficiary.dashboard') ? 'active' : '' }}">
-            <i class="bi bi-speedometer2"></i> <span>لوحة المستفيد</span>
-        </a>
-        <div class="nav-section">حسابي</div>
-        <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
-            <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
-        </a>
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>الرئيسية</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                <a href="{{ route('admin.beneficiary.dashboard') }}" class="nav-link {{ request()->routeIs('admin.beneficiary.dashboard') ? 'active' : '' }}">
+                    <i class="bi bi-speedometer2"></i> <span>لوحة المستفيد</span>
+                </a>
+            </div>
+        </div>
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>حسابي</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
+                    <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
+                </a>
+            </div>
+        </div>
         @endif
     </div>
 
@@ -294,7 +392,28 @@
                 sidebar.classList.remove('mobile-open');
                 overlay.classList.remove('show');
             });
+
+            // Auto-open sections with an active link
+            document.querySelectorAll('.sidebar-section').forEach(function (section) {
+                var hasActive = section.querySelector('.nav-link.active');
+                var key = 'sidebar_section_' + section.querySelector('.nav-section span').textContent.trim();
+                var stored = localStorage.getItem(key);
+
+                if (hasActive) {
+                    section.classList.remove('collapsed');
+                    localStorage.setItem(key, 'open');
+                } else if (stored === 'collapsed') {
+                    section.classList.add('collapsed');
+                }
+            });
         });
+
+        function toggleSection(el) {
+            var section = el.closest('.sidebar-section');
+            var isCollapsed = section.classList.toggle('collapsed');
+            var key = 'sidebar_section_' + section.querySelector('.nav-section span').textContent.trim();
+            localStorage.setItem(key, isCollapsed ? 'collapsed' : 'open');
+        }
     </script>
 </body>
 </html>

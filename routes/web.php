@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\Hr\JobPositionController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\ProjectTaskController;
 use App\Http\Controllers\Admin\Tech\TechController;
 use App\Http\Controllers\Admin\Tech\TechEquipmentController;
 use App\Http\Controllers\Admin\Tech\TechIssueController;
@@ -69,6 +70,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('beneficiary/dashboard', [BeneficiaryController::class, 'dashboard'])->name('beneficiary.dashboard');
         Route::resource('centers', CenterController::class)->except(['show']);
+        Route::prefix('projects')->name('projects.')->group(function () {
+            Route::get('tasks', [ProjectTaskController::class, 'index'])->name('tasks.index');
+            Route::get('tasks/create', [ProjectTaskController::class, 'create'])->name('tasks.create');
+            Route::post('tasks', [ProjectTaskController::class, 'store'])->name('tasks.store');
+            Route::get('tasks/{task}', [ProjectTaskController::class, 'show'])->name('tasks.show');
+            Route::get('tasks/{task}/edit', [ProjectTaskController::class, 'edit'])->name('tasks.edit');
+            Route::put('tasks/{task}', [ProjectTaskController::class, 'update'])->name('tasks.update');
+            Route::delete('tasks/{task}', [ProjectTaskController::class, 'destroy'])->name('tasks.destroy');
+            Route::post('tasks/{task}/update-status', [ProjectTaskController::class, 'updateStatus'])->name('tasks.update-status');
+            Route::get('calendar', [ProjectTaskController::class, 'calendar'])->name('calendar');
+            Route::get('statistics', [ProjectTaskController::class, 'statistics'])->name('statistics');
+        });
         Route::resource('projects', ProjectController::class)->except(['show']);
         Route::resource('departments', DepartmentController::class)->except(['show']);
         Route::resource('groups', GroupController::class)->except(['show']);
