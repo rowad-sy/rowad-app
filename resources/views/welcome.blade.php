@@ -166,9 +166,6 @@
             <a href="{{ route('login') }}" class="btn-hero btn-hero-primary">
                 <i class="bi bi-person"></i> تسجيل الدخول
             </a>
-            <a href="{{ route('auth.choose') }}" class="btn-hero btn-hero-outline">
-                <i class="bi bi-person-plus"></i> إنشاء حساب جديد
-            </a>
         </div>
         <div class="hero-footer">© 2026 مؤسسة الرواد للتنمية. جميع الحقوق محفوظة.</div>
     </section>

@@ -1,3 +1,8 @@
+@php
+    $studentId = old('student_id', isset($user) ? $user->student?->id : '');
+    $employeeId = old('employee_id', isset($user) ? $user->employee?->id : '');
+@endphp
+
 @extends('admin.layouts.master')
 
 @section('title', isset($user) ? 'تعديل مستخدم' : 'إضافة مستخدم')
@@ -61,7 +66,7 @@
 
                 <div class="mb-3">
                     <label class="form-label">النوع</label>
-                    <select name="type" class="form-select @error('type') is-invalid @enderror">
+                    <select name="type" id="userType" class="form-select @error('type') is-invalid @enderror">
                         <option value="">— عادي —</option>
                         <option value="super-admin" {{ old('type', $user->type ?? '') == 'super-admin' ? 'selected' : '' }}>سوبر أدمن</option>
                         <option value="employee" {{ old('type', $user->type ?? '') == 'employee' ? 'selected' : '' }}>موظف</option>
@@ -69,6 +74,34 @@
                         <option value="student" {{ old('type', $user->type ?? '') == 'student' ? 'selected' : '' }}>طالب</option>
                     </select>
                     @error('type') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+
+                <div class="mb-3 link-select" data-type="student" style="display: none;">
+                    <label class="form-label">ربط بطالب</label>
+                    <select name="student_id" class="form-select @error('student_id') is-invalid @enderror">
+                        <option value="">— اختر طالباً —</option>
+                        @foreach (\App\Models\Admin\Student\Student::doesntHave('user')->orderBy('first_name_ar')->get() as $s)
+                            <option value="{{ $s->id }}" {{ old('student_id', $studentId ?? '') == $s->id ? 'selected' : '' }}>
+                                {{ $s->first_name_ar }} {{ $s->last_name_ar }} ({{ $s->student_code }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('student_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="form-text text-muted">اختر الطالب المراد ربط الحساب به</div>
+                </div>
+
+                <div class="mb-3 link-select" data-type="employee" style="display: none;">
+                    <label class="form-label">ربط بموظف</label>
+                    <select name="employee_id" class="form-select @error('employee_id') is-invalid @enderror">
+                        <option value="">— اختر موظفاً —</option>
+                        @foreach (\App\Models\Admin\Hr\Employee::doesntHave('user')->orderBy('first_name_ar')->get() as $e)
+                            <option value="{{ $e->id }}" {{ old('employee_id', $employeeId ?? '') == $e->id ? 'selected' : '' }}>
+                                {{ $e->first_name_ar }} {{ $e->last_name_ar }} ({{ $e->employee_code }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('employee_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="form-text text-muted">اختر الموظف المراد ربط الحساب به</div>
                 </div>
 
                 <div class="mb-3 form-check form-switch">
@@ -89,3 +122,22 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const typeSelect = document.getElementById('userType');
+    const linkSelects = document.querySelectorAll('.link-select');
+
+    function toggleLinkFields() {
+        const selectedType = typeSelect.value;
+        linkSelects.forEach(function (el) {
+            el.style.display = el.dataset.type === selectedType ? 'block' : 'none';
+        });
+    }
+
+    typeSelect.addEventListener('change', toggleLinkFields);
+    toggleLinkFields();
+});
+</script>
+@endpush

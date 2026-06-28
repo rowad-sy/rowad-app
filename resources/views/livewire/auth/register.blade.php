@@ -40,7 +40,7 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'إنشاء حسا
             $student = Student::where('user_id', $user->id)->first();
             $redirectRoute = $student
                 ? route('admin.students.show', $student, absolute: false)
-                : route('admin.profile', absolute: false);
+                : route('admin.home', absolute: false);
         } elseif ($user->type === 'beneficiary') {
             $redirectRoute = route('admin.beneficiary.dashboard', absolute: false);
         } else {

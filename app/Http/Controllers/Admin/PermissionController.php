@@ -166,6 +166,16 @@ class PermissionController extends Controller
                 'App\Models\Admin\Tech\TechIssue' => 'التذاكر',
                 'App\Models\Admin\Tech\TechEquipment' => 'المعدات',
             ],
+            'اللوجستي' => [
+                'App\Models\Admin\Logistics\PurchaseRequest' => 'طلبات الشراء',
+                'App\Models\Admin\Logistics\ApprovalRule' => 'قواعد الموافقات',
+                'App\Models\Admin\Logistics\Warehouse' => 'المخازن',
+                'App\Models\Admin\Logistics\Asset' => 'الأصول',
+                'App\Models\Admin\Logistics\LogisticsSetting' => 'إعدادات اللوجستي',
+            ],
+            'الصفحات' => [
+                'page:admin.logistics.statistics' => 'إحصائيات اللوجستي',
+            ],
         ];
     }
 }

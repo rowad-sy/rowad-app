@@ -9,22 +9,17 @@ Route::middleware('guest')->group(function () {
     Volt::route('login', 'auth.login')
         ->name('login');
 
-    // Choose user type (for registration)
+    // Choose action (login only — registration is handled by admins)
     Volt::route('choose', 'auth.choose')
         ->name('auth.choose');
 
     // Redirect old separate login URLs to unified login
     Route::redirect('login/employee', '/login');
     Route::redirect('login/beneficiary', '/login');
+    Route::redirect('register', '/login');
+    Route::redirect('register/employee', '/login');
 
-    // Redirect old /register to /choose
-    Route::redirect('register', '/choose');
-
-    // Employee registration (with center/project)
-    Volt::route('register/employee', 'auth.register-employee')
-        ->name('register.employee');
-
-    // Password reset (kept as original)
+    // Password reset
     Volt::route('forgot-password', 'auth.forgot-password')
         ->name('password.request');
 

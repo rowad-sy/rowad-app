@@ -110,6 +110,5 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل موظ
     <div class="auth-divider"><span>أو</span></div>
     <div class="d-flex justify-content-between auth-footer" style="margin-top:0">
         <a href="{{ route('login') }}">لدي حساب بالفعل</a>
-        <a href="{{ route('auth.choose') }}">العودة</a>
     </div>
 </div>

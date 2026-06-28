@@ -105,6 +105,38 @@
             <i class="bi bi-table"></i> <span>التايم شيت</span>
         </a>
         @endcanPermission
+        <div class="nav-section">اللوجستي</div>
+        @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'view')
+        <a href="{{ route('admin.logistics.statistics') }}" class="nav-link {{ request()->routeIs('admin.logistics.statistics') ? 'active' : '' }}">
+            <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'view')
+        <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.purchase-requests.*') && !request()->routeIs('admin.logistics.purchase-requests.show') ? 'active' : '' }}">
+            <i class="bi bi-cart"></i> <span>طلبات الشراء</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Logistics\ApprovalRule', 'view')
+        <a href="{{ route('admin.logistics.approval-rules.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.approval-rules.*') ? 'active' : '' }}">
+            <i class="bi bi-check2-square"></i> <span>قواعد الموافقات</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Logistics\Warehouse', 'view')
+        <a href="{{ route('admin.logistics.warehouses.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.warehouses.*') ? 'active' : '' }}">
+            <i class="bi bi-shop"></i> <span>المخازن</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Logistics\Asset', 'view')
+        <a href="{{ route('admin.logistics.assets.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.assets.*') ? 'active' : '' }}">
+            <i class="bi bi-boxes"></i> <span>الأصول</span>
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\Logistics\LogisticsSetting', 'view')
+        <a href="{{ route('admin.logistics.settings.index') }}" class="nav-link {{ request()->routeIs('admin.logistics.settings.*') ? 'active' : '' }}">
+            <i class="bi bi-gear"></i> <span>الإعدادات</span>
+        </a>
+        @endcanPermission
+
         <div class="nav-section">الطلاب</div>
         @canPermission('App\Models\Admin\Student\Student', 'view')
         <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.index') || request()->routeIs('admin.students.create') || request()->routeIs('admin.students.edit') || request()->routeIs('admin.students.show') || request()->routeIs('admin.students.attendance') || request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
@@ -167,10 +199,6 @@
 
         {{-- Student Navigation --}}
         @if (auth()->user()->type === 'student')
-        <div class="nav-section">الرئيسية</div>
-        <a href="{{ route('admin.home') }}" class="nav-link {{ request()->routeIs('admin.home') ? 'active' : '' }}">
-            <i class="bi bi-grid-3x3-gap"></i> <span>التطبيقات</span>
-        </a>
         <div class="nav-section">حسابي</div>
         <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
             <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>

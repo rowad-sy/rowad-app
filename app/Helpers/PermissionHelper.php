@@ -93,4 +93,13 @@ class PermissionHelper
 
         return $directPermissions->concat($groupPermissions);
     }
+
+    /*
+     * التحقق من صلاحية صفحة معينة
+     * يتم تخزين صلاحيات الصفحات في model_names كـ "page:{route_name}"
+     */
+    public static function canViewPage(User $user, string $routeName): bool
+    {
+        return self::can($user, 'page:' . $routeName, 'view');
+    }
 }

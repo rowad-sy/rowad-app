@@ -36,7 +36,7 @@ class VerifyEmailController extends Controller
             $student = Student::where('user_id', $user->id)->first();
             return $student
                 ? route('admin.students.show', $student, absolute: false)
-                : route('admin.profile', absolute: false);
+                : route('admin.home', absolute: false);
         } elseif ($user->type === 'beneficiary') {
             return route('admin.beneficiary.dashboard', absolute: false);
         }
@@ -47,3 +47,4 @@ class VerifyEmailController extends Controller
             : route('admin.dashboard', absolute: false);
     }
 }
+

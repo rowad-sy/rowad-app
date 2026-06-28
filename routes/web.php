@@ -28,6 +28,15 @@ use App\Http\Controllers\Admin\Tech\TechController;
 use App\Http\Controllers\Admin\Tech\TechEquipmentController;
 use App\Http\Controllers\Admin\Tech\TechIssueController;
 use App\Http\Controllers\Admin\Tech\TechStatisticsController;
+use App\Http\Controllers\Admin\Logistics\SettingsController;
+use App\Http\Controllers\Admin\Logistics\ApprovalRuleController;
+use App\Http\Controllers\Admin\Logistics\PurchaseRequestController;
+use App\Http\Controllers\Admin\Logistics\PurchaseRequestApprovalController;
+use App\Http\Controllers\Admin\Logistics\WarehouseController;
+use App\Http\Controllers\Admin\Logistics\WarehouseItemController;
+use App\Http\Controllers\Admin\Logistics\AssetController;
+use App\Http\Controllers\Admin\Logistics\LogisticsStatisticsController;
+use App\Http\Controllers\Admin\Logistics\LogisticsExportController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -122,6 +131,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::resource('equipment', TechEquipmentController::class);
             Route::get('statistics', [TechStatisticsController::class, 'index'])->name('statistics');
             Route::get('emails', [TechController::class, 'emails'])->name('emails');
+        });
+
+        // Logistics
+        Route::prefix('logistics')->name('logistics.')->group(function () {
+            Route::get('statistics', [LogisticsStatisticsController::class, 'index'])->name('statistics');
+            Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+            Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');
+            Route::resource('approval-rules', ApprovalRuleController::class)->except(['show']);
+            Route::resource('purchase-requests', PurchaseRequestController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+            Route::post('purchase-requests/{purchaseRequest}/approve', [PurchaseRequestApprovalController::class, 'approve'])->name('purchase-requests.approve');
+            Route::post('purchase-requests/{purchaseRequest}/reject', [PurchaseRequestApprovalController::class, 'reject'])->name('purchase-requests.reject');
+            Route::resource('warehouses', WarehouseController::class)->except(['show']);
+            Route::get('warehouses/{warehouse}/items', [WarehouseItemController::class, 'index'])->name('warehouses.items.index');
+            Route::get('warehouses/{warehouse}/items/create', [WarehouseItemController::class, 'create'])->name('warehouses.items.create');
+            Route::post('warehouses/{warehouse}/items', [WarehouseItemController::class, 'store'])->name('warehouses.items.store');
+            Route::get('warehouses/{warehouse}/items/{item}/edit', [WarehouseItemController::class, 'edit'])->name('warehouses.items.edit');
+            Route::put('warehouses/{warehouse}/items/{item}', [WarehouseItemController::class, 'update'])->name('warehouses.items.update');
+            Route::post('warehouses/{warehouse}/items/{item}/delete', [WarehouseItemController::class, 'destroy'])->name('warehouses.items.destroy');
+            Route::get('deleted-items', [WarehouseItemController::class, 'deleted'])->name('warehouses.items.deleted');
+            Route::resource('assets', AssetController::class);
+
+            // Export/Import
+            Route::get('export/purchase-requests', [LogisticsExportController::class, 'exportPurchaseRequests'])->name('export.purchase-requests');
+            Route::post('import/purchase-requests', [LogisticsExportController::class, 'importPurchaseRequests'])->name('import.purchase-requests');
+            Route::get('export/warehouses', [LogisticsExportController::class, 'exportWarehouses'])->name('export.warehouses');
+            Route::post('import/warehouses', [LogisticsExportController::class, 'importWarehouses'])->name('import.warehouses');
+            Route::get('export/assets', [LogisticsExportController::class, 'exportAssets'])->name('export.assets');
+            Route::post('import/assets', [LogisticsExportController::class, 'importAssets'])->name('import.assets');
         });
     });
 

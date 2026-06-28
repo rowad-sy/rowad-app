@@ -55,9 +55,13 @@ class UserController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'is_active' => 'boolean',
             'type' => 'nullable|string|in:employee,beneficiary,student,super-admin',
+            'student_id' => 'nullable|integer|exists:students,id',
+            'employee_id' => 'nullable|integer|exists:hr_employees,id',
         ]);
 
-        User::create($validated);
+        $user = User::create($validated);
+
+        $this->linkRecord($user, $validated);
 
         return redirect()->route('admin.users.index')
             ->with('success', 'تم إضافة المستخدم بنجاح');
@@ -76,16 +80,44 @@ class UserController extends Controller
             'password' => 'nullable|string|min:8|confirmed',
             'is_active' => 'boolean',
             'type' => 'nullable|string|in:employee,beneficiary,student,super-admin',
+            'student_id' => 'nullable|integer|exists:students,id',
+            'employee_id' => 'nullable|integer|exists:hr_employees,id',
         ]);
 
         if (empty($validated['password'])) {
             unset($validated['password']);
         }
 
+        // Unlink old record if type changed
+        $oldType = $user->getOriginal('type');
+        if ($oldType !== null && $oldType !== ($validated['type'] ?? $oldType)) {
+            $this->unlinkRecord($user, $oldType);
+        }
+
         $user->update($validated);
+
+        $this->linkRecord($user, $validated);
 
         return redirect()->route('admin.users.index')
             ->with('success', 'تم تحديث المستخدم بنجاح');
+    }
+
+    private function linkRecord(User $user, array $data): void
+    {
+        if (($data['type'] ?? $user->type) === 'student' && !empty($data['student_id'])) {
+            \App\Models\Admin\Student\Student::where('id', $data['student_id'])->update(['user_id' => $user->id]);
+        } elseif (($data['type'] ?? $user->type) === 'employee' && !empty($data['employee_id'])) {
+            \App\Models\Admin\Hr\Employee::where('id', $data['employee_id'])->update(['user_id' => $user->id]);
+        }
+    }
+
+    private function unlinkRecord(User $user, string $type): void
+    {
+        if ($type === 'student') {
+            \App\Models\Admin\Student\Student::where('user_id', $user->id)->update(['user_id' => null]);
+        } elseif ($type === 'employee') {
+            \App\Models\Admin\Hr\Employee::where('user_id', $user->id)->update(['user_id' => null]);
+        }
     }
 
     public function destroy(User $user)

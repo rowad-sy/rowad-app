@@ -155,7 +155,7 @@ class StudentController extends Controller
             abort(403, 'ليس لديك صلاحية للوصول إلى هذه الصفحة');
         }
 
-        $student->load(['center', 'project', 'user', 'enrollments.course', 'enrollments.period']);
+        $student->load(['center', 'project', 'user', 'enrollments.course', 'enrollments.period', 'certificates.design', 'certificates.enrollment.course']);
 
         $attendanceSummary = $student->attendance()
             ->selectRaw("status, COUNT(*) as count")

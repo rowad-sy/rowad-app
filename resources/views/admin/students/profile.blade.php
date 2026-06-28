@@ -155,8 +155,8 @@
                             </span>
                         </div>
                     </div>
-                    <a href="{{ route('admin.users.edit', $student->user) }}" class="btn btn-sm btn-outline-primary mt-2 w-100">
-                        <i class="bi bi-pencil me-1"></i> إدارة حساب المستخدم
+                    <a href="{{ route('admin.profile') }}" class="btn btn-sm btn-outline-primary mt-2 w-100">
+                        <i class="bi bi-key me-1"></i> تغيير كلمة المرور
                     </a>
                 @else
                     <p class="text-muted small mb-3">لا يوجد حساب مستخدم مرتبط بهذا الطالب.</p>
@@ -228,6 +228,53 @@
             </div>
         </div>
     </div>
+
+    {{-- Certificates --}}
+    @if ($student->certificates->isNotEmpty())
+    <div class="col-12">
+        <div class="table-container">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-0"><i class="bi bi-award me-1"></i> الشهادات</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>رقم الشهادة</th>
+                            <th>التصميم</th>
+                            <th>المقرر</th>
+                            <th>تاريخ الإصدار</th>
+                            <th>الحالة</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($student->certificates as $cert)
+                            <tr>
+                                <td><code>{{ $cert->certificate_number }}</code></td>
+                                <td>{{ $cert->design?->name ?? '—' }}</td>
+                                <td>{{ $cert->enrollment?->course?->name_ar ?? '—' }}</td>
+                                <td>{{ $cert->issue_date?->format('Y-m-d') ?? '—' }}</td>
+                                <td>
+                                    @if ($cert->is_verified)
+                                        <span class="badge bg-success">موثقة</span>
+                                    @else
+                                        <span class="badge bg-warning text-dark">غير موثقة</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <a href="{{ route('admin.students.certificates.preview', $cert) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- Attendance Summary + Recent --}}
     <div class="col-md-5">

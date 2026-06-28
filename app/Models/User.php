@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Admin\Group;
+use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Student\Student;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -61,5 +62,10 @@ class User extends Authenticatable
     public function student(): HasOne
     {
         return $this->hasOne(Student::class, 'user_id');
+    }
+
+    public function employee(): HasOne
+    {
+        return $this->hasOne(Employee::class, 'user_id');
     }
 }
