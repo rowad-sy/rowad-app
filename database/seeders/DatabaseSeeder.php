@@ -66,5 +66,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             TechSeeder::class,
         ]);
+
+        $this->call([
+            ProjectTaskSeeder::class,
+        ]);
     }
 }
+
+

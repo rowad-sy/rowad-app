@@ -55,6 +55,21 @@
                         <span class="value"><code>{{ $student->student_code }}</code></span>
                     </div>
                     <div class="info-item">
+                        <span class="label">نوع الهوية</span>
+                        <span class="value">
+                            @if ($student->identity_type)
+                                @php $typeMap = ['national_id' => 'بطاقة هوية', 'passport' => 'جواز سفر', 'resident_id' => 'إقامة', 'other' => 'أخرى']; @endphp
+                                {{ $typeMap[$student->identity_type] ?? $student->identity_type }}
+                            @else
+                                —
+                            @endif
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">رقم الهوية</span>
+                        <span class="value" dir="ltr">{{ $student->identity_number ?? '—' }}</span>
+                    </div>
+                    <div class="info-item">
                         <span class="label">الاسم AR</span>
                         <span class="value">{{ $student->first_name_ar }} {{ $student->last_name_ar }}</span>
                     </div>
@@ -99,8 +114,16 @@
                         <span class="value">{{ $student->center?->name ?? '—' }}</span>
                     </div>
                     <div class="info-item">
-                        <span class="label">المشروع</span>
-                        <span class="value">{{ $student->project?->name ?? '—' }}</span>
+                        <span class="label">المشاريع</span>
+                        <span class="value">
+                            @if ($student->projects->isNotEmpty())
+                                @foreach ($student->projects as $project)
+                                    <span class="badge bg-info me-1">{{ $project->name }}</span>
+                                @endforeach
+                            @else
+                                {{ $student->project?->name ?? '—' }}
+                            @endif
+                        </span>
                     </div>
                     <div class="info-item">
                         <span class="label">تاريخ التسجيل</span>
@@ -181,6 +204,7 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th>المشروع</th>
                             <th>المقرر</th>
                             <th>الفترة</th>
                             <th>تاريخ التسجيل</th>
@@ -192,6 +216,7 @@
                     <tbody>
                         @forelse ($student->enrollments as $enrollment)
                             <tr>
+                                <td>{{ $enrollment->course?->project?->name ?? '—' }}</td>
                                 <td>{{ $enrollment->course?->name_ar ?? '—' }}</td>
                                 <td>{{ $enrollment->period?->name_ar ?? '—' }}</td>
                                 <td>{{ $enrollment->enrollment_date?->format('Y-m-d') ?? '—' }}</td>
@@ -217,7 +242,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-3 text-muted">
+                                <td colspan="7" class="text-center py-3 text-muted">
                                     <i class="bi bi-inbox fs-4 d-block mb-1"></i>
                                     لا يوجد تسجيلات
                                 </td>

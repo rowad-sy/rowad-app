@@ -25,7 +25,15 @@ class CheckPermission
     {
         $user = $request->user();
 
-        if (!$user || !PermissionHelper::can($user, $modelName, $action)) {
+        if (!$user) {
+            abort(403);
+        }
+
+        $employee = \App\Models\Admin\Hr\Employee::where('user_id', $user->id)->first();
+        $centerId = $employee?->center_id;
+        $projectId = $employee?->project_id;
+
+        if (!PermissionHelper::can($user, $modelName, $action, null, $centerId, $projectId)) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'ليس لديك صلاحية للوصول إلى هذا المورد'], 403);
             }

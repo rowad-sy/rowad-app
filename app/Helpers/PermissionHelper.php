@@ -76,6 +76,49 @@ class PermissionHelper
     }
 
     /*
+     * الحصول على نطاق المستخدم الفعّال من صلاحياته لموديل معين
+     * مثال:
+     *   إذا كان للمستخدم صلاحية على Student مع center_id=5
+     *   → يرجع ['center_ids' => [5], 'project_ids' => [], 'sees_all' => false]
+     *
+     * @return array{center_ids: array, project_ids: array, sees_all: bool}
+     */
+    public static function getEffectiveScope(User $user, string $modelName): array
+    {
+        $permissions = self::getUserPermissions($user, $modelName);
+
+        $centerIds = [];
+        $projectIds = [];
+        $seesAll = false;
+
+        foreach ($permissions as $permission) {
+            if (!$permission->can_view) {
+                continue;
+            }
+
+            if ($permission->center_id === null && $permission->project_id === null) {
+                $seesAll = true;
+            }
+
+            if ($permission->center_id !== null) {
+                $centerIds[] = $permission->center_id;
+            }
+            if ($permission->project_id !== null) {
+                $projectIds[] = $permission->project_id;
+            }
+        }
+
+        $centerIds = array_unique($centerIds);
+        $projectIds = array_unique($projectIds);
+
+        return [
+            'center_ids' => $centerIds,
+            'project_ids' => $projectIds,
+            'sees_all' => $seesAll,
+        ];
+    }
+
+    /*
      * الحصول على جميع صلاحيات المستخدم (المباشرة + من المجموعات)
      */
     private static function getUserPermissions(User $user, string $modelName): Collection

@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -18,7 +19,7 @@ class Student extends Model
     protected $table = 'students';
 
     protected $fillable = [
-        'student_code', 'user_id',
+        'student_code', 'identity_type', 'identity_number', 'user_id',
         'first_name_ar', 'last_name_ar', 'first_name_en', 'last_name_en',
         'father_name', 'mother_name',
         'birth_date', 'birth_place', 'gender', 'nationality',
@@ -48,6 +49,19 @@ class Student extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_student')
+            ->withPivot(['deleted_at'])
+            ->whereNull('project_student.deleted_at');
+    }
+
+    public function allProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_student')
+            ->withPivot(['deleted_at']);
     }
 
     public function enrollments(): HasMany

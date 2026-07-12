@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\Student\CertificateController;
 use App\Http\Controllers\Admin\Student\CourseController;
 use App\Http\Controllers\Admin\Student\PeriodController;
 use App\Http\Controllers\Admin\Student\StudentController;
+use App\Http\Controllers\Admin\Student\StudentExportController;
 use App\Http\Controllers\Admin\Student\StudentStatisticsController;
 use App\Http\Controllers\Admin\Hr\JobPositionController;
 use App\Http\Controllers\Admin\PermissionController;
@@ -112,8 +113,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('students/certificates/generate', [CertificateController::class, 'generateCertificates'])->name('students.certificates.generate');
         Route::get('students/certificates/{id}/preview', [CertificateController::class, 'preview'])->name('students.certificates.preview');
         Route::get('students/certificates/print-batch', [CertificateController::class, 'printBatch'])->name('students.certificates.print-batch');
+        Route::post('students/check-identity', [StudentController::class, 'checkIdentity'])->name('students.check-identity');
+        Route::post('students/{student}/add-to-projects', [StudentController::class, 'addToProjects'])->name('students.add-to-projects');
         Route::resource('students', StudentController::class);
         Route::post('students/{student}/create-user', [StudentController::class, 'createUser'])->name('students.create-user');
+        Route::post('students/export', [StudentExportController::class, 'export'])->name('students.export');
+        Route::post('students/export-full', [StudentExportController::class, 'exportFull'])->name('students.export-full');
+        Route::post('students/import', [StudentExportController::class, 'import'])->name('students.import');
+        Route::post('students/import-full', [StudentExportController::class, 'importFull'])->name('students.import-full');
 
         Route::prefix('hr')->name('hr.')->group(function () {
             Route::resource('employees', EmployeeController::class);
