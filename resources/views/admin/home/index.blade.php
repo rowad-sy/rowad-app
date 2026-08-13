@@ -22,6 +22,7 @@
         </a>
     </div>
 
+    @canPermission('App\Models\Admin\Hr\Employee', 'view')
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <a href="{{ route('admin.hr.employees.index') }}" class="text-decoration-none">
             <div class="card app-card app-card-hr">
@@ -34,7 +35,9 @@
             </div>
         </a>
     </div>
+    @endcanPermission
 
+    @canPermission('App\Models\Admin\Student\Student', 'view')
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <a href="{{ route('admin.students.index') }}" class="text-decoration-none">
             <div class="card app-card app-card-students">
@@ -47,7 +50,9 @@
             </div>
         </a>
     </div>
+    @endcanPermission
 
+    @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <a href="{{ route('admin.tech.issues.index') }}" class="text-decoration-none">
             <div class="card app-card app-card-tech">
@@ -60,6 +65,7 @@
             </div>
         </a>
     </div>
+    @endcanPermission
 
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <a href="#" class="text-decoration-none">

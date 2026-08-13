@@ -8,12 +8,39 @@
         <h4>المستخدمين</h4>
         <p>إدارة مستخدمي النظام</p>
     </div>
+    @canPermission('App\Models\User', 'create')
     <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة مستخدم
     </a>
+    @endcanPermission
 </div>
 
 <div class="table-container">
+    @php
+        $tabs = [
+            '' => ['label' => 'الكل', 'icon' => 'bi-people'],
+            'super-admin' => ['label' => 'سوبر أدمن', 'icon' => 'bi-shield-lock'],
+            'employee' => ['label' => 'موظف', 'icon' => 'bi-person-workspace'],
+            'beneficiary' => ['label' => 'مستفيد', 'icon' => 'bi-person-heart'],
+            'student' => ['label' => 'طالب', 'icon' => 'bi-mortarboard'],
+        ];
+        $currentType = $type ?? 'all';
+    @endphp
+    <div class="p-3 border-bottom d-flex flex-wrap gap-2">
+        @foreach ($tabs as $tabType => $tab)
+            @php
+                $tabQuery = array_filter([
+                    'type' => $tabType !== '' ? $tabType : null,
+                    'status' => ($status ?? 'all') !== 'all' ? $status : null,
+                    'search' => !empty($search) ? $search : null,
+                ]);
+            @endphp
+            <a href="{{ route('admin.users.index', $tabQuery) }}"
+               class="btn btn-sm {{ ($currentType === 'all' ? '' : $currentType) === $tabType ? 'btn-primary' : 'btn-outline-secondary' }}">
+                <i class="bi {{ $tab['icon'] }} me-1"></i> {{ $tab['label'] }}
+            </a>
+        @endforeach
+    </div>
     <div class="p-3 border-bottom">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-md-4">
@@ -25,25 +52,15 @@
                     </button>
                 </div>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">النوع</label>
-                <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="all" {{ ($type ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
-                    <option value="super-admin" {{ ($type ?? '') === 'super-admin' ? 'selected' : '' }}>سوبر أدمن</option>
-                    <option value="employee" {{ ($type ?? '') === 'employee' ? 'selected' : '' }}>موظف</option>
-                    <option value="beneficiary" {{ ($type ?? '') === 'beneficiary' ? 'selected' : '' }}>مستفيد</option>
-                    <option value="student" {{ ($type ?? '') === 'student' ? 'selected' : '' }}>طالب</option>
-                </select>
-            </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label small mb-1">الحالة</label>
                 <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="active" {{ ($status ?? '') === 'active' ? 'selected' : '' }}>نشط</option>
-                    <option value="inactive" {{ ($status ?? '') === 'inactive' ? 'selected' : '' }}>غير نشط</option>
+                    <option value="inactive" {{ ($status ?? '') === 'inactive' ? 'selected' : '' }}>غير مفعّل / مغلق</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label small mb-1">&nbsp;</label>
                 <x-per-page-selector :perPage="$perPage ?? 10" />
             </div>
@@ -84,8 +101,17 @@
                     <td>
                         @if ($user->is_active)
                             <span class="badge bg-success">نشط</span>
+                        @elseif (blank($user->email_verified_at))
+                            <span class="badge bg-warning text-dark">غير مفعّل</span>
+                            <div class="small text-muted mt-1">لم يفعّل حسابه بعد</div>
                         @else
-                            <span class="badge bg-danger">غير نشط</span>
+                            <span class="badge bg-danger">مغلق</span>
+                            <div class="small text-danger mt-1">تم إيقاف الحساب من قبل الإدارة</div>
+                        @endif
+                        @if ($user->must_change_password)
+                            <div class="small text-warning mt-1">
+                                <i class="bi bi-key"></i> يجب تغيير كلمة المرور
+                            </div>
                         @endif
                     </td>
                     <td>
@@ -94,6 +120,7 @@
                         @endforeach
                     </td>
                     <td>
+                        @canPermission('App\Models\User', 'edit')
                         <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
@@ -103,14 +130,23 @@
                                 <i class="bi bi-{{ $user->is_active ? 'pause' : 'play' }}"></i>
                             </button>
                         </form>
-                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="d-inline"
-                              onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟')">
-                            @csrf
-                            @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger">
+                        @endcanPermission
+                        @canPermission('App\Models\User', 'delete')
+                        @if ($user->type === 'super-admin')
+                            <button class="btn btn-sm btn-outline-danger" disabled title="لا يمكن حذف مستخدم من نوع سوبر أدمن">
                                 <i class="bi bi-trash"></i>
                             </button>
-                        </form>
+                        @else
+                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="d-inline"
+                                  onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟')">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        @endif
+                        @endcanPermission
                     </td>
                 </tr>
             @empty

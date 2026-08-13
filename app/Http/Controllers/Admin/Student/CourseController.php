@@ -23,9 +23,22 @@ class CourseController extends Controller
         $search = $request->input('search');
         $perPage = (int) $request->input('per_page', 10);
 
-        // Default filter to current user's project
-        $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();
-        $projectId = $request->has('project_id') ? $request->input('project_id') : ($userEmployee?->project_id ?? '');
+        // Default scope from user's permission
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Course');
+
+        // تقييد المشاريع المتاحة للمستخدم حسب نطاق صلاحياته
+        $projects = $this->scopedProjects();
+
+        // فلترة المشروع المحدد ضمن النطاق فقط (لا يمكن تجاوز النطاق عبر project_id)
+        $projectId = $request->filled('project_id') ? (int) $request->input('project_id') : null;
+        if (!$scope['sees_all']) {
+            if ($projectId !== null && !in_array($projectId, $scope['project_ids'], true)) {
+                $projectId = count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : null;
+            }
+            if ($projectId === null && count($scope['project_ids']) === 1) {
+                $projectId = $scope['project_ids'][0];
+            }
+        }
 
         $courses = Course::with('project')
             ->when($search, fn($q, $v) => $q->where(function ($q) use ($v) {
@@ -33,18 +46,17 @@ class CourseController extends Controller
                     ->orWhere('name_en', 'like', "%{$v}%");
             }))
             ->when($projectId, fn($q, $v) => $q->where('project_id', $v))
+            ->unless($scope['sees_all'], fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('project_id', $scope['project_ids']) : $q)
             ->orderBy('id', 'desc')
             ->paginate($perPage)
             ->appends($request->only(['search', 'project_id', 'per_page']));
-
-        $projects = Project::orderBy('name')->get();
 
         return view('admin.students.courses.index', compact('courses', 'search', 'projectId', 'perPage', 'projects'));
     }
 
     public function create()
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = $this->scopedProjects();
         $periods = Period::orderBy('name_ar')->get();
 
         // Default project from current user's employee record
@@ -66,6 +78,10 @@ class CourseController extends Controller
             'period_ids.*' => 'exists:periods,id',
         ]);
 
+        if (!$this->projectInScope($validated['project_id'] ?? null)) {
+            return back()->withErrors(['project_id' => 'لا تملك صلاحية إدارة هذا المشروع'])->withInput();
+        }
+
         $course = Course::create([
             'project_id' => $validated['project_id'],
             'name_ar' => $validated['name_ar'],
@@ -84,7 +100,7 @@ class CourseController extends Controller
 
     public function edit(Course $course)
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = $this->scopedProjects();
         $periods = Period::orderBy('name_ar')->get();
         $course->load('periods');
 
@@ -102,6 +118,10 @@ class CourseController extends Controller
             'period_ids' => 'nullable|array',
             'period_ids.*' => 'exists:periods,id',
         ]);
+
+        if (!$this->projectInScope($validated['project_id'] ?? null)) {
+            return back()->withErrors(['project_id' => 'لا تملك صلاحية إدارة هذا المشروع'])->withInput();
+        }
 
         $course->update([
             'project_id' => $validated['project_id'],
@@ -121,10 +141,34 @@ class CourseController extends Controller
 
     public function destroy(Course $course)
     {
+        if (!$this->projectInScope($course->project_id)) {
+            abort(403, 'لا تملك صلاحية حذف هذا المقرر');
+        }
+
         $course->periods()->detach();
         $course->delete();
 
         return redirect()->route('admin.students.courses.index')
             ->with('success', 'تم حذف المقرر بنجاح');
+    }
+
+    private function scopedProjects()
+    {
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Course');
+
+        return Project::orderBy('name')
+            ->unless($scope['sees_all'], fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('id', $scope['project_ids']) : $q)
+            ->get();
+    }
+
+    private function projectInScope(?int $projectId): bool
+    {
+        if ($projectId === null) {
+            return true;
+        }
+
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Course');
+
+        return $scope['sees_all'] || in_array((int) $projectId, $scope['project_ids'], true);
     }
 }

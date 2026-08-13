@@ -33,6 +33,7 @@
         </div>
 
         {{-- Employee/Admin Navigation --}}
+        @if (auth()->user()->is_active)
         @if (auth()->user()->type === 'employee' || auth()->user()->type === 'super-admin')
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
@@ -320,6 +321,22 @@
             </div>
         </div>
         @endif
+        @else
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>حسابي</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
+                    <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
+                </a>
+                <a href="{{ route('admin.password.change') }}" class="nav-link {{ request()->routeIs('admin.password.change') ? 'active' : '' }}">
+                    <i class="bi bi-key"></i> <span>تغيير كلمة المرور</span>
+                </a>
+            </div>
+        </div>
+        @endif
     </div>
 
     <!-- Main Content -->
@@ -359,6 +376,39 @@
 
         <!-- Page Content -->
         <div class="page-content">
+            @if (!auth()->user()->is_active)
+                @if (blank(auth()->user()->email_verified_at))
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <i class="bi bi-envelope-check me-1"></i>
+                        حسابك غير مفعّل بعد. يرجى الضغط على رابط التفعيل المرسل إلى بريدك الإلكتروني لتفعيل حسابك،
+                        وسيُطلب منك تغيير كلمة المرور حتى تستطيع استخدام النظام.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @else
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-octagon me-1"></i>
+                        تم إيقاف حسابك من قبل الإدارة. يرجى التواصل مع الإدارة لمعرفة سبب الإيقاف.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
+            @endif
+
+            @if (session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-circle me-1"></i>
+                    {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            @endif
+
+            @if (session('info'))
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="bi bi-info-circle me-1"></i>
+                    {{ session('info') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            @endif
+
             @if (session('success'))
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="bi bi-check-circle me-1"></i>

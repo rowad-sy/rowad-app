@@ -8,9 +8,11 @@
         <h4>الفترات</h4>
         <p>إدارة الفترات الزمنية للفروع</p>
     </div>
+    @canPermission('App\Models\Admin\Student\Period', 'create')
     <a href="{{ route('admin.students.periods.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة فترة
     </a>
+    @endcanPermission
 </div>
 
 <div class="table-container">
@@ -83,9 +85,12 @@
                             @endif
                         </td>
                         <td>
+                            @canPermission('App\Models\Admin\Student\Period', 'edit')
                             <a href="{{ route('admin.students.periods.edit', $period) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            @endcanPermission
+                            @canPermission('App\Models\Admin\Student\Period', 'delete')
                             <form method="POST" action="{{ route('admin.students.periods.destroy', $period) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه الفترة؟')">
                                 @csrf
@@ -94,6 +99,7 @@
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </form>
+                            @endcanPermission
                         </td>
                     </tr>
                 @empty

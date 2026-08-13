@@ -27,13 +27,13 @@ class StudentStatisticsController extends Controller
         $filters = $request->only(['center_id', 'project_id', 'course_id', 'period_id', 'date_from', 'date_to']);
         $hasFilters = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
 
-        // Default filters from employee
-        $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();
-        if (!$request->has('center_id') && $userEmployee?->center_id) {
-            $filters['center_id'] = (string) $userEmployee->center_id;
+        // Default scope from user's permission
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Student');
+        if (!$request->has('center_id') && count($scope['center_ids']) === 1) {
+            $filters['center_id'] = (string) $scope['center_ids'][0];
         }
-        if (!$request->has('project_id') && $userEmployee?->project_id) {
-            $filters['project_id'] = (string) $userEmployee->project_id;
+        if (!$request->has('project_id') && count($scope['project_ids']) === 1) {
+            $filters['project_id'] = (string) $scope['project_ids'][0];
         }
 
         // Cache key: unfiltered = static, filtered = unique per filter set
@@ -41,8 +41,8 @@ class StudentStatisticsController extends Controller
         $cacheTtl = $hasFilters ? 0 : 300; // 5min cache only for unfiltered
 
         $data = $hasFilters
-            ? $this->computeStats($filters)
-            : Cache::remember($cacheKey, $cacheTtl, fn () => $this->computeStats($filters));
+            ? $this->computeStats($filters, $scope)
+            : Cache::remember($cacheKey, $cacheTtl, fn () => $this->computeStats($filters, $scope));
 
         // Always pass filter values + dropdowns to view
         $data['filters'] = $filters;
@@ -54,12 +54,12 @@ class StudentStatisticsController extends Controller
         return view('admin.students.statistics', $data);
     }
 
-    private function computeStats(array $filters): array
+    private function computeStats(array $filters, array $scope): array
     {
         // ── Scoped Queries ──
-        $studentQuery = $this->scopeStudentQuery($filters);
-        $enrollmentQuery = $this->scopeEnrollmentQuery($filters);
-        $attendanceQuery = $this->scopeAttendanceQuery($filters);
+        $studentQuery = $this->scopeStudentQuery($filters, $scope);
+        $enrollmentQuery = $this->scopeEnrollmentQuery($filters, $scope);
+        $attendanceQuery = $this->scopeAttendanceQuery($filters, $scope);
 
         // ── Summary Counts ──
         $totalStudents = (clone $studentQuery)->count();
@@ -86,6 +86,7 @@ class StudentStatisticsController extends Controller
             ->selectRaw('COUNT(students.id) as total')
             ->leftJoin('students', 'centers.id', '=', 'students.center_id')
             ->when(!empty($filters['project_id']), fn ($q) => $q->where('students.project_id', $filters['project_id']))
+            ->unless($scope['sees_all'], fn ($q) => !empty($scope['center_ids']) ? $q->whereIn('centers.id', $scope['center_ids']) : $q)
             ->groupBy('centers.id', 'centers.name')
             ->orderByDesc('total')
             ->get();
@@ -97,6 +98,7 @@ class StudentStatisticsController extends Controller
             ->selectRaw('COUNT(students.id) as total')
             ->leftJoin('students', 'projects.id', '=', 'students.project_id')
             ->when(!empty($filters['center_id']), fn ($q) => $q->where('students.center_id', $filters['center_id']))
+            ->unless($scope['sees_all'], fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('projects.id', $scope['project_ids']) : $q)
             ->groupBy('projects.id', 'projects.name')
             ->orderByDesc('total')
             ->get();
@@ -111,7 +113,7 @@ class StudentStatisticsController extends Controller
             ->when(!empty($filters['date_from']), fn ($q) => $q->where('se.enrollment_date', '>=', $filters['date_from']))
             ->when(!empty($filters['date_to']), fn ($q) => $q->where('se.enrollment_date', '<=', $filters['date_to']))
             ->when(
-                !empty($filters['center_id']) || !empty($filters['project_id']),
+                !empty($filters['center_id']) || !empty($filters['project_id']) || (!$scope['sees_all'] && (!empty($scope['center_ids']) || !empty($scope['project_ids']))),
                 fn ($q) => $q->whereIn('se.student_id', (clone $studentQuery)->select('id'))
             )
             ->groupBy('courses.id', 'courses.name_ar')
@@ -128,7 +130,7 @@ class StudentStatisticsController extends Controller
             ->when(!empty($filters['date_from']), fn ($q) => $q->where('se.enrollment_date', '>=', $filters['date_from']))
             ->when(!empty($filters['date_to']), fn ($q) => $q->where('se.enrollment_date', '<=', $filters['date_to']))
             ->when(
-                !empty($filters['center_id']) || !empty($filters['project_id']),
+                !empty($filters['center_id']) || !empty($filters['project_id']) || (!$scope['sees_all'] && (!empty($scope['center_ids']) || !empty($scope['project_ids']))),
                 fn ($q) => $q->whereIn('se.student_id', (clone $studentQuery)->select('id'))
             )
             ->groupBy('periods.id', 'periods.name_ar')
@@ -140,10 +142,10 @@ class StudentStatisticsController extends Controller
         // ── Monthly Enrollment Trends (last 12 months) ──
         $monthStart = now()->subMonths(12)->startOfMonth();
         $monthlyTrends = (clone $enrollmentQuery)
-            ->selectRaw("strftime('%Y-%m', enrollment_date) as month")
+            ->selectRaw("DATE_FORMAT(enrollment_date, '%Y-%m') as month")
             ->selectRaw('COUNT(*) as total')
             ->where('enrollment_date', '>=', $monthStart)
-            ->groupBy(DB::raw("strftime('%Y-%m', enrollment_date)"))
+            ->groupBy(DB::raw("DATE_FORMAT(enrollment_date, '%Y-%m')"))
             ->orderBy('month')
             ->get()
             ->keyBy('month');
@@ -207,14 +209,16 @@ class StudentStatisticsController extends Controller
         );
     }
 
-    private function scopeStudentQuery(array $filters): \Illuminate\Database\Eloquent\Builder
+    private function scopeStudentQuery(array $filters, array $scope): \Illuminate\Database\Eloquent\Builder
     {
         return Student::query()
             ->when(!empty($filters['center_id']), fn ($q) => $q->where('center_id', $filters['center_id']))
-            ->when(!empty($filters['project_id']), fn ($q) => $q->where('project_id', $filters['project_id']));
+            ->when(!empty($filters['project_id']), fn ($q) => $q->where('project_id', $filters['project_id']))
+            ->unless($scope['sees_all'] || !empty($filters['center_id']), fn ($q) => !empty($scope['center_ids']) ? $q->whereIn('center_id', $scope['center_ids']) : $q)
+            ->unless($scope['sees_all'] || !empty($filters['project_id']), fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('project_id', $scope['project_ids']) : $q);
     }
 
-    private function scopeEnrollmentQuery(array $filters): \Illuminate\Database\Eloquent\Builder
+    private function scopeEnrollmentQuery(array $filters, array $scope): \Illuminate\Database\Eloquent\Builder
     {
         $q = StudentEnrollment::query();
 
@@ -231,18 +235,22 @@ class StudentStatisticsController extends Controller
             $q->where('enrollment_date', '<=', $filters['date_to']);
         }
         if (!empty($filters['center_id']) || !empty($filters['project_id'])) {
-            $q->whereIn('student_id', (clone $this->scopeStudentQuery($filters))->select('id'));
+            $q->whereIn('student_id', (clone $this->scopeStudentQuery($filters, $scope))->select('id'));
+        } elseif (!$scope['sees_all'] && (!empty($scope['center_ids']) || !empty($scope['project_ids']))) {
+            $q->whereIn('student_id', (clone $this->scopeStudentQuery($filters, $scope))->select('id'));
         }
 
         return $q;
     }
 
-    private function scopeAttendanceQuery(array $filters): \Illuminate\Database\Eloquent\Builder
+    private function scopeAttendanceQuery(array $filters, array $scope): \Illuminate\Database\Eloquent\Builder
     {
         $q = Attendance::query();
 
         if (!empty($filters['center_id']) || !empty($filters['project_id'])) {
-            $q->whereIn('student_id', (clone $this->scopeStudentQuery($filters))->select('id'));
+            $q->whereIn('student_id', (clone $this->scopeStudentQuery($filters, $scope))->select('id'));
+        } elseif (!$scope['sees_all'] && (!empty($scope['center_ids']) || !empty($scope['project_ids']))) {
+            $q->whereIn('student_id', (clone $this->scopeStudentQuery($filters, $scope))->select('id'));
         }
 
         return $q;

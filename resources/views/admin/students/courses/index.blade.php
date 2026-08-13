@@ -8,9 +8,11 @@
         <h4>المقررات</h4>
         <p>إدارة المقررات الدراسية</p>
     </div>
+    @canPermission('App\Models\Admin\Student\Course', 'create')
     <a href="{{ route('admin.students.courses.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة مقرر
     </a>
+    @endcanPermission
 </div>
 
 <div class="table-container">
@@ -64,9 +66,12 @@
                         <td>{{ $course->project?->name ?? '—' }}</td>
                         <td>{{ $course->periods->pluck('name_ar')->implode('، ') ?: '—' }}</td>
                         <td>
+                            @canPermission('App\Models\Admin\Student\Course', 'edit')
                             <a href="{{ route('admin.students.courses.edit', $course) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            @endcanPermission
+                            @canPermission('App\Models\Admin\Student\Course', 'delete')
                             <form method="POST" action="{{ route('admin.students.courses.destroy', $course) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا المقرر؟')">
                                 @csrf
@@ -75,6 +80,7 @@
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </form>
+                            @endcanPermission
                         </td>
                     </tr>
                 @empty

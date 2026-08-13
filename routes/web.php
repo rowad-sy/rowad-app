@@ -40,6 +40,8 @@ use App\Http\Controllers\Admin\Logistics\AssetController;
 use App\Http\Controllers\Admin\Logistics\LogisticsStatisticsController;
 use App\Http\Controllers\Admin\Logistics\LogisticsExportController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Auth\ActivationController;
+use App\Http\Controllers\Auth\ActivationResendController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -63,7 +65,30 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+// Accessible to all authenticated users (profile & password change)
+// خاصة بالمستخدمين النشطين وغير النشطين - لا تتطلب التحقق من البريد
+Route::middleware('auth')->group(function () {
+
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('profile', [ProfileController::class, 'index'])->name('profile');
+        Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::put('profile/password', [ProfileController::class, 'password'])->name('profile.password');
+        Route::get('password/change', [ProfileController::class, 'forceChange'])->name('password.change');
+        Route::put('password/change', [ProfileController::class, 'forceUpdate'])->name('password.update');
+    });
+
+    // تفعيل الحساب من رابط البريد الإلكتروني
+    Route::get('activate/{user}', ActivationController::class)
+        ->middleware('signed')
+        ->name('activation.verify');
+
+    // إعادة إرسال بريد التفعيل للمستخدم غير النشط
+    Route::post('activation/resend', ActivationResendController::class)
+        ->name('activation.resend');
+
+});
+
+Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(function () {
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -90,9 +115,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::resource('users', UserController::class)->except(['show']);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
-        Route::get('profile', [ProfileController::class, 'index'])->name('profile');
-        Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::put('profile/password', [ProfileController::class, 'password'])->name('profile.password');
 
         // Literal routes before wildcard {student}
         Route::get('students/attendance', [AttendanceController::class, 'index'])->name('students.attendance');

@@ -188,7 +188,46 @@ Route::resource('employees', EmployeeController::class)
 4. أضف `can_export` إلى `$validated` في `store()`/`update()`
 5. استخدمه في `PermissionHelper::can($user, $model, 'export')`
 
-## 10. سيناريوهات وحالات اختبارية
+## 10. `getEffectiveScope()` في الـ Controllers
+
+`getEffectiveScope()` تستخرج نطاق الصلاحية للمستخدم (قائمة المراكز والمشاريع) وتُستخدم لتصفية الاستعلامات في `index()`.
+
+### النمط الأساسي
+
+```php
+$scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\ModelName');
+$centerId = $request->filled('center_id') ? $request->input('center_id') : (count($scope['center_ids']) === 1 ? $scope['center_ids'][0] : '');
+$projectId = $request->filled('project_id') ? $request->input('project_id') : (count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : '');
+
+$data = Model::query()
+    ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
+    ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+    ->unless($scope['sees_all'] || $request->filled('center_id'), fn ($q) => !empty($scope['center_ids']) ? $q->whereIn('center_id', $scope['center_ids']) : $q)
+    ->unless($scope['sees_all'] || $request->filled('project_id'), fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('project_id', $scope['project_ids']) : $q)
+    ->paginate();
+```
+
+المنطق:
+- إذا `sees_all = true` ← لا قيود (المستخدم يرى كل شيء)
+- إذا المستخدم اختار `center_id`/`project_id` يدوياً ← لا قيود إضافية (الفلتر اليدوي كافٍ)
+- وإلّا ← يُطبّق `whereIn()` بنطاق الصلاحية
+
+### Controllers المستخدمة
+
+| Controller | `getEffectiveScope()` model | Center scope | Project scope |
+|-----------|----------------------------|-------------|---------------|
+| `StudentController` | `App\Models\Admin\Student\Student` | ✅ مع `orWhereHas` (pivot) | ✅ مع `orWhereHas` (pivot) |
+| `TechIssueController` | `App\Models\Admin\Tech\TechIssue` | ✅ `whereIn` بسيط | ✅ `whereIn` بسيط |
+| `TechEquipmentController` | `App\Models\Admin\Tech\TechEquipment` | ✅ `whereIn` بسيط | ✅ `whereIn` بسيط |
+| `EmployeeController` | `App\Models\Admin\Hr\Employee` | ✅ `whereIn` بسيط | ✅ `whereIn` بسيط |
+| `CourseController` | `App\Models\Admin\Student\Course` | N/A (لا يوجد center_id) | ✅ `whereIn` بسيط |
+| `PeriodController` | `App\Models\Admin\Student\Period` | N/A (لا يوجد center_id) | ✅ `whereIn` بسيط |
+| `AttendanceController` | `App\Models\Admin\Student\Attendance` | ✅ على `Student` query | ✅ على `Student` query |
+| `StudentStatisticsController` | `App\Models\Admin\Student\Student` | ✅ عبر `scopeStudentQuery()` | ✅ عبر `scopeStudentQuery()` |
+
+**ملاحظة**: `StudentStatisticsController` يختلف قليلاً — الصلاحية تُطبّق عبر `scopeStudentQuery()` ويمتد تأثيرها إلى إحصائيات التسجيل (Enrollments) والحضور (Attendance) عبر `whereIn('student_id', ...)`.
+
+## 11. سيناريوهات وحالات اختبارية
 
 | السيناريو | التوقع |
 |-----------|--------|

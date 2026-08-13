@@ -2,10 +2,13 @@
 
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Student\Student;
+use App\Notifications\UserActivationMail;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -43,6 +46,32 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل الد
 
         // Redirect based on user type
         $user = auth()->user();
+
+        // إرسال بريد التفعيل عند أول تسجيل دخول للمستخدمين الذين يجب عليهم تغيير كلمة المرور
+        if ($user->must_change_password && ! $user->activation_email_sent_at) {
+            try {
+                $activationUrl = URL::temporarySignedRoute(
+                    'activation.verify',
+                    now()->addDays(7),
+                    ['user' => $user->id]
+                );
+
+                $user->notify(new UserActivationMail($activationUrl));
+                $user->update([
+                    'activation_email_sent_at' => now(),
+                    'activation_email_count' => 1,
+                ]);
+                session()->flash('info', 'تم إرسال بريد التفعيل إلى بريدك الإلكتروني. يرجى الضغط على رابط التفعيل ثم تغيير كلمة المرور. إذا لم تجد الرسالة، يرجى التحقق من مجلد الرسائل غير المرغوب بها (Spam).');
+            } catch (\Throwable $e) {
+                Log::error('Failed to send activation email: ' . $e->getMessage());
+            }
+        }
+
+        // فرض تغيير كلمة المرور
+        if ($user->must_change_password) {
+            $this->redirectIntended(default: route('admin.password.change', absolute: false), navigate: true);
+            return;
+        }
 
         if ($user->type === 'student') {
             $student = Student::where('user_id', $user->id)->first();

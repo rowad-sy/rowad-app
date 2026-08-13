@@ -25,14 +25,16 @@ class AttendanceController extends Controller
         $courseId = $request->input('course_id');
         $periodId = $request->input('period_id');
 
-        // Default filters to current user's center/project
-        $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();
-        $centerId = $request->has('center_id') ? $request->input('center_id') : ($userEmployee?->center_id ?? '');
-        $projectId = $request->has('project_id') ? $request->input('project_id') : ($userEmployee?->project_id ?? '');
+        // Default scope from user's permission
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Attendance');
+        $centerId = $request->filled('center_id') ? $request->input('center_id') : (count($scope['center_ids']) === 1 ? $scope['center_ids'][0] : '');
+        $projectId = $request->filled('project_id') ? $request->input('project_id') : (count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : '');
 
         $students = Student::where('status', 'active')
             ->when($centerId, fn($q, $v) => $q->where('center_id', $v))
             ->when($projectId, fn($q, $v) => $q->where('project_id', $v))
+            ->unless($scope['sees_all'] || $request->filled('center_id'), fn ($q) => !empty($scope['center_ids']) ? $q->whereIn('center_id', $scope['center_ids']) : $q)
+            ->unless($scope['sees_all'] || $request->filled('project_id'), fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('project_id', $scope['project_ids']) : $q)
             ->when($courseId || $periodId, function ($q) use ($courseId, $periodId) {
                 $q->whereHas('enrollments', function ($eq) use ($courseId, $periodId) {
                     $eq->when($courseId, fn($qq, $v) => $qq->where('course_id', $v))

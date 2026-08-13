@@ -22,6 +22,47 @@
     </div>
 </div>
 
+@if ($user->must_change_password)
+    <div class="alert alert-warning" role="alert">
+        <i class="bi bi-shield-lock me-1"></i>
+        يجب عليك تغيير كلمة المرور الخاصة بك للتمكن من استخدام النظام.
+        <a href="{{ route('admin.password.change') }}" class="alert-link">تغيير كلمة المرور الآن</a>
+    </div>
+@endif
+
+@if (! $user->is_active && ! $user->hasVerifiedEmail())
+    <div class="alert alert-warning" role="alert">
+        <h5 class="alert-heading d-flex align-items-center mb-2">
+            <i class="bi bi-envelope-exclamation me-2"></i> حسابك غير مفعّل بعد
+        </h5>
+        <p class="mb-2">لتفعيل حسابك، يرجى الضغط على رابط التفعيل المرسل إلى بريدك الإلكتروني ({{ $user->email }}).</p>
+        <p class="mb-2 small">إذا لم تجد الرسالة، يرجى التحقق من مجلد الرسائل غير المرغوب بها (Spam).</p>
+        @php
+            $maxResends = config('activation.max_resends');
+            $remainingResends = max(0, $maxResends - (int) $user->activation_email_count);
+        @endphp
+        @if ($remainingResends > 0)
+            <form method="POST" action="{{ route('activation.resend') }}" class="d-inline">
+                @csrf
+                <button type="submit" class="btn btn-warning btn-sm">
+                    <i class="bi bi-arrow-repeat me-1"></i> إعادة إرسال بريد التفعيل
+                </button>
+            </form>
+            <small class="text-muted ms-2">عدد المحاولات المتبقية: {{ $remainingResends }}</small>
+        @else
+            <p class="mb-0 text-danger">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                لقد وصلت إلى الحد الأقصى لإعادة إرسال بريد التفعيل. يرجى التواصل مع الإدارة.
+            </p>
+        @endif
+    </div>
+@elseif (! $user->is_active)
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-person-x me-1"></i>
+        تم إيقاف حسابك من قبل الإدارة. يرجى التواصل مع الإدارة لإعادة تفعيله.
+    </div>
+@endif
+
 <div class="row g-4">
     {{-- معلومات المستخدم --}}
     <div class="col-md-6">

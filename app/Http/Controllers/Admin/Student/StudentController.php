@@ -275,7 +275,8 @@ class StudentController extends Controller
             'email' => $email,
             'password' => bcrypt($password),
             'type' => 'student',
-            'is_active' => true,
+            'is_active' => false,
+            'must_change_password' => true,
         ]);
 
         $student->update(['user_id' => $user->id]);

@@ -8,69 +8,19 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /*
-    * Seeder الرئيسي - يستدعي جميع Seeders النظام
+    * Seeder الرئيسي - ينشئ مستخدم السوبر أدمن فقط
     * يتم تشغيله بأمر: php artisan db:seed
     */
     public function run(): void
     {
-        $this->call([
-            CenterSeeder::class,
-            ProjectSeeder::class,
-            DepartmentSeeder::class,
-        ]);
-
-        if (!User::where('email', 'admin@rowad.app')->exists()) {
-            User::factory()->create([
-                'name' => 'مدير النظام',
-                'email' => 'admin@rowad.app',
-                'password' => bcrypt('admin123'),
-                'is_active' => true,
-                'type' => 'employee',
-            ]);
-        }
-
-        if (!User::where('email', 'superadmin@rowad.app')->exists()) {
-            User::factory()->create([
-                'name' => 'سوبر أدمن',
-                'email' => 'superadmin@rowad.app',
-                'password' => bcrypt('superadmin123'),
+        User::firstOrCreate(
+            ['email' => 'omar.elnayif@onder1.org'],
+            [
+                'name' => 'Super Admin',
+                'password' => 'password',
                 'is_active' => true,
                 'type' => 'super-admin',
-            ]);
-        }
-
-        $this->call([
-            GroupSeeder::class,
-        ]);
-
-        $this->call([
-            LeaveTypeSeeder::class,
-        ]);
-
-        $this->call([
-            EmployeeSeeder::class,
-        ]);
-
-        $this->call([
-            EmployeeUserSeeder::class,
-        ]);
-
-        $this->call([
-            StudentSeeder::class,
-        ]);
-
-        $this->call([
-            CoursePeriodSeeder::class,
-        ]);
-
-        $this->call([
-            TechSeeder::class,
-        ]);
-
-        $this->call([
-            ProjectTaskSeeder::class,
-        ]);
+            ]
+        );
     }
 }
-
-

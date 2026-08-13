@@ -10,16 +10,6 @@ use Illuminate\Support\Facades\Hash;
 
 class ProfileController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            if (!auth()->user()->is_active) {
-                abort(403, 'حسابك غير نشط');
-            }
-            return $next($request);
-        });
-    }
-
     public function index()
     {
         $user = auth()->user();
@@ -62,9 +52,40 @@ class ProfileController extends Controller
 
         $user->update([
             'password' => Hash::make($validated['password']),
+            'activation_email_count' => 0,
         ]);
 
         return redirect()->route('admin.profile')
             ->with('success', 'تم تغيير كلمة المرور بنجاح');
+    }
+
+    public function forceChange()
+    {
+        $user = auth()->user();
+
+        if (! $user->must_change_password) {
+            return redirect()->route('admin.profile');
+        }
+
+        return view('admin.profile.force-password', compact('user'));
+    }
+
+    public function forceUpdate(Request $request)
+    {
+        $user = auth()->user();
+
+        $validated = $request->validate([
+            'current_password' => 'required|current_password',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user->update([
+            'password' => Hash::make($validated['password']),
+            'must_change_password' => false,
+            'activation_email_count' => 0,
+        ]);
+
+        return redirect()->route('admin.profile')
+            ->with('success', 'تم تغيير كلمة المرور بنجاح. يمكنك الآن استخدام النظام.');
     }
 }

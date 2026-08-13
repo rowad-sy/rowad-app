@@ -59,12 +59,16 @@ class UserController extends Controller
             'employee_id' => 'nullable|integer|exists:hr_employees,id',
         ]);
 
+        // المستخدم الجديد يكون غير نشط بشكل تلقائي ويجب عليه تغيير كلمة المرور
+        $validated['is_active'] = false;
+        $validated['must_change_password'] = true;
+
         $user = User::create($validated);
 
         $this->linkRecord($user, $validated);
 
         return redirect()->route('admin.users.index')
-            ->with('success', 'تم إضافة المستخدم بنجاح');
+            ->with('success', 'تم إضافة المستخدم بنجاح. المستخدم غير نشط ويجب عليه تغيير كلمة المرور عند أول تسجيل دخول');
     }
 
     public function edit(User $user)
@@ -86,6 +90,11 @@ class UserController extends Controller
 
         if (empty($validated['password'])) {
             unset($validated['password']);
+        } else {
+            // عند تغيير كلمة المرور من قبل الأدمن، يجب على المستخدم تغييرها مرة أخرى
+            $validated['must_change_password'] = true;
+            $validated['activation_email_sent_at'] = null;
+            $validated['activation_email_count'] = 0;
         }
 
         // Unlink old record if type changed
@@ -122,6 +131,11 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        if ($user->type === 'super-admin') {
+            return redirect()->route('admin.users.index')
+                ->with('error', 'لا يمكن حذف مستخدم من نوع سوبر أدمن');
+        }
+
         $user->delete();
 
         return redirect()->route('admin.users.index')

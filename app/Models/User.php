@@ -24,6 +24,9 @@ class User extends Authenticatable
         'email',
         'password',
         'is_active',
+        'must_change_password',
+        'activation_email_sent_at',
+        'activation_email_count',
         'type',
     ];
 
@@ -38,6 +41,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
+            'activation_email_sent_at' => 'datetime',
         ];
     }
 

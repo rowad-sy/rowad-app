@@ -104,12 +104,24 @@
                     <div class="form-text text-muted">اختر الموظف المراد ربط الحساب به</div>
                 </div>
 
-                <div class="mb-3 form-check form-switch">
-                    <input type="hidden" name="is_active" value="0">
-                    <input type="checkbox" name="is_active" value="1" class="form-check-input" id="isActive"
-                           {{ old('is_active', $user->is_active ?? true) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="isActive">نشط</label>
-                </div>
+                @if (isset($user))
+                    <div class="mb-3 form-check form-switch">
+                        <input type="hidden" name="is_active" value="0">
+                        <input type="checkbox" name="is_active" value="1" class="form-check-input" id="isActive"
+                               {{ old('is_active', $user->is_active) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="isActive">نشط</label>
+                    </div>
+                    <div class="mb-3 form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        إذا قمت بإدخال كلمة مرور جديدة، سيُجبر المستخدم على تغييرها عند تسجيل الدخول التالي.
+                    </div>
+                @else
+                    <div class="mb-3 alert alert-info py-2" role="alert">
+                        <i class="bi bi-info-circle me-1"></i>
+                        سيتم إنشاء المستخدم <strong>غير نشط</strong> بشكل تلقائي ويجب عليه تغيير كلمة المرور عند أول تسجيل دخول.
+                        يمكنك تفعيله لاحقاً من صفحة المستخدمين.
+                    </div>
+                @endif
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">

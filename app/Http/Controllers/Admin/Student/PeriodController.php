@@ -24,20 +24,33 @@ class PeriodController extends Controller
         $year = $request->input('year');
         $perPage = (int) $request->input('per_page', 10);
 
-        // Default filter to current user's project
-        $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();
-        $projectId = $request->has('project_id') ? $request->input('project_id') : ($userEmployee?->project_id ?? '');
+        // Default scope from user's permission
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Period');
+
+        // تقييد المشاريع المتاحة للمستخدم حسب نطاق صلاحياته
+        $projects = $this->scopedProjects();
+
+        // فلترة المشروع المحدد ضمن النطاق فقط (لا يمكن تجاوز النطاق عبر project_id)
+        $projectId = $request->filled('project_id') ? (int) $request->input('project_id') : null;
+        if (!$scope['sees_all']) {
+            if ($projectId !== null && !in_array($projectId, $scope['project_ids'], true)) {
+                $projectId = count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : null;
+            }
+            if ($projectId === null && count($scope['project_ids']) === 1) {
+                $projectId = $scope['project_ids'][0];
+            }
+        }
 
         $periods = Period::with('project')
             ->when($search, fn($q, $v) => $q->where('name_ar', 'like', "%{$v}%"))
             ->when($projectId, fn($q, $v) => $q->where('project_id', $v))
+            ->unless($scope['sees_all'], fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('project_id', $scope['project_ids']) : $q)
             ->when($year, fn($q, $v) => $q->where('year', $v))
             ->orderBy('year', 'desc')
             ->orderBy('start_date')
             ->paginate($perPage)
             ->appends($request->only(['search', 'project_id', 'year', 'per_page']));
 
-        $projects = Project::orderBy('name')->get();
         $years = Period::select('year')->distinct()->orderBy('year', 'desc')->pluck('year');
 
         return view('admin.students.periods.index', compact('periods', 'search', 'projectId', 'year', 'perPage', 'projects', 'years'));
@@ -45,7 +58,7 @@ class PeriodController extends Controller
 
     public function create()
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = $this->scopedProjects();
         $courses = Course::orderBy('name_ar')->get();
 
         // Default project from current user's employee record
@@ -68,6 +81,10 @@ class PeriodController extends Controller
             'course_ids.*' => 'exists:courses,id',
         ]);
 
+        if (!$this->projectInScope($validated['project_id'] ?? null)) {
+            return back()->withErrors(['project_id' => 'لا تملك صلاحية إدارة هذا المشروع'])->withInput();
+        }
+
         $period = Period::create([
             'project_id' => $validated['project_id'],
             'name_ar' => $validated['name_ar'],
@@ -87,7 +104,7 @@ class PeriodController extends Controller
 
     public function edit(Period $period)
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = $this->scopedProjects();
         $courses = Course::orderBy('name_ar')->get();
         $period->load('courses');
 
@@ -106,6 +123,10 @@ class PeriodController extends Controller
             'course_ids' => 'nullable|array',
             'course_ids.*' => 'exists:courses,id',
         ]);
+
+        if (!$this->projectInScope($validated['project_id'] ?? null)) {
+            return back()->withErrors(['project_id' => 'لا تملك صلاحية إدارة هذا المشروع'])->withInput();
+        }
 
         $period->update([
             'project_id' => $validated['project_id'],
@@ -126,10 +147,34 @@ class PeriodController extends Controller
 
     public function destroy(Period $period)
     {
+        if (!$this->projectInScope($period->project_id)) {
+            abort(403, 'لا تملك صلاحية حذف هذه الفترة');
+        }
+
         $period->courses()->detach();
         $period->delete();
 
         return redirect()->route('admin.students.periods.index')
             ->with('success', 'تم حذف الفترة بنجاح');
+    }
+
+    private function scopedProjects()
+    {
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Period');
+
+        return Project::orderBy('name')
+            ->unless($scope['sees_all'], fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('id', $scope['project_ids']) : $q)
+            ->get();
+    }
+
+    private function projectInScope(?int $projectId): bool
+    {
+        if ($projectId === null) {
+            return true;
+        }
+
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Period');
+
+        return $scope['sees_all'] || in_array((int) $projectId, $scope['project_ids'], true);
     }
 }
