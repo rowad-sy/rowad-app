@@ -11,13 +11,14 @@ class CertificateDesign extends Model
     protected $table = 'certificate_designs';
 
     protected $fillable = [
-        'name', 'course_id', 'template_image', 'fields_config', 'year',
+        'name', 'course_id', 'template_image', 'fields_config', 'signatures_config', 'font_family', 'year',
     ];
 
     protected function casts(): array
     {
         return [
             'fields_config' => 'array',
+            'signatures_config' => 'array',
             'year' => 'integer',
         ];
     }

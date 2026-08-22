@@ -8,7 +8,8 @@
         <h4>الملف الشخصي</h4>
         <p>عرض وتعديل معلومات حسابك</p>
     </div>
-    <div>
+    <div class="d-flex gap-2">
+        <x-audit-history :model="'App\Models\User'" :model-id="$user->id" />
         @if ($employee)
             <a href="{{ route('admin.hr.employees.show', $employee) }}" class="btn btn-outline-primary">
                 <i class="bi bi-person-workspace me-1"></i> الملف الوظيفي

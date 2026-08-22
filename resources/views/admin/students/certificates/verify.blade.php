@@ -7,7 +7,9 @@
     <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <style>
-        body { font-family: 'Tajawal', sans-serif; background: #f1f5f9; display: flex; align-items: center; min-height: 100vh; }
+        @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Regular.ttf') format('truetype'); font-weight: 400; }
+        @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Bold.ttf') format('truetype'); font-weight: 700; }
+        body { font-family: 'Tajawal Local', 'Tajawal', sans-serif; background: #f1f5f9; display: flex; align-items: center; min-height: 100vh; }
         .verify-card { max-width: 600px; margin: 0 auto; border: none; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
         .verify-card .card-body { padding: 2rem; }
         .status-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin: 0 auto 1rem; }
@@ -71,6 +73,17 @@
                     <div class="d-grid gap-2 mt-3">
                         <a href="{{ route('admin.students.certificates.preview', $certificate) }}" class="btn btn-primary" target="_blank">
                             <i class="bi bi-eye me-1"></i> إظهار الشهادة كاملة
+                        </a>
+                    </div>
+
+                    <div class="mt-3">
+                        <a href="https://www.alrowadngo.sy/" target="_blank" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-building me-1"></i> زيارة موقع مؤسسة الرواد للتعاون والتنمية
+                        </a>
+                    </div>
+                    <div class="mt-2">
+                        <a href="https://www.alrowadngo.sy/" target="_blank" download class="btn btn-outline-info btn-sm w-100">
+                            <i class="bi bi-download me-1"></i> تحميل شعار المؤسسة
                         </a>
                     </div>
                 @else

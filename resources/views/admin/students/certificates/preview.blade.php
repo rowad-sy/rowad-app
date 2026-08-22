@@ -7,10 +7,13 @@
     <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/dist/qrcode.min.js"></script>
     <style>
+        @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Regular.ttf') format('truetype'); font-weight: 400; }
+        @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Medium.ttf') format('truetype'); font-weight: 500; }
+        @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Bold.ttf') format('truetype'); font-weight: 700; }
         @page { size: A4 landscape; margin: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Tajawal', sans-serif;
+            font-family: '{{ $certificate->design?->font_family ?? 'Tajawal' }}', 'Tajawal', sans-serif;
             width: 297mm;
             height: 210mm;
             position: relative;
@@ -45,7 +48,7 @@
         .no-print .btn { padding: 8px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: inherit; }
         .no-print .btn-primary { background: #0d6efd; color: #fff; }
         .no-print .btn-success { background: #198754; color: #fff; }
-        .field { position: absolute; }
+        .field { position: absolute; z-index: 2; }
     </style>
 </head>
 <body>
@@ -59,7 +62,7 @@
 
     <div class="certificate-wrapper" id="certificate">
         @if ($certificate->design?->template_image)
-            <img src="{{ asset('storage/' . $certificate->design->template_image) }}" style="position:absolute;top:0;left:0;width:297mm;height:210mm;object-fit:fill;">
+            <img src="{{ asset('storage/' . $certificate->design->template_image) }}" style="position:absolute;top:0;left:0;width:297mm;height:210mm;object-fit:fill;z-index:1;">
         @endif
 
         @php $config = $certificate->design?->fields_config ?? []; @endphp
@@ -103,6 +106,19 @@
                         {{ $field['label'] ?? '' }}
                 @endswitch
             </div>
+        @endforeach
+        @php $sigs = $certificate->design?->signatures_config ?? []; @endphp
+        @foreach ($sigs as $sig)
+            @if (!empty($sig['image_path']))
+                <img src="{{ asset('storage/' . $sig['image_path']) }}"
+                     style="position:absolute;
+                            z-index:3;
+                            top: {{ number_format(($sig['y_mm'] ?? 0) / 210 * 100, 4) }}%;
+                            left: {{ number_format(($sig['x_mm'] ?? 0) / 297 * 100, 4) }}%;
+                            width: {{ number_format(($sig['width_mm'] ?? 40) / 297 * 100, 4) }}%;
+                            height: {{ number_format(($sig['height_mm'] ?? 20) / 210 * 100, 4) }}%;
+                            object-fit: contain;">
+            @endif
         @endforeach
     </div>
 

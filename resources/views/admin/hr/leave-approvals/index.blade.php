@@ -43,6 +43,7 @@
                     <td>{{ $item->created_at->format('Y-m-d') }}</td>
                     <td>
                         <div class="d-flex gap-1">
+                            <x-audit-history :model="'App\Models\Admin\Hr\LeaveRequest'" :model-id="$item->id" />
                             <form action="{{ route('admin.hr.leave-approvals.approve', $item) }}" method="POST" onsubmit="return confirm('الموافقة على الطلب؟')">
                                 @csrf
                                 <button class="btn btn-sm btn-success" title="موافقة">

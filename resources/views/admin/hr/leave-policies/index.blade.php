@@ -55,6 +55,7 @@
                         @endif
                     </td>
                     <td>
+                        <x-audit-history :model="'App\Models\Admin\Hr\LeaveType'" :model-id="$type->id" />
                         @canPermission('App\Models\Admin\Hr\LeaveType', 'edit')
                         <button class="btn btn-sm btn-outline-primary edit-btn"
                                 data-id="{{ $type->id }}"

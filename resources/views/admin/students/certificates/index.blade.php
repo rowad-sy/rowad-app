@@ -80,6 +80,7 @@
                             <a href="{{ route('admin.students.certificates.preview', $cert) }}" class="btn btn-sm btn-outline-info" target="_blank">
                                 <i class="bi bi-eye"></i> معاينة
                             </a>
+                            <x-audit-history :model="'App\Models\Admin\Student\Certificate'" :model-id="$cert->id" />
                         </td>
                     </tr>
                 @empty

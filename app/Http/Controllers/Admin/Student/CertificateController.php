@@ -86,15 +86,20 @@ class CertificateController extends Controller
             'course_id' => 'nullable|exists:courses,id',
             'template_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'fields_config' => 'required|json',
+            'signatures_config' => 'nullable|json',
+            'font_family' => 'nullable|string|max:100',
             'year' => 'required|integer|min:2000|max:2100',
         ]);
 
         $fieldsConfig = json_decode($validated['fields_config'], true);
+        $signaturesConfig = !empty($validated['signatures_config']) ? json_decode($validated['signatures_config'], true) : null;
 
         $data = [
             'name' => $validated['name'],
             'course_id' => $validated['course_id'],
             'fields_config' => $fieldsConfig,
+            'signatures_config' => $signaturesConfig,
+            'font_family' => $validated['font_family'] ?? null,
             'year' => $validated['year'],
         ];
 
@@ -103,6 +108,9 @@ class CertificateController extends Controller
         }
 
         $design = CertificateDesign::create($data);
+
+        // Handle signature image uploads
+        $this->handleSignatureUploads($request, $design);
 
         // If students are provided, go to issue step
         $raw = $request->input('student_ids', []);
@@ -130,6 +138,8 @@ class CertificateController extends Controller
             'course_id' => 'nullable|exists:courses,id',
             'template_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'fields_config' => 'required|json',
+            'signatures_config' => 'nullable|json',
+            'font_family' => 'nullable|string|max:100',
             'year' => 'required|integer|min:2000|max:2100',
         ]);
 
@@ -137,6 +147,8 @@ class CertificateController extends Controller
             'name' => $validated['name'],
             'course_id' => $validated['course_id'],
             'fields_config' => json_decode($validated['fields_config'], true),
+            'signatures_config' => !empty($validated['signatures_config']) ? json_decode($validated['signatures_config'], true) : null,
+            'font_family' => $validated['font_family'] ?? null,
             'year' => $validated['year'],
         ];
 
@@ -149,8 +161,32 @@ class CertificateController extends Controller
 
         $design->update($data);
 
+        // Handle signature image uploads
+        $this->handleSignatureUploads($request, $design);
+
         return redirect()->route('admin.students.certificates.designs')
             ->with('success', 'تم تحديث التصميم بنجاح');
+    }
+
+    protected function handleSignatureUploads(Request $request, CertificateDesign $design): void
+    {
+        $signatures = $design->signatures_config ?? [];
+        $updated = false;
+
+        foreach ($signatures as $i => $sig) {
+            $fieldName = "signature_image_{$i}";
+            if ($request->hasFile($fieldName)) {
+                if (!empty($sig['image_path'])) {
+                    Storage::disk('public')->delete($sig['image_path']);
+                }
+                $signatures[$i]['image_path'] = $request->file($fieldName)->store('certificates/signatures', 'public');
+                $updated = true;
+            }
+        }
+
+        if ($updated) {
+            $design->update(['signatures_config' => $signatures]);
+        }
     }
 
     // ─── Delete Design ───

@@ -4,8 +4,12 @@
 
 @push('styles')
 <style>
+@font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }
+@font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Medium.ttf') format('truetype'); font-weight: 500; font-style: normal; }
+@font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; }
+
 .designer-layout { display: flex; gap: 1rem; height: calc(100vh - 200px); min-height: 500px; }
-.designer-sidebar { width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.designer-sidebar { width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; }
 .designer-sidebar .field-btn { padding: 0.5rem; border: 1px dashed #94a3b8; border-radius: 8px; cursor: grab; text-align: center; font-size: 0.8rem; background: #f8fafc; transition: all 0.15s; }
 .designer-sidebar .field-btn:hover { border-color: #0d6efd; background: #eef2ff; }
 .designer-sidebar .field-btn:active { cursor: grabbing; }
@@ -19,22 +23,37 @@
     border-radius: 4px;
     overflow: hidden;
 }
-.designer-canvas .canvas-field {
+
+.designer-canvas .canvas-field,
+.designer-canvas .canvas-sig {
     position: absolute;
     cursor: move;
+    border: 2px dashed transparent;
+    user-select: none;
+}
+.designer-canvas .canvas-field {
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2px;
-    border: 1px dashed transparent;
     font-family: 'Tajawal', sans-serif;
-    user-select: none;
     min-width: 20px;
     min-height: 16px;
+    z-index: 2;
 }
-.designer-canvas .canvas-field:hover { border-color: #94a3b8; background: rgba(13,110,253,0.03); }
+.designer-canvas .canvas-sig {
+    z-index: 3;
+}
+.designer-canvas .canvas-sig img {
+    width: 100%; height: 100%; object-fit: contain; pointer-events: none;
+}
+
+.designer-canvas .canvas-field:hover,
+.designer-canvas .canvas-sig:hover { border-color: #94a3b8; }
 .designer-canvas .canvas-field.selected { border-color: #0d6efd; background: rgba(13,110,253,0.06); }
-.designer-canvas .canvas-field .resize-handle {
+.designer-canvas .canvas-sig.selected { border-color: #198754; background: rgba(25,135,84,0.06); }
+
+.designer-canvas .resize-handle {
     position: absolute;
     width: 10px; height: 10px;
     background: #0d6efd;
@@ -42,7 +61,10 @@
     border-radius: 2px;
     display: none;
 }
-.designer-canvas .canvas-field.selected .resize-handle { display: block; }
+.designer-canvas .canvas-sig.selected .resize-handle { background: #198754; }
+.designer-canvas .canvas-field.selected .resize-handle,
+.designer-canvas .canvas-sig.selected .resize-handle { display: block; }
+
 .resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
 .resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
 .resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
@@ -61,7 +83,7 @@
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h4>{{ isset($design) ? 'تعديل التصميم: ' . $design->name : 'مصمم الشهادة' }}</h4>
-        <p>اسحب الحقول وأفلتها على الشهادة</p>
+        <p>اسحب الحقول والتوقيعات وأفلتها على الشهادة</p>
     </div>
     <div class="d-flex gap-2">
         <button type="button" class="btn btn-success" onclick="saveDesign()">
@@ -77,13 +99,14 @@
     @if (isset($design)) @method('PUT') @endif
 
     <input type="hidden" name="fields_config" id="fieldsConfig">
+    <input type="hidden" name="signatures_config" id="signaturesConfig">
     @foreach ((array)($studentIds ?? []) as $sid)
         <input type="hidden" name="student_ids[]" value="{{ $sid }}">
     @endforeach
     <input type="hidden" name="course_id" value="{{ $courseId ?? '' }}">
 
     <div class="designer-layout">
-        {{-- Sidebar: Fields --}}
+        {{-- Sidebar --}}
         <div class="designer-sidebar">
             <div class="p-2 border-bottom"><strong>الحقول</strong></div>
             @foreach ([
@@ -114,13 +137,33 @@
                     <input type="checkbox" name="remove_template" value="1"> إزالة الخلفية
                 </label>
             @endif
+
+            <hr>
+            <div class="p-2 border-bottom"><strong>الخط</strong></div>
+            <div class="mb-2">
+                <select id="fontFamilySelect" class="form-select form-select-sm" onchange="updateFontFamily(this.value)">
+                    <option value="">Tajawal (افتراضي)</option>
+                    <option value="Tajawal Local">Tajawal (محلي)</option>
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                </select>
+            </div>
+
+            <hr>
+            <div class="p-2 border-bottom"><strong>التوقيعات</strong></div>
+            <div class="mb-2">
+                <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="addSignature()">
+                    <i class="bi bi-plus-lg me-1"></i> إضافة توقيع
+                </button>
+            </div>
+            <div id="signaturesList"></div>
         </div>
 
         {{-- Canvas --}}
         <div class="designer-canvas-wrap">
-            <div class="designer-canvas" id="canvas" onclick="deselectField(event)">
+            <div class="designer-canvas" id="canvas" onclick="deselectAll(event)">
                 @if (isset($design) && $design->template_image)
-                    <img src="{{ asset('storage/' . $design->template_image) }}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:fill;pointer-events:none;">
+                    <img src="{{ asset('storage/' . $design->template_image) }}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:fill;pointer-events:none;z-index:1;">
                 @endif
             </div>
         </div>
@@ -129,11 +172,11 @@
         <div class="designer-props" id="propsPanel">
             <div class="p-2 border-bottom"><strong>الخصائص</strong></div>
             <div class="p-2" id="propsContent">
-                <p class="text-muted small">اختر حقلاً لعرض خصائصه</p>
+                <p class="text-muted small">اختر حقلاً أو توقيعاً لعرض خصائصه</p>
             </div>
             <div class="p-2 border-top mt-auto">
-                <button type="button" class="btn btn-danger btn-sm w-100" onclick="deleteSelectedField()" id="deleteFieldBtn" style="display:none;">
-                    <i class="bi bi-trash me-1"></i> حذف الحقل
+                <button type="button" class="btn btn-danger btn-sm w-100" onclick="deleteSelected()" id="deleteFieldBtn" style="display:none;">
+                    <i class="bi bi-trash me-1"></i> حذف
                 </button>
             </div>
         </div>
@@ -158,286 +201,345 @@
             <label class="form-label small">السنة <span class="text-danger">*</span></label>
             <input type="number" name="year" class="form-control" value="{{ old('year', $design->year ?? date('Y')) }}" min="2000" max="2100" required>
         </div>
+        <div class="col-md-2">
+            <label class="form-label small">الخط</label>
+            <select name="font_family" class="form-select">
+                <option value="">Tajawal (افتراضي)</option>
+                <option value="Tajawal Local">Tajawal (محلي)</option>
+                <option value="Arial">Arial</option>
+                <option value="Times New Roman">Times New Roman</option>
+            </select>
+        </div>
     </div>
 </form>
 @endsection
 
 @push('scripts')
 <script>
-// ─── State ───
+/*STATE*/
 let fields = [];
+let signatures = [];
+let selectedType = null;
 let selectedId = null;
 let nextId = 1;
+let nextSigId = 1;
 let dragTarget = null;
+let dragType = null;
 let dragOffsetX = 0, dragOffsetY = 0;
 let resizeTarget = null;
+let resizeType = null;
 let resizeHandle = null;
 let resizeStartX, resizeStartY, resizeStartW, resizeStartH;
-
-// Canvas dimensions (in mm)
 const CANVAS_W_MM = 297;
 const CANVAS_H_MM = 210;
 
-// ─── Load existing design ───
+/*LOAD*/
 @if (isset($design) && $design->fields_config)
     fields = @json($design->fields_config);
     nextId = fields.reduce((max, f) => Math.max(max, (f.id || 0) + 1), 1);
-    document.addEventListener('DOMContentLoaded', () => { renderFields(); });
 @endif
+@if (isset($design) && $design->signatures_config)
+    signatures = @json($design->signatures_config);
+    nextSigId = signatures.reduce((max, s) => Math.max(max, (s.id || 0) + 1), 1);
+@endif
+document.addEventListener('DOMContentLoaded', () => { renderFields(); renderSignatures(); renderSignaturesList(); });
 
-// ─── Add field ───
-function addField(type) {
-    const field = {
-        id: nextId++,
-        type: type,
-        label: type === 'text' ? 'نص' : '',
-        x_mm: 20 + (fields.length * 5) % 100,
-        y_mm: 20 + (fields.length * 8) % 150,
-        width_mm: type === 'barcode' ? 30 : 50,
-        height_mm: type === 'barcode' ? 30 : 10,
-        font_size: type === 'barcode' ? 10 : 18,
-        font_weight: type === 'barcode' ? 400 : 700,
-        color: '#000000',
-        align: 'center',
-    };
-    fields.push(field);
-    selectField(field.id);
+/*SELECT*/
+function selectItem(type, id) {
+    selectedType = type;
+    selectedId = id;
+    document.querySelectorAll('.canvas-field').forEach(el => el.classList.toggle('selected', type === 'field' && parseInt(el.dataset.fieldId) === id));
+    document.querySelectorAll('.canvas-sig').forEach(el => el.classList.toggle('selected', type === 'sig' && parseInt(el.dataset.sigId) === id));
+    showProps(type, id);
+    document.getElementById('deleteFieldBtn').style.display = id ? 'block' : 'none';
+}
+function deselectAll(e) { if (e.target === e.currentTarget) selectItem(null, null); }
+function deleteSelected() {
+    if (!selectedId) return;
+    if (selectedType === 'field') {
+        if (!confirm('حذف هذا الحقل؟')) return;
+        fields = fields.filter(f => f.id !== selectedId);
+    } else if (selectedType === 'sig') {
+        if (!confirm('حذف هذا التوقيع؟')) return;
+        signatures = signatures.filter(s => s.id !== selectedId);
+        renderSignaturesList();
+    }
+    selectItem(null, null);
     renderFields();
+    renderSignatures();
 }
 
-// ─── Render all fields on canvas ───
+/*FIELDS*/
+function addField(type) {
+    const field = {
+        id: nextId++, type: type, label: type === 'text' ? 'نص' : '',
+        x_mm: 20 + (fields.length * 5) % 100, y_mm: 20 + (fields.length * 8) % 150,
+        width_mm: type === 'barcode' ? 30 : 50, height_mm: type === 'barcode' ? 30 : 10,
+        font_size: type === 'barcode' ? 10 : 18, font_weight: type === 'barcode' ? 400 : 700,
+        color: '#000000', align: 'center',
+    };
+    fields.push(field);
+    renderFields();
+    selectItem('field', field.id);
+}
+
 function renderFields() {
     const canvas = document.getElementById('canvas');
     const rect = canvas.getBoundingClientRect();
-    const pxPerMmX = rect.width / CANVAS_W_MM;
-    const pxPerMmY = rect.height / CANVAS_H_MM;
-    // Remove existing field elements (keep background image)
+    const pxX = rect.width / CANVAS_W_MM, pxY = rect.height / CANVAS_H_MM;
     canvas.querySelectorAll('.canvas-field').forEach(el => el.remove());
-
     fields.forEach(f => {
         const el = document.createElement('div');
-        el.className = 'canvas-field' + (f.id === selectedId ? ' selected' : '');
+        el.className = 'canvas-field' + (selectedType === 'field' && selectedId === f.id ? ' selected' : '');
         el.dataset.fieldId = f.id;
-        el.style.top = (f.y_mm * pxPerMmY) + 'px';
-        el.style.left = (f.x_mm * pxPerMmX) + 'px';
-        el.style.width = (f.width_mm * pxPerMmX) + 'px';
-        el.style.height = (f.height_mm * pxPerMmY) + 'px';
+        el.style.top = (f.y_mm * pxY) + 'px';
+        el.style.left = (f.x_mm * pxX) + 'px';
+        el.style.width = (f.width_mm * pxX) + 'px';
+        el.style.height = (f.height_mm * pxY) + 'px';
         el.style.fontSize = f.font_size + 'pt';
         el.style.fontWeight = f.font_weight;
         el.style.color = f.color;
         el.style.justifyContent = f.align === 'right' ? 'flex-end' : (f.align === 'left' ? 'flex-start' : 'center');
-
-        // Content
         const content = document.createElement('span');
-        if (f.type === 'text') {
-            content.textContent = f.label || 'نص';
-        } else if (f.type === 'barcode') {
-            content.innerHTML = '<span style="opacity:0.6;font-size:8pt;">||||||||||||||||</span>';
-        } else {
-            const labels = {
-                student_name: 'اسم الطالب',
-                student_code: 'STU00000',
-                course_name: 'اسم المقرر',
-                period_name: 'اسم الفترة',
-                certificate_number: '2026-00001',
-                issue_date: '2026-01-01',
-            };
+        if (f.type === 'text') { content.textContent = f.label || 'نص'; }
+        else if (f.type === 'barcode') { content.innerHTML = '<span style="opacity:0.6;font-size:8pt;">||||||||||||||||</span>'; }
+        else {
+            const labels = { student_name: 'اسم الطالب', student_code: 'STU00000', course_name: 'اسم المقرر', period_name: 'اسم الفترة', certificate_number: '2026-00001', issue_date: '2026-01-01' };
             content.textContent = labels[f.type] || f.type;
         }
         el.appendChild(content);
-
-        // Resize handles
-        ['se','sw','ne','nw'].forEach(h => {
-            const handle = document.createElement('div');
-            handle.className = 'resize-handle ' + h;
-            el.appendChild(handle);
-        });
-
-        // Events
-        el.addEventListener('mousedown', function(e) { onFieldMouseDown(e, f.id); });
-        el.addEventListener('touchstart', function(e) { onFieldTouchStart(e, f.id); }, {passive: false});
-
+        addResizeHandles(el);
+        el.addEventListener('mousedown', function(e) { onItemMouseDown(e, 'field', f.id); });
+        el.addEventListener('touchstart', function(e) { onItemTouchStart(e, 'field', f.id); }, {passive: false});
         canvas.appendChild(el);
     });
 }
 
-// ─── Select field ───
-function selectField(id) {
-    selectedId = id;
-    document.querySelectorAll('.canvas-field').forEach(el => el.classList.toggle('selected', parseInt(el.dataset.fieldId) === id));
-    showProps(id);
-    document.getElementById('deleteFieldBtn').style.display = id ? 'block' : 'none';
+/*SIGNATURES*/
+function renderSignatures() {
+    const canvas = document.getElementById('canvas');
+    const rect = canvas.getBoundingClientRect();
+    const pxX = rect.width / CANVAS_W_MM, pxY = rect.height / CANVAS_H_MM;
+    canvas.querySelectorAll('.canvas-sig').forEach(el => el.remove());
+    signatures.forEach(s => {
+        const src = s._preview || (s.image_path ? '{{ asset("storage/") }}/' + s.image_path : '');
+        if (!src) return;
+        const el = document.createElement('div');
+        el.className = 'canvas-sig' + (selectedType === 'sig' && selectedId === s.id ? ' selected' : '');
+        el.dataset.sigId = s.id;
+        el.style.top = (s.y_mm * pxY) + 'px';
+        el.style.left = (s.x_mm * pxX) + 'px';
+        el.style.width = (s.width_mm * pxX) + 'px';
+        el.style.height = (s.height_mm * pxY) + 'px';
+        const img = document.createElement('img');
+        img.src = src;
+        el.appendChild(img);
+        addResizeHandles(el);
+        el.addEventListener('mousedown', function(e) { onItemMouseDown(e, 'sig', s.id); });
+        el.addEventListener('touchstart', function(e) { onItemTouchStart(e, 'sig', s.id); }, {passive: false});
+        canvas.appendChild(el);
+    });
 }
 
-function deselectField(e) {
-    if (e.target === e.currentTarget) { selectField(null); }
+function addResizeHandles(el) {
+    ['se','sw','ne','nw'].forEach(h => {
+        const handle = document.createElement('div');
+        handle.className = 'resize-handle ' + h;
+        el.appendChild(handle);
+    });
 }
 
-// ─── Properties panel ───
-function showProps(id) {
+/*SIDEBAR SIGNATURES LIST*/
+function addSignature() {
+    signatures.push({ id: nextSigId++, image_path: '', x_mm: 50, y_mm: 160, width_mm: 40, height_mm: 20 });
+    renderSignaturesList();
+    renderSignatures();
+}
+function removeSignature(id) {
+    if (!confirm('حذف هذا التوقيع؟')) return;
+    signatures = signatures.filter(s => s.id !== id);
+    if (selectedType === 'sig' && selectedId === id) selectItem(null, null);
+    renderSignaturesList();
+    renderSignatures();
+}
+function renderSignaturesList() {
+    const list = document.getElementById('signaturesList');
+    if (!list) return;
+    list.innerHTML = signatures.map((s, i) => '<div class="border rounded p-2 mb-2 bg-light">' +
+        '<div class="d-flex justify-content-between align-items-center mb-1">' +
+        '<small class="fw-medium">توقيع ' + (i + 1) + '</small>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeSignature(' + s.id + ')"><i class="bi bi-x"></i></button>' +
+        '</div>' +
+        '<input type="file" name="signature_image_' + i + '" accept="image/png,image/jpeg" class="form-control form-control-sm mb-1" onchange="onSigFileChange(' + s.id + ', this)">' +
+        (s.image_path ? '<div class="small text-muted">✓ صورة محفوظة</div>' : '') +
+        '</div>'
+    ).join('');
+}
+function onSigFileChange(sigId, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const sig = signatures.find(s => s.id === sigId);
+        if (sig) sig._preview = e.target.result;
+        renderSignatures();
+    };
+    reader.readAsDataURL(file);
+}
+
+/*DRAG + RESIZE (unified)*/
+function onItemMouseDown(e, type, id) {
+    e.stopPropagation();
+    selectItem(type, id);
+    if (e.target.classList.contains('resize-handle')) {
+        startResize(e, type, id, e.target.className.split(' ')[1]);
+        return;
+    }
+    startDrag(e, type, id);
+}
+function onItemTouchStart(e, type, id) {
+    e.preventDefault();
+    selectItem(type, id);
+    if (e.target.classList.contains('resize-handle')) {
+        startResize(e.touches[0], type, id, e.target.className.split(' ')[1]);
+        return;
+    }
+    startDrag(e.touches[0], type, id);
+}
+function startDrag(e, type, id) {
+    const canvas = document.getElementById('canvas');
+    const rect = canvas.getBoundingClientRect();
+    const item = type === 'field' ? fields.find(x => x.id === id) : signatures.find(x => x.id === id);
+    if (!item) return;
+    const pxX = rect.width / CANVAS_W_MM, pxY = rect.height / CANVAS_H_MM;
+    dragType = type;
+    dragTarget = id;
+    dragOffsetX = (e.clientX - rect.left) / pxX - item.x_mm;
+    dragOffsetY = (e.clientY - rect.top) / pxY - item.y_mm;
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+}
+function onDragMove(e) {
+    if (!dragTarget) return;
+    const canvas = document.getElementById('canvas');
+    const rect = canvas.getBoundingClientRect();
+    const pxX = rect.width / CANVAS_W_MM, pxY = rect.height / CANVAS_H_MM;
+    const item = dragType === 'field' ? fields.find(x => x.id === dragTarget) : signatures.find(x => x.id === dragTarget);
+    if (!item) return;
+    item.x_mm = Math.max(0, Math.min(CANVAS_W_MM - item.width_mm, (e.clientX - rect.left) / pxX - dragOffsetX));
+    item.y_mm = Math.max(0, Math.min(CANVAS_H_MM - item.height_mm, (e.clientY - rect.top) / pxY - dragOffsetY));
+    if (dragType === 'field') renderFields();
+    else { renderSignatures(); renderSignaturesList(); }
+}
+function onDragEnd() {
+    dragTarget = null; dragType = null;
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup', onDragEnd);
+}
+
+function startResize(e, type, id, handle) {
+    e.stopPropagation();
+    const item = type === 'field' ? fields.find(x => x.id === id) : signatures.find(x => x.id === id);
+    if (!item) return;
+    resizeType = type; resizeTarget = id; resizeHandle = handle;
+    resizeStartX = e.clientX; resizeStartY = e.clientY;
+    resizeStartW = item.width_mm; resizeStartH = item.height_mm;
+    document.addEventListener('mousemove', onResizeMove);
+    document.addEventListener('mouseup', onResizeEnd);
+}
+function onResizeMove(e) {
+    if (!resizeTarget) return;
+    const canvas = document.getElementById('canvas');
+    const rect = canvas.getBoundingClientRect();
+    const pxX = rect.width / CANVAS_W_MM, pxY = rect.height / CANVAS_H_MM;
+    const item = resizeType === 'field' ? fields.find(x => x.id === resizeTarget) : signatures.find(x => x.id === resizeTarget);
+    if (!item) return;
+    const dx = (e.clientX - resizeStartX) / pxX;
+    const dy = (e.clientY - resizeStartY) / pxY;
+    if (resizeHandle.includes('e')) { item.width_mm = Math.max(10, resizeStartW + dx); }
+    if (resizeHandle.includes('s')) { item.height_mm = Math.max(10, resizeStartH + dy); }
+    if (resizeHandle.includes('w')) { const newW = Math.max(10, resizeStartW - dx); item.x_mm += (resizeStartW - newW); item.width_mm = newW; }
+    if (resizeHandle.includes('n')) { const newH = Math.max(10, resizeStartH - dy); item.y_mm += (resizeStartH - newH); item.height_mm = newH; }
+    if (resizeType === 'field') {
+        if (item.type === 'barcode') { const sz = Math.max(10, item.width_mm, item.height_mm); item.width_mm = item.height_mm = sz; }
+        renderFields();
+    } else { renderSignatures(); renderSignaturesList(); }
+}
+function onResizeEnd() {
+    resizeTarget = null; resizeType = null;
+    document.removeEventListener('mousemove', onResizeMove);
+    document.removeEventListener('mouseup', onResizeEnd);
+}
+
+/*PROPERTIES (unified)*/
+function showProps(type, id) {
     const panel = document.getElementById('propsContent');
-    if (!id) { panel.innerHTML = '<p class="text-muted small">اختر حقلاً لعرض خصائصه</p>'; return; }
+    if (!id) { panel.innerHTML = '<p class="text-muted small">اختر حقلاً أو توقيعاً لعرض خصائصه</p>'; return; }
+    if (type === 'sig') {
+        const s = signatures.find(x => x.id === id);
+        if (!s) return;
+        panel.innerHTML = '<div class="prop-group"><label>النوع</label><input value="توقيع" readonly style="background:#f1f5f9;"></div>'
+            + '<div class="prop-group"><label>الموقع X (مم)</label><input type="number" value="' + s.x_mm + '" step="1" onchange="updateSig(' + id + ',\'x_mm\',parseFloat(this.value)||0)"></div>'
+            + '<div class="prop-group"><label>الموقع Y (مم)</label><input type="number" value="' + s.y_mm + '" step="1" onchange="updateSig(' + id + ',\'y_mm\',parseFloat(this.value)||0)"></div>'
+            + '<div class="prop-group"><label>العرض (مم)</label><input type="number" value="' + s.width_mm + '" step="1" min="10" onchange="updateSig(' + id + ',\'width_mm\',parseFloat(this.value)||10)"></div>'
+            + '<div class="prop-group"><label>الارتفاع (مم)</label><input type="number" value="' + s.height_mm + '" step="1" min="5" onchange="updateSig(' + id + ',\'height_mm\',parseFloat(this.value)||5)"></div>'
+            + '<div class="prop-group"><label>الصورة</label><input type="file" accept="image/png,image/jpeg" class="form-control form-control-sm" onchange="onSigFileChange(' + id + ', this)"></div>'
+            + (s.image_path ? '<div class="small text-muted mt-1">✓ صورة محفوظة</div>' : '');
+        return;
+    }
     const f = fields.find(x => x.id === id);
     if (!f) return;
-
     const labels = { student_name: 'اسم الطالب', student_code: 'كود الطالب', course_name: 'المقرر', period_name: 'الفترة', certificate_number: 'رقم الشهادة', issue_date: 'تاريخ الإصدار', barcode: 'باركود', text: 'نص حر' };
-
-    panel.innerHTML = `
-        <div class="prop-group"><label>النوع</label><input value="${labels[f.type] || f.type}" readonly style="background:#f1f5f9;"></div>
-        ${f.type === 'text' ? `<div class="prop-group"><label>النص</label><input value="${f.label}" onchange="updateProp(${id},'label',this.value)"></div>` : ''}
-        <div class="prop-group"><label>الموقع X (مم)</label><input type="number" value="${f.x_mm}" step="1" onchange="updateProp(${id},'x_mm',parseFloat(this.value)||0)"></div>
-        <div class="prop-group"><label>الموقع Y (مم)</label><input type="number" value="${f.y_mm}" step="1" onchange="updateProp(${id},'y_mm',parseFloat(this.value)||0)"></div>
-        ${f.type === 'barcode' ? `
-        <div class="prop-group"><label>حجم الباركود (مم)</label><input type="number" value="${f.width_mm}" step="1" min="10" max="100" onchange="setBarcodeSize(${id},parseFloat(this.value)||30)"></div>
-        ` : `
-        <div class="prop-group"><label>العرض (مم)</label><input type="number" value="${f.width_mm}" step="1" min="10" onchange="updateProp(${id},'width_mm',parseFloat(this.value)||10)"></div>
-        <div class="prop-group"><label>الارتفاع (مم)</label><input type="number" value="${f.height_mm}" step="1" min="5" onchange="updateProp(${id},'height_mm',parseFloat(this.value)||5)"></div>
-        `}
-        <div class="prop-group"><label>حجم الخط (pt)</label><input type="number" value="${f.font_size}" step="1" min="6" max="72" onchange="updateProp(${id},'font_size',parseFloat(this.value)||12)"></div>
-        <div class="prop-group"><label>وزن الخط</label><select onchange="updateProp(${id},'font_weight',this.value)">
-            <option value="400" ${f.font_weight == 400 ? 'selected':''}>عادي</option>
-            <option value="500" ${f.font_weight == 500 ? 'selected':''}>متوسط</option>
-            <option value="700" ${f.font_weight == 700 ? 'selected':''}>غامق</option>
-        </select></div>
-        <div class="prop-group"><label>اللون</label><input type="color" value="${f.color}" onchange="updateProp(${id},'color',this.value)"></div>
-        <div class="prop-group"><label>المحاذاة</label><select onchange="updateProp(${id},'align',this.value)">
-            <option value="center" ${f.align=='center'?'selected':''}>وسط</option>
-            <option value="right" ${f.align=='right'?'selected':''}>يمين</option>
-            <option value="left" ${f.align=='left'?'selected':''}>يسار</option>
-        </select></div>
-    `;
+    let html = '<div class="prop-group"><label>النوع</label><input value="' + (labels[f.type] || f.type) + '" readonly style="background:#f1f5f9;"></div>';
+    if (f.type === 'text') html += '<div class="prop-group"><label>النص</label><input value="' + (f.label || '') + '" onchange="updateProp(' + id + ',\'label\',this.value)"></div>';
+    html += '<div class="prop-group"><label>الموقع X (مم)</label><input type="number" value="' + f.x_mm + '" step="1" onchange="updateProp(' + id + ',\'x_mm\',parseFloat(this.value)||0)"></div>';
+    html += '<div class="prop-group"><label>الموقع Y (مم)</label><input type="number" value="' + f.y_mm + '" step="1" onchange="updateProp(' + id + ',\'y_mm\',parseFloat(this.value)||0)"></div>';
+    if (f.type === 'barcode') {
+        html += '<div class="prop-group"><label>حجم الباركود (مم)</label><input type="number" value="' + f.width_mm + '" step="1" min="10" max="100" onchange="setBarcodeSize(' + id + ',parseFloat(this.value)||30)"></div>';
+    } else {
+        html += '<div class="prop-group"><label>العرض (مم)</label><input type="number" value="' + f.width_mm + '" step="1" min="10" onchange="updateProp(' + id + ',\'width_mm\',parseFloat(this.value)||10)"></div>';
+        html += '<div class="prop-group"><label>الارتفاع (مم)</label><input type="number" value="' + f.height_mm + '" step="1" min="5" onchange="updateProp(' + id + ',\'height_mm\',parseFloat(this.value)||5)"></div>';
+    }
+    html += '<div class="prop-group"><label>حجم الخط (pt)</label><input type="number" value="' + f.font_size + '" step="1" min="6" max="72" onchange="updateProp(' + id + ',\'font_size\',parseFloat(this.value)||12)"></div>';
+    html += '<div class="prop-group"><label>وزن الخط</label><select onchange="updateProp(' + id + ',\'font_weight\',this.value)">'
+        + '<option value="400"' + (f.font_weight == 400 ? ' selected' : '') + '>عادي</option>'
+        + '<option value="500"' + (f.font_weight == 500 ? ' selected' : '') + '>متوسط</option>'
+        + '<option value="700"' + (f.font_weight == 700 ? ' selected' : '') + '>غامق</option>'
+        + '</select></div>';
+    html += '<div class="prop-group"><label>اللون</label><input type="color" value="' + f.color + '" onchange="updateProp(' + id + ',\'color\',this.value)"></div>';
+    html += '<div class="prop-group"><label>المحاذاة</label><select onchange="updateProp(' + id + ',\'align\',this.value)">'
+        + '<option value="center"' + (f.align == 'center' ? ' selected' : '') + '>وسط</option>'
+        + '<option value="right"' + (f.align == 'right' ? ' selected' : '') + '>يمين</option>'
+        + '<option value="left"' + (f.align == 'left' ? ' selected' : '') + '>يسار</option>'
+        + '</select></div>';
+    panel.innerHTML = html;
 }
 
-// ─── Update property ───
 function updateProp(id, prop, value) {
     const f = fields.find(x => x.id === id);
     if (!f) return;
     f[prop] = value;
-    // Keep barcode fields square
-    if (f.type === 'barcode' && (prop === 'width_mm' || prop === 'height_mm')) {
-        f.width_mm = f.height_mm = value;
-    }
+    if (f.type === 'barcode' && (prop === 'width_mm' || prop === 'height_mm')) { f.width_mm = f.height_mm = value; }
     renderFields();
-    if (selectedId === id) showProps(id);
+    if (selectedType === 'field' && selectedId === id) showProps('field', id);
 }
-
-// ─── Set barcode size (square) ───
 function setBarcodeSize(id, size) {
     const f = fields.find(x => x.id === id);
     if (!f) return;
     f.width_mm = f.height_mm = Math.max(10, Math.min(100, size));
     renderFields();
-    if (selectedId === id) showProps(id);
+    if (selectedType === 'field' && selectedId === id) showProps('field', id);
+}
+function updateSig(id, prop, value) {
+    const s = signatures.find(x => x.id === id);
+    if (!s) return;
+    s[prop] = value;
+    renderSignatures();
+    renderSignaturesList();
+    if (selectedType === 'sig' && selectedId === id) showProps('sig', id);
 }
 
-// ─── Delete selected field ───
-function deleteSelectedField() {
-    if (!selectedId) return;
-    if (!confirm('حذف هذا الحقل؟')) return;
-    fields = fields.filter(f => f.id !== selectedId);
-    selectedId = null;
-    renderFields();
-    showProps(null);
-    document.getElementById('deleteFieldBtn').style.display = 'none';
-}
-
-// ─── Mouse drag ───
-function onFieldMouseDown(e, id) {
-    e.stopPropagation();
-    selectField(id);
-    if (e.target.classList.contains('resize-handle')) {
-        startResize(e, id, e.target.className.split(' ')[1]);
-        return;
-    }
-    startDrag(e, id);
-}
-
-function startDrag(e, id) {
-    const canvas = document.getElementById('canvas');
-    const rect = canvas.getBoundingClientRect();
-    const f = fields.find(x => x.id === id);
-    if (!f) return;
-    const pxPerMmX = rect.width / CANVAS_W_MM;
-    const pxPerMmY = rect.height / CANVAS_H_MM;
-    dragTarget = id;
-    dragOffsetX = (e.clientX - rect.left) / pxPerMmX - f.x_mm;
-    dragOffsetY = (e.clientY - rect.top) / pxPerMmY - f.y_mm;
-    document.addEventListener('mousemove', onDragMove);
-    document.addEventListener('mouseup', onDragEnd);
-}
-
-function onDragMove(e) {
-    if (!dragTarget) return;
-    const canvas = document.getElementById('canvas');
-    const rect = canvas.getBoundingClientRect();
-    const pxPerMmX = rect.width / CANVAS_W_MM;
-    const pxPerMmY = rect.height / CANVAS_H_MM;
-    const f = fields.find(x => x.id === dragTarget);
-    if (!f) return;
-    f.x_mm = Math.max(0, Math.min(CANVAS_W_MM - f.width_mm, (e.clientX - rect.left) / pxPerMmX - dragOffsetX));
-    f.y_mm = Math.max(0, Math.min(CANVAS_H_MM - f.height_mm, (e.clientY - rect.top) / pxPerMmY - dragOffsetY));
-    renderFields();
-}
-
-function onDragEnd() {
-    dragTarget = null;
-    document.removeEventListener('mousemove', onDragMove);
-    document.removeEventListener('mouseup', onDragEnd);
-}
-
-// ─── Resize ───
-function startResize(e, id, handle) {
-    e.stopPropagation();
-    const f = fields.find(x => x.id === id);
-    if (!f) return;
-    resizeTarget = id;
-    resizeHandle = handle;
-    resizeStartX = e.clientX;
-    resizeStartY = e.clientY;
-    resizeStartW = f.width_mm;
-    resizeStartH = f.height_mm;
-    document.addEventListener('mousemove', onResizeMove);
-    document.addEventListener('mouseup', onResizeEnd);
-}
-
-function onResizeMove(e) {
-    if (!resizeTarget) return;
-    const canvas = document.getElementById('canvas');
-    const rect = canvas.getBoundingClientRect();
-    const pxPerMmX = rect.width / CANVAS_W_MM;
-    const pxPerMmY = rect.height / CANVAS_H_MM;
-    const f = fields.find(x => x.id === resizeTarget);
-    if (!f) return;
-    const dx = (e.clientX - resizeStartX) / pxPerMmX;
-    const dy = (e.clientY - resizeStartY) / pxPerMmY;
-
-    if (resizeHandle.includes('e')) { f.width_mm = Math.max(10, resizeStartW + dx); }
-    if (resizeHandle.includes('s')) { f.height_mm = Math.max(10, resizeStartH + dy); }
-    if (resizeHandle.includes('w')) {
-        const newW = Math.max(10, resizeStartW - dx);
-        f.x_mm = f.x_mm + (resizeStartW - newW);
-        f.width_mm = newW;
-    }
-    if (resizeHandle.includes('n')) {
-        const newH = Math.max(10, resizeStartH - dy);
-        f.y_mm = f.y_mm + (resizeStartH - newH);
-        f.height_mm = newH;
-    }
-    // Keep barcode fields square
-    if (f.type === 'barcode') {
-        const sz = Math.max(10, f.width_mm, f.height_mm);
-        f.width_mm = f.height_mm = sz;
-    }
-    renderFields();
-}
-
-function onResizeEnd() {
-    resizeTarget = null;
-    document.removeEventListener('mousemove', onResizeMove);
-    document.removeEventListener('mouseup', onResizeEnd);
-}
-
-// ─── Background preview ───
+/*BACKGROUND*/
 function previewBackground(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -449,22 +551,30 @@ function previewBackground(e) {
         const img = document.createElement('img');
         img.className = 'bg-img';
         img.src = ev.target.result;
-        img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:fill;pointer-events:none;';
+        img.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:fill;pointer-events:none;z-index:1;';
         canvas.prepend(img);
     };
     reader.readAsDataURL(file);
 }
 
-// ─── Save ───
-function saveDesign() {
-    // Validate fields have student_name and certificate_number
-    const hasStudentName = fields.some(f => f.type === 'student_name');
-    const hasCertNum = fields.some(f => f.type === 'certificate_number');
-    if (!hasStudentName) { alert('يجب إضافة حقل "اسم الطالب"'); return; }
-    if (!hasCertNum) { alert('يجب إضافة حقل "رقم الشهادة"'); return; }
+/*FONT*/
+function updateFontFamily(font) {
+    document.getElementById('fontFamilySelect').value = font;
+}
 
+/*SAVE*/
+function saveDesign() {
+    if (!fields.some(f => f.type === 'student_name')) { alert('يجب إضافة حقل "اسم الطالب"'); return; }
+    if (!fields.some(f => f.type === 'certificate_number')) { alert('يجب إضافة حقل "رقم الشهادة"'); return; }
     document.getElementById('fieldsConfig').value = JSON.stringify(fields);
+    document.getElementById('signaturesConfig').value = JSON.stringify(signatures);
     document.getElementById('designForm').submit();
 }
+
+@if (isset($design) && $design->font_family)
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('[name="font_family"]').value = '{{ $design->font_family }}';
+    });
+@endif
 </script>
 @endpush

@@ -83,6 +83,7 @@
                     </td>
                     <td>{{ $item->created_at->format('Y-m-d') }}</td>
                     <td>
+                        <x-audit-history :model="'App\Models\Admin\Hr\LeaveRequest'" :model-id="$item->id" />
                         @if ($item->status === 'pending')
                             @canPermission('App\Models\Admin\Hr\LeaveRequest', 'delete')
                             <form action="{{ route('admin.hr.leave-requests.destroy', $item) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف الطلب؟')">
