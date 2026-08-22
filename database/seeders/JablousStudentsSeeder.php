@@ -42,7 +42,7 @@ class JablousStudentsSeeder extends Seeder
         // Find or create center
         $center = Center::where('name', 'like', '%جرابلس%')->first();
         if (!$center) {
-            $center = Center::create(['name' => 'جرابلس', 'is_active' => true]);
+            $center = Center::create(['name' => 'جرابلس']);
         }
 
         // Find or create project
