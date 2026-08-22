@@ -15,25 +15,20 @@ class JablousStudentsSeeder extends Seeder
 {
     public function run(): void
     {
-        $excelPath = base_path('project-files/مجلد جديد/الم_information_المطلوبة_للطلاب_-_جرابلس_-_معهد_الرواد_للتدريب_والتأهيل_المهني_.xlsx');
+        // Primary: storage/app/private/ (production-safe, not in git)
+        $excelPath = storage_path('app/private/jablous-students.xlsx');
 
-        // Fallback: find the file by searching
+        // Fallback: project-files (local dev only, gitignored)
         if (!file_exists($excelPath)) {
-            $files = glob(base_path('project-files/*/*/*.xlsx'));
-            $files2 = glob(base_path('project-files/*/*.xlsx'));
-            $all = array_merge($files, $files2);
-            foreach ($all as $f) {
-                if (mb_strpos(basename($f), 'المعلومات المطلوبة') !== false && mb_strpos(basename(dirname($f)), 'مجلد') !== false) {
-                    $excelPath = $f;
-                    break;
-                }
-            }
+            $excelPath = base_path('project-files/مجلد جديد/المعلومات_المطلوبة_للطلاب_-_جرابلس_-_معهد_الرواد_للتدريب_والتأهيل_المهني_.xlsx');
         }
 
         if (!file_exists($excelPath)) {
-            $this->command?->error('Excel file not found');
+            $this->command?->error('الملف غير موجود! ضع الملف في: storage/app/private/jablous-students.xlsx');
             return;
         }
+
+        $this->command?->info("Reading: {$excelPath}");
 
         $collection = Excel::toCollection([], $excelPath, null, \Maatwebsite\Excel\Excel::XLSX)->first();
         $rows = [];
