@@ -3,12 +3,15 @@
 @section('title', $equipment->name)
 
 @section('content')
-<div class="page-header">
-    <h4>{{ $equipment->name }}</h4>
-    <p>
-        <a href="{{ route('admin.tech.equipment.index') }}" class="text-decoration-none">المعدات التقنية</a>
-        / #{{ $equipment->id }}
-    </p>
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4>{{ $equipment->name }}</h4>
+        <p>
+            <a href="{{ route('admin.tech.equipment.index') }}" class="text-decoration-none">المعدات التقنية</a>
+            / #{{ $equipment->id }}
+        </p>
+    </div>
+    <x-audit-history :model="'App\Models\Admin\Tech\TechEquipment'" :model-id="$equipment->id" />
 </div>
 
 <div class="row">

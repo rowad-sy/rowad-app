@@ -7,6 +7,7 @@ use App\Exports\FullExport\EmployeeFullExport;
 use App\Imports\EmployeeImport;
 use App\Imports\FullImport\EmployeeFullImport;
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -32,7 +33,18 @@ class ExportController extends Controller
             'file' => 'required|file|mimes:xlsx,xls,csv',
         ]);
 
+        $fileName = $request->file('file')->getClientOriginalName();
+
         Excel::import(new EmployeeImport, $request->file('file'));
+
+        AuditLogger::recordEvent(
+            modelClass: \App\Models\User::class,
+            modelId: auth()->id(),
+            event: 'imported',
+            description: "استيراد بيانات موظفين من ملف: {$fileName}",
+            oldValues: null,
+            newValues: ['file' => $fileName, 'type' => 'employees_basic'],
+        );
 
         return redirect()->back()->with('success', 'تم استيراد البيانات بنجاح');
     }
@@ -43,7 +55,18 @@ class ExportController extends Controller
             'file' => 'required|file|mimes:xlsx,xls,csv',
         ]);
 
+        $fileName = $request->file('file')->getClientOriginalName();
+
         Excel::import(new EmployeeFullImport, $request->file('file'));
+
+        AuditLogger::recordEvent(
+            modelClass: \App\Models\User::class,
+            modelId: auth()->id(),
+            event: 'imported',
+            description: "استيراد جميع بيانات الموظفين من ملف: {$fileName}",
+            oldValues: null,
+            newValues: ['file' => $fileName, 'type' => 'employees_full'],
+        );
 
         return redirect()->back()->with('success', 'تم استيراد جميع البيانات بنجاح');
     }

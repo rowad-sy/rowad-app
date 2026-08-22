@@ -111,6 +111,7 @@
                             @canPermission('App\Models\Admin\ProjectTask', 'edit')
                             <a href="{{ route('admin.projects.tasks.edit', $task) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
                             @endcanPermission
+                            <x-audit-history :model="'App\Models\Admin\ProjectTask'" :model-id="$task->id" />
                             @canPermission('App\Models\Admin\ProjectTask', 'delete')
                             <form method="POST" action="{{ route('admin.projects.tasks.destroy', $task) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد؟')">
                                 @csrf @method('DELETE')

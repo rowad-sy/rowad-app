@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
 use App\Models\Admin\Project;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -49,7 +50,10 @@ class ProjectController extends Controller
         ]);
 
         if (!empty($validated['centers'])) {
+            $oldIds = $project->centers()->pluck('centers.id')->toArray();
             $project->centers()->attach($validated['centers']);
+            $newIds = $project->centers()->pluck('centers.id')->toArray();
+            AuditLogger::logPivot($project, 'centers', $oldIds, $newIds, "إضافة مراكز للمشروع {$project->name}");
         }
 
         return redirect()->route('admin.projects.index')
@@ -77,7 +81,10 @@ class ProjectController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
+        $oldIds = $project->centers()->pluck('centers.id')->toArray();
         $project->centers()->sync($validated['centers'] ?? []);
+        $newIds = $project->centers()->pluck('centers.id')->toArray();
+        AuditLogger::logPivot($project, 'centers', $oldIds, $newIds, "تحديث مراكز المشروع {$project->name}");
 
         return redirect()->route('admin.projects.index')
             ->with('success', 'تم تحديث المشروع بنجاح');
@@ -85,7 +92,11 @@ class ProjectController extends Controller
 
     public function destroy(Project $project)
     {
+        $oldIds = $project->centers()->pluck('centers.id')->toArray();
         $project->centers()->detach();
+        if (!empty($oldIds)) {
+            AuditLogger::logPivot($project, 'centers', $oldIds, [], "حذف جميع المراكز من المشروع {$project->name}");
+        }
         $project->delete();
 
         return redirect()->route('admin.projects.index')

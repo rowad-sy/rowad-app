@@ -46,6 +46,7 @@
                             <a href="{{ route('admin.logistics.approval-rules.edit', $rule) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <x-audit-history :model="'App\Models\Admin\Logistics\ApprovalRule'" :model-id="$rule->id" />
                             @canPermission('App\Models\Admin\Logistics\ApprovalRule', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.approval-rules.destroy', $rule) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف قاعدة الموافقة هذه؟')">

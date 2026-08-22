@@ -107,6 +107,7 @@
                             <a href="{{ route('admin.logistics.purchase-requests.show', $request) }}" class="btn btn-sm btn-outline-info">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            <x-audit-history :model="'App\Models\Admin\Logistics\PurchaseRequest'" :model-id="$request->id" />
                             @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.purchase-requests.destroy', $request) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف طلب الشراء هذا؟')">

@@ -273,6 +273,20 @@
                 @endcanPermission
             </div>
         </div>
+
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>النظام والتدقيق</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                @canPermission('App\Models\AuditLog', 'view')
+                <a href="{{ route('admin.audit-logs.index') }}" class="nav-link {{ request()->routeIs('admin.audit-logs.*') ? 'active' : '' }}">
+                    <i class="bi bi-clock-history"></i> <span>سجل التدقيق</span>
+                </a>
+                @endcanPermission
+            </div>
+        </div>
         @endif
 
         {{-- Student Navigation --}}
@@ -422,6 +436,43 @@
     </div>
 
     @stack('scripts')
+
+    <!-- Audit History Modal -->
+    <div class="modal fade" id="auditHistoryModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>سجل التغييرات</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="auditHistoryContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">جاري التحميل...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadAuditHistory(model, modelId) {
+            var modal = new bootstrap.Modal(document.getElementById('auditHistoryModal'));
+            var content = document.getElementById('auditHistoryContent');
+            content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
+            modal.show();
+
+            fetch('/admin/audit-logs/history?model=' + encodeURIComponent(model) + '&model_id=' + modelId)
+                .then(function(response) { return response.text(); })
+                .then(function(html) {
+                    content.innerHTML = html;
+                })
+                .catch(function() {
+                    content.innerHTML = '<div class="alert alert-danger">حدث خطأ أثناء تحميل سجل التغييرات</div>';
+                });
+        }
+    </script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

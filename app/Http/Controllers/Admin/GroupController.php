@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Group;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 
 class GroupController extends Controller
@@ -49,7 +50,10 @@ class GroupController extends Controller
         ]);
 
         if (!empty($validated['users'])) {
+            $oldIds = $group->users()->pluck('users.id')->toArray();
             $group->users()->attach($validated['users']);
+            $newIds = $group->users()->pluck('users.id')->toArray();
+            AuditLogger::logPivot($group, 'users', $oldIds, $newIds, "إضافة مستخدمين للمجموعة {$group->name}");
         }
 
         return redirect()->route('admin.groups.index')
@@ -77,7 +81,10 @@ class GroupController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
+        $oldIds = $group->users()->pluck('users.id')->toArray();
         $group->users()->sync($validated['users'] ?? []);
+        $newIds = $group->users()->pluck('users.id')->toArray();
+        AuditLogger::logPivot($group, 'users', $oldIds, $newIds, "تحديث مستخدمي المجموعة {$group->name}");
 
         return redirect()->route('admin.groups.index')
             ->with('success', 'تم تحديث المجموعة بنجاح');
@@ -85,7 +92,11 @@ class GroupController extends Controller
 
     public function destroy(Group $group)
     {
+        $oldIds = $group->users()->pluck('users.id')->toArray();
         $group->users()->detach();
+        if (!empty($oldIds)) {
+            AuditLogger::logPivot($group, 'users', $oldIds, [], "حذف جميع المستخدمين من المجموعة {$group->name}");
+        }
         $group->permissions()->delete();
         $group->delete();
 

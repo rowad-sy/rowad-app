@@ -59,6 +59,7 @@
                         <a href="{{ route('admin.projects.edit', $project) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        <x-audit-history :model="'App\Models\Admin\Project'" :model-id="$project->id" />
                         <form method="POST" action="{{ route('admin.projects.destroy', $project) }}" class="d-inline"
                               onsubmit="return confirm('هل أنت متأكد من حذف هذا المشروع؟')">
                             @csrf

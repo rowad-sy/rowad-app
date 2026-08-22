@@ -119,6 +119,7 @@
                             <a href="{{ route('admin.tech.issues.edit', $issue) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <x-audit-history :model="'App\Models\Admin\Tech\TechIssue'" :model-id="$issue->id" />
                             <form method="POST" action="{{ route('admin.tech.issues.destroy', $issue) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه التذكرة؟')">
                                 @csrf

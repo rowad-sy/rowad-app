@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\Logistics\WarehouseItemController;
 use App\Http\Controllers\Admin\Logistics\AssetController;
 use App\Http\Controllers\Admin\Logistics\LogisticsStatisticsController;
 use App\Http\Controllers\Admin\Logistics\LogisticsExportController;
+use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\ActivationController;
 use App\Http\Controllers\Auth\ActivationResendController;
@@ -112,6 +113,10 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::resource('departments', DepartmentController::class)->except(['show']);
         Route::resource('groups', GroupController::class)->except(['show']);
         Route::resource('permissions', PermissionController::class)->except(['show']);
+
+        // Audit Log
+        Route::get('audit-logs', [AuditController::class, 'index'])->name('audit-logs.index');
+        Route::get('audit-logs/history', [AuditController::class, 'history'])->name('audit-logs.history');
 
         Route::resource('users', UserController::class)->except(['show']);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');

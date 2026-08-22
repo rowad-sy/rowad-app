@@ -27,6 +27,7 @@
         </p>
     </div>
     <div class="d-flex gap-2">
+        <x-audit-history :model="'App\Models\Admin\Hr\Employee'" :model-id="$employee->id" />
         @canPermission('App\Models\Admin\Hr\Employee', 'edit')
         <a href="{{ route('admin.hr.employees.edit', $employee) }}" class="btn btn-outline-primary">
             <i class="bi bi-pencil me-1"></i> تعديل

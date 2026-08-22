@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Logistics;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Logistics\ApprovalRule;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 
 class ApprovalRuleController extends Controller
@@ -53,7 +54,10 @@ class ApprovalRuleController extends Controller
             'notes' => $validated['notes'],
         ]);
 
+        $oldIds = $rule->approvers()->pluck('users.id')->toArray();
         $rule->approvers()->sync($validated['approver_ids']);
+        $newIds = $rule->approvers()->pluck('users.id')->toArray();
+        AuditLogger::logPivot($rule, 'approvers', $oldIds, $newIds, "تحديث معتمدي قاعدة الاعتماد {$rule->name}");
 
         return redirect()->route('admin.logistics.approval-rules.index')
             ->with('success', 'تم إضافة قاعدة الاعتماد بنجاح');
@@ -88,7 +92,10 @@ class ApprovalRuleController extends Controller
             'notes' => $validated['notes'],
         ]);
 
+        $oldIds = $approvalRule->approvers()->pluck('users.id')->toArray();
         $approvalRule->approvers()->sync($validated['approver_ids']);
+        $newIds = $approvalRule->approvers()->pluck('users.id')->toArray();
+        AuditLogger::logPivot($approvalRule, 'approvers', $oldIds, $newIds, "تحديث معتمدي قاعدة الاعتماد {$approvalRule->name}");
 
         return redirect()->route('admin.logistics.approval-rules.index')
             ->with('success', 'تم تحديث قاعدة الاعتماد بنجاح');
@@ -96,7 +103,11 @@ class ApprovalRuleController extends Controller
 
     public function destroy(ApprovalRule $approvalRule)
     {
+        $oldIds = $approvalRule->approvers()->pluck('users.id')->toArray();
         $approvalRule->approvers()->detach();
+        if (!empty($oldIds)) {
+            AuditLogger::logPivot($approvalRule, 'approvers', $oldIds, [], "حذف جميع المعتمدين من قاعدة الاعتماد {$approvalRule->name}");
+        }
         $approvalRule->delete();
 
         return redirect()->route('admin.logistics.approval-rules.index')

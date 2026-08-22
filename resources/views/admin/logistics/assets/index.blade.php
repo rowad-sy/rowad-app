@@ -104,6 +104,7 @@
                             <a href="{{ route('admin.logistics.assets.edit', $asset) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <x-audit-history :model="'App\Models\Admin\Logistics\Asset'" :model-id="$asset->id" />
                             @canPermission('App\Models\Admin\Logistics\Asset', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.assets.destroy', $asset) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا الأصل؟')">

@@ -176,6 +176,9 @@ class PermissionController extends Controller
             'إدارة المشاريع' => [
                 'App\Models\Admin\ProjectTask' => 'المهام',
             ],
+            'النظام والتدقيق' => [
+                'App\Models\AuditLog' => 'سجل التدقيق',
+            ],
             'الصفحات' => [
                 'page:admin.logistics.statistics' => 'إحصائيات اللوجستي',
             ],

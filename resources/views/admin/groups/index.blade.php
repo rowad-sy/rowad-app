@@ -50,6 +50,7 @@
                         <a href="{{ route('admin.groups.edit', $group) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        <x-audit-history :model="'App\Models\Admin\Group'" :model-id="$group->id" />
                         <form method="POST" action="{{ route('admin.groups.destroy', $group) }}" class="d-inline"
                               onsubmit="return confirm('هل أنت متأكد من حذف هذه المجموعة؟')">
                             @csrf

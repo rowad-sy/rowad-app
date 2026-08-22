@@ -1,0 +1,11 @@
+{
+    "version": 1,
+    "anchor_hash": "3a771a3e1c63e4659b38cf298a3c0a270d8d4f132996d196ad4ffefa2355f608",
+    "data": {
+        "audit_log_id": 107,
+        "count": 99,
+        "last_hash": "e7575a7937fb69f5d4d8307d5decc47bea7db02bcd6eb4590e0e8e9183212dbc",
+        "prev_anchor_hash": null,
+        "created_at": "2026-08-19 09:23:11"
+    }
+}

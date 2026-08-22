@@ -48,6 +48,7 @@
                         <a href="{{ route('admin.centers.edit', $center) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        <x-audit-history :model="'App\Models\Admin\Center'" :model-id="$center->id" />
                         <form method="POST" action="{{ route('admin.centers.destroy', $center) }}" class="d-inline"
                               onsubmit="return confirm('هل أنت متأكد من حذف هذا المركز؟')">
                             @csrf

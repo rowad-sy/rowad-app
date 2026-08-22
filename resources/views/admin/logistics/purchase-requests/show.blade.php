@@ -26,6 +26,7 @@
         </p>
     </div>
     <div class="d-flex gap-2">
+        <x-audit-history model="App\Models\Admin\Logistics\PurchaseRequest" :modelId="$purchaseRequest->id" />
         <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-right me-1"></i> عودة
         </a>

@@ -21,6 +21,7 @@
         </p>
     </div>
     <div class="d-flex gap-2">
+        <x-audit-history :model="'App\Models\Admin\Student\Student'" :model-id="$student->id" />
         <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-outline-primary">
             <i class="bi bi-pencil me-1"></i> تعديل
         </a>

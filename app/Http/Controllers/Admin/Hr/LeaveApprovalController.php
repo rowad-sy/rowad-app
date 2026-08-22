@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Hr\LeaveBalance;
 use App\Models\Admin\Hr\LeaveRequest;
 use App\Models\Admin\Hr\LeaveType;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -49,11 +50,20 @@ class LeaveApprovalController extends Controller
         }
 
         DB::transaction(function () use ($leaveRequest, $user) {
+            $oldStatus = $leaveRequest->status;
             $leaveRequest->update([
                 'status' => 'approved',
                 'approved_by' => $user->id,
                 'approved_at' => now(),
             ]);
+
+            AuditLogger::record(
+                model: $leaveRequest,
+                event: 'approved',
+                oldValues: ['status' => $oldStatus],
+                newValues: ['status' => 'approved', 'approved_by' => $user->id],
+                description: "موافقة على طلب إجازة #{$leaveRequest->id}",
+            );
 
             // Update or create leave balance
             $year = now()->year;
@@ -69,7 +79,16 @@ class LeaveApprovalController extends Controller
                 ]
             );
 
+            $oldUsedDays = $balance->used_days;
             $balance->increment('used_days', $leaveRequest->days_count);
+
+            AuditLogger::record(
+                model: $balance,
+                event: 'updated',
+                oldValues: ['used_days' => $oldUsedDays],
+                newValues: ['used_days' => $balance->fresh()->used_days],
+                description: "تحديث رصيد الإجازات للموظف #{$leaveRequest->employee_id}",
+            );
         });
 
         return redirect()->route('admin.hr.leave-approvals.index')
@@ -89,11 +108,20 @@ class LeaveApprovalController extends Controller
             return back()->with('error', 'تمت معالجة هذا الطلب مسبقاً');
         }
 
+        $oldStatus = $leaveRequest->status;
         $leaveRequest->update([
             'status' => 'rejected',
             'approved_by' => $user->id,
             'approved_at' => now(),
         ]);
+
+        AuditLogger::record(
+            model: $leaveRequest,
+            event: 'rejected',
+            oldValues: ['status' => $oldStatus],
+            newValues: ['status' => 'rejected', 'approved_by' => $user->id],
+            description: "رفض طلب إجازة #{$leaveRequest->id}",
+        );
 
         return redirect()->route('admin.hr.leave-approvals.index')
             ->with('success', 'تم رفض طلب الإجازة');

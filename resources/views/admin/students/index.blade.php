@@ -173,6 +173,7 @@
                                 <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                <x-audit-history :model="'App\Models\Admin\Student\Student'" :model-id="$student->id" />
                                 <form method="POST" action="{{ route('admin.students.destroy', $student) }}" class="d-inline"
                                       onsubmit="return confirm('هل أنت متأكد من إزالة هذا الطالب من المشروع؟')">
                                     @csrf

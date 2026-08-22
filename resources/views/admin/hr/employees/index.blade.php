@@ -138,6 +138,7 @@
                                 <a href="{{ route('admin.hr.employees.edit', $emp) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                <x-audit-history :model="'App\Models\Admin\Hr\Employee'" :model-id="$emp->id" />
                                 <form method="POST" action="{{ route('admin.hr.employees.destroy', $emp) }}" class="d-inline"
                                       onsubmit="return confirm('هل أنت متأكد من حذف هذا الموظف؟')">
                                     @csrf

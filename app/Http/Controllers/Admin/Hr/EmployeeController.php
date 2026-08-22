@@ -293,7 +293,7 @@ class EmployeeController extends Controller
             }
         }
 
-        // Document checkboxes
+        // Document checkboxes — batch into a single update
         $docFlags = [
             'has_photo', 'has_cv', 'has_id_copy', 'has_qualification', 'has_experience_certs',
             'has_offer_letter', 'has_contract_doc', 'has_employee_data', 'has_job_description',
@@ -302,9 +302,13 @@ class EmployeeController extends Controller
             'has_verbal_warning_doc', 'has_written_warning_doc', 'has_termination_warning_doc',
             'has_termination_doc', 'has_blacklist_doc',
         ];
+        $docUpdates = [];
         foreach ($docFlags as $flag) {
-            $employee->update([$flag => $request->boolean($flag)]);
+            $docUpdates[$flag] = $request->boolean($flag);
         }
+        \App\Services\AuditLogger::silenced(function () use ($employee, $docUpdates) {
+            $employee->update($docUpdates);
+        });
 
         // Warnings
         if ($request->has('warnings')) {

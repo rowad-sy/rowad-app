@@ -79,6 +79,7 @@
                             <a href="{{ route('admin.permissions.edit', $perm) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <x-audit-history :model="'App\Models\Admin\Permission'" :model-id="$perm->id" />
                             <form method="POST" action="{{ route('admin.permissions.destroy', $perm) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه الصلاحية؟')">
                                 @csrf

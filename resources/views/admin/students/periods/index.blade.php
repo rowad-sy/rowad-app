@@ -90,6 +90,7 @@
                                 <i class="bi bi-pencil"></i>
                             </a>
                             @endcanPermission
+                            <x-audit-history :model="'App\Models\Admin\Student\Period'" :model-id="$period->id" />
                             @canPermission('App\Models\Admin\Student\Period', 'delete')
                             <form method="POST" action="{{ route('admin.students.periods.destroy', $period) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه الفترة؟')">

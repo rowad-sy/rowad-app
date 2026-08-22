@@ -51,6 +51,7 @@
                             <a href="{{ route('admin.logistics.warehouses.edit', $warehouse) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <x-audit-history :model="'App\Models\Admin\Logistics\Warehouse'" :model-id="$warehouse->id" />
                             @canPermission('App\Models\Admin\Logistics\Warehouse', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.warehouses.destroy', $warehouse) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا المخزن؟')">

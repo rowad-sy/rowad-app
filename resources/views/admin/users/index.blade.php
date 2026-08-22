@@ -131,6 +131,7 @@
                             </button>
                         </form>
                         @endcanPermission
+                        <x-audit-history :model="'App\Models\User'" :model-id="$user->id" />
                         @canPermission('App\Models\User', 'delete')
                         @if ($user->type === 'super-admin')
                             <button class="btn btn-sm btn-outline-danger" disabled title="لا يمكن حذف مستخدم من نوع سوبر أدمن">

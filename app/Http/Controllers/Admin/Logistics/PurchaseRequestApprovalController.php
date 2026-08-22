@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Logistics\ApprovalRule;
 use App\Models\Admin\Logistics\PurchaseRequest;
 use App\Models\Admin\Logistics\PurchaseRequestApproval;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 
 class PurchaseRequestApprovalController extends Controller
@@ -38,11 +39,20 @@ class PurchaseRequestApprovalController extends Controller
             ->whereNull('decided_at')
             ->firstOrFail();
 
+        $oldStatus = $approval->status;
         $approval->update([
             'status' => 'approved',
             'notes' => $request->notes,
             'decided_at' => now(),
         ]);
+
+        AuditLogger::record(
+            model: $approval,
+            event: 'approved',
+            oldValues: ['status' => $oldStatus],
+            newValues: ['status' => 'approved', 'notes' => $request->notes],
+            description: "اعتماد طلب الشراء #{$purchaseRequest->id}",
+        );
 
         $total = $purchaseRequest->expected_total_price;
 
@@ -59,7 +69,16 @@ class PurchaseRequestApprovalController extends Controller
             ->count();
 
         if ($approvedCount >= $requiredApprovals) {
+            $oldStatus = $purchaseRequest->status;
             $purchaseRequest->update(['status' => 'approved']);
+
+            AuditLogger::record(
+                model: $purchaseRequest,
+                event: 'status_changed',
+                oldValues: ['status' => $oldStatus],
+                newValues: ['status' => 'approved'],
+                description: "تم اعتماد طلب الشراء #{$purchaseRequest->id} نهائياً بعد تجميع {$approvedCount} موافقات",
+            );
         }
 
         return redirect()->back()
@@ -89,13 +108,31 @@ class PurchaseRequestApprovalController extends Controller
             ->whereNull('decided_at')
             ->firstOrFail();
 
+        $oldStatus = $approval->status;
         $approval->update([
             'status' => 'rejected',
             'notes' => $request->notes,
             'decided_at' => now(),
         ]);
 
+        AuditLogger::record(
+            model: $approval,
+            event: 'rejected',
+            oldValues: ['status' => $oldStatus],
+            newValues: ['status' => 'rejected', 'notes' => $request->notes],
+            description: "رفض طلب الشراء #{$purchaseRequest->id}",
+        );
+
+        $oldPrStatus = $purchaseRequest->status;
         $purchaseRequest->update(['status' => 'rejected']);
+
+        AuditLogger::record(
+            model: $purchaseRequest,
+            event: 'status_changed',
+            oldValues: ['status' => $oldPrStatus],
+            newValues: ['status' => 'rejected'],
+            description: "تم رفض طلب الشراء #{$purchaseRequest->id}",
+        );
 
         return redirect()->back()
             ->with('success', 'تم رفض طلب الشراء');

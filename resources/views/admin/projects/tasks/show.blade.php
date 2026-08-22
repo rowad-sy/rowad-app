@@ -11,7 +11,10 @@
             / {{ $task->title }}
         </p>
     </div>
-    <a href="{{ route('admin.projects.tasks.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
+    <div class="d-flex gap-2 align-items-center">
+        <x-audit-history :model="'App\Models\Admin\ProjectTask'" :model-id="$task->id" />
+        <a href="{{ route('admin.projects.tasks.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
+    </div>
 </div>
 
 <div class="row g-3">

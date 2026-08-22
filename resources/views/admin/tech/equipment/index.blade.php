@@ -111,6 +111,7 @@
                             <a href="{{ route('admin.tech.equipment.edit', $item) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <x-audit-history :model="'App\Models\Admin\Tech\TechEquipment'" :model-id="$item->id" />
                             <form method="POST" action="{{ route('admin.tech.equipment.destroy', $item) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه المعدة؟')">
                                 @csrf

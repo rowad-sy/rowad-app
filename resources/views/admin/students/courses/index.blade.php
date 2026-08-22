@@ -71,6 +71,7 @@
                                 <i class="bi bi-pencil"></i>
                             </a>
                             @endcanPermission
+                            <x-audit-history :model="'App\Models\Admin\Student\Course'" :model-id="$course->id" />
                             @canPermission('App\Models\Admin\Student\Course', 'delete')
                             <form method="POST" action="{{ route('admin.students.courses.destroy', $course) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا المقرر؟')">

@@ -46,6 +46,7 @@
                         <a href="{{ route('admin.hr.job-positions.edit', $position) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        <x-audit-history :model="'App\Models\Admin\Hr\JobPosition'" :model-id="$position->id" />
                         <form method="POST" action="{{ route('admin.hr.job-positions.destroy', $position) }}" class="d-inline"
                               onsubmit="return confirm('هل أنت متأكد من حذف هذا المنصب؟')">
                             @csrf
