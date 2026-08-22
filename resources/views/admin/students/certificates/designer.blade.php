@@ -567,7 +567,12 @@ function saveDesign() {
     if (!fields.some(f => f.type === 'student_name')) { alert('يجب إضافة حقل "اسم الطالب"'); return; }
     if (!fields.some(f => f.type === 'certificate_number')) { alert('يجب إضافة حقل "رقم الشهادة"'); return; }
     document.getElementById('fieldsConfig').value = JSON.stringify(fields);
-    document.getElementById('signaturesConfig').value = JSON.stringify(signatures);
+    const cleanSignatures = signatures.map(function(s) {
+        const copy = Object.assign({}, s);
+        delete copy._preview;
+        return copy;
+    });
+    document.getElementById('signaturesConfig').value = JSON.stringify(cleanSignatures);
     document.getElementById('designForm').submit();
 }
 

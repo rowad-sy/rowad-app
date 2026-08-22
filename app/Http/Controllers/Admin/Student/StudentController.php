@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
 use App\Models\Admin\Project;
+use App\Models\Admin\Student\Course;
 use App\Models\Admin\Student\Student;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class StudentController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
         $gender = $request->input('gender');
+        $courseId = $request->input('course_id');
         $perPage = (int) $request->input('per_page', 10);
 
         // Default scope from user's permission
@@ -47,6 +49,11 @@ class StudentController extends Controller
             })
             ->when($gender && $gender !== 'all', function ($q) use ($gender) {
                 return $q->where('gender', $gender);
+            })
+            ->when($courseId, function ($q) use ($courseId) {
+                return $q->whereHas('enrollments', function ($q) use ($courseId) {
+                    $q->where('course_id', $courseId);
+                });
             })
             ->when($centerId, function ($q, $centerId) {
                 return $q->where('center_id', $centerId);
@@ -77,12 +84,13 @@ class StudentController extends Controller
             })
             ->orderBy('id', 'desc')
             ->paginate($perPage)
-            ->appends($request->only(['search', 'status', 'center_id', 'project_id', 'gender', 'per_page']));
+            ->appends($request->only(['search', 'status', 'center_id', 'project_id', 'gender', 'course_id', 'per_page']));
 
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
+        $courses = Course::orderBy('name_ar')->get();
 
-        return view('admin.students.index', compact('students', 'search', 'status', 'centerId', 'projectId', 'gender', 'perPage', 'centers', 'projects'));
+        return view('admin.students.index', compact('students', 'search', 'status', 'centerId', 'projectId', 'gender', 'courseId', 'perPage', 'centers', 'projects', 'courses'));
     }
 
     public function create()

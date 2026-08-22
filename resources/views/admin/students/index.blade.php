@@ -36,7 +36,7 @@
 <div class="table-container">
     <div class="p-3 border-bottom">
         <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small mb-1">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالاسم أو الكود..." value="{{ $search }}">
@@ -64,6 +64,15 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <label class="form-label small mb-1">المقرر</label>
+                <select name="course_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">الكل</option>
+                    @foreach ($courses as $course)
+                        <option value="{{ $course->id }}" {{ (int)($courseId ?? '') === $course->id ? 'selected' : '' }}>{{ $course->name_ar }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label small mb-1">الحالة</label>
                 <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
@@ -81,7 +90,7 @@
                     <option value="female" {{ ($gender ?? '') === 'female' ? 'selected' : '' }}>أنثى</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label class="form-label small mb-1">&nbsp;</label>
                 <x-per-page-selector :perPage="$perPage ?? 10" />
             </div>

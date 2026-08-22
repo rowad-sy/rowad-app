@@ -27,10 +27,6 @@
             position: relative;
             background: #fff;
         }
-        @media print {
-            .no-print { display: none; }
-            body { margin: 0; }
-        }
         .no-print {
             position: fixed;
             top: 0;
@@ -49,6 +45,9 @@
         .no-print .btn-primary { background: #0d6efd; color: #fff; }
         .no-print .btn-success { background: #198754; color: #fff; }
         .field { position: absolute; z-index: 2; }
+        @media print {
+            .no-print { display: none !important; }
+        }
     </style>
 </head>
 <body>

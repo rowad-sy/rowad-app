@@ -26,9 +26,6 @@
             page-break-after: always;
         }
         .certificate-page:last-child { page-break-after: auto; }
-        @media print {
-            .no-print { display: none; }
-        }
         .no-print {
             position: fixed;
             top: 0;
@@ -47,6 +44,9 @@
         .no-print .btn-success { background: #198754; color: #fff; }
         .no-print .btn-primary { background: #0d6efd; color: #fff; }
         .field { position: absolute; z-index: 2; }
+        @media print {
+            .no-print { display: none !important; }
+        }
     </style>
 </head>
 <body>
