@@ -68,7 +68,7 @@
         <div class="col-md-4">
             <label class="form-label">تاريخ التسجيل</label>
             <input type="date" name="enrollment_date" class="form-control @error('enrollment_date') is-invalid @enderror"
-                   value="{{ old('enrollment_date', $student->enrollment_date ?? '') }}">
+                   value="{{ old('enrollment_date', $student->enrollment_date?->format('Y-m-d') ?? '') }}">
             @error('enrollment_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
@@ -126,7 +126,7 @@
         <div class="col-md-2">
             <label class="form-label">تاريخ الميلاد</label>
             <input type="date" name="birth_date" class="form-control @error('birth_date') is-invalid @enderror"
-                   value="{{ old('birth_date', $student->birth_date ?? '') }}">
+                   value="{{ old('birth_date', $student->birth_date?->format('Y-m-d') ?? '') }}">
             @error('birth_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 

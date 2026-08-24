@@ -243,8 +243,19 @@
                 </div>
                 <p class="text-muted small mb-0">
                     <i class="bi bi-info-circle"></i>
-                    يجب أن يحتوي الملف على الأعمدة التالية: كود الطالب، نوع الهوية، رقم الهوية، الاسم الأول AR، الاسم الأخير AR، الاسم الأول EN، الاسم الأخير EN، الجنس، تاريخ الميلاد، الجنسية، الهاتف، البريد الإلكتروني، المركز، المشاريع (أو المشروع للتوافق مع الإصدارات السابقة)، الحالة، تاريخ التسجيل
+                    يُقبل الملف بأسماء أعمدة إنجليزية أو عربية. الأعمدة المطلوبة:
                 </p>
+                <ul class="text-muted small mt-1 mb-0" style="list-style:disc inside;">
+                    <li>student_code / كود الطالب</li>
+                    <li>first_name_ar / الاسم الأول AR</li>
+                    <li>last_name_ar / الاسم الأخير AR</li>
+                    <li>gender / الجنس (ذكر/أنثى)</li>
+                    <li>birth_date / تاريخ الميلاد</li>
+                    <li>center_name / المركز</li>
+                    <li>status / الحالة (نشط/غير نشط/متخرج/موقوف)</li>
+                    <li>enrollment_date / تاريخ التسجيل</li>
+                </ul>
+                <p class="text-muted small mt-1 mb-0">يمكنك تصدير الطلاب أولاً ثم تعديل الملف وإعادة استيراده.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>

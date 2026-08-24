@@ -67,14 +67,14 @@ class StudentsSheetImport implements ToCollection, WithHeadingRow, WithTitle
             'father_name' => $row['father_name'] ?? null,
             'mother_name' => $row['mother_name'] ?? null,
             'gender' => $row['gender'] ?? 'male',
-            'birth_date' => $row['birth_date'] ?? null,
+            'birth_date' => $this->parseDate($row['birth_date'] ?? null),
             'birth_place' => $row['birth_place'] ?? null,
             'nationality' => $row['nationality'] ?? null,
             'phone' => $row['phone'] ?? null,
             'email' => $row['email'] ?? null,
             'address' => $row['address'] ?? null,
             'status' => $row['status'] ?? 'active',
-            'enrollment_date' => $row['enrollment_date'] ?? null,
+            'enrollment_date' => $this->parseDate($row['enrollment_date'] ?? null),
             'notes' => $row['notes'] ?? null,
         ];
 
@@ -86,5 +86,40 @@ class StudentsSheetImport implements ToCollection, WithHeadingRow, WithTitle
         $data['project_id'] = null;
 
         return $data;
+    }
+
+    private function parseDate(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === 0 || $value === '0') {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_numeric($value)) {
+            $num = (float) $value;
+            if ($num > 30000 && $num < 60000) {
+                try {
+                    return \Carbon\Carbon::create(1899, 12, 30)->addDays(floor($num))->format('Y-m-d');
+                } catch (\Exception $e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        $str = trim((string) $value);
+        if ($str === '' || $str === '0') {
+            return null;
+        }
+
+        try {
+            $parsed = \Carbon\Carbon::parse($str);
+            return $parsed->isValid() ? $parsed->format('Y-m-d') : null;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 }

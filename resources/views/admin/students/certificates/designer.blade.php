@@ -322,8 +322,27 @@ function renderSignatures() {
     const pxX = rect.width / CANVAS_W_MM, pxY = rect.height / CANVAS_H_MM;
     canvas.querySelectorAll('.canvas-sig').forEach(el => el.remove());
     signatures.forEach(s => {
-        const src = s._preview || (s.image_path ? '{{ asset("storage/") }}/' + s.image_path : '');
-        if (!src) return;
+        const src = s._preview || (s.image_path ? '{{ asset("storage") }}/' + s.image_path : '');
+        if (!src) {
+            const ph = document.createElement('div');
+            ph.className = 'canvas-sig' + (selectedType === 'sig' && selectedId === s.id ? ' selected' : '');
+            ph.dataset.sigId = s.id;
+            ph.style.top = (s.y_mm * pxY) + 'px';
+            ph.style.left = (s.x_mm * pxX) + 'px';
+            ph.style.width = (s.width_mm * pxX) + 'px';
+            ph.style.height = (s.height_mm * pxY) + 'px';
+            ph.style.display = 'flex';
+            ph.style.alignItems = 'center';
+            ph.style.justifyContent = 'center';
+            ph.style.background = 'rgba(25,135,84,0.08)';
+            ph.style.borderStyle = 'dashed';
+            ph.innerHTML = '<span style="font-size:10px;color:#198754;">توقيع</span>';
+            addResizeHandles(ph);
+            ph.addEventListener('mousedown', function(e) { onItemMouseDown(e, 'sig', s.id); });
+            ph.addEventListener('touchstart', function(e) { onItemTouchStart(e, 'sig', s.id); }, {passive: false});
+            canvas.appendChild(ph);
+            return;
+        }
         const el = document.createElement('div');
         el.className = 'canvas-sig' + (selectedType === 'sig' && selectedId === s.id ? ' selected' : '');
         el.dataset.sigId = s.id;
@@ -354,6 +373,7 @@ function addSignature() {
     signatures.push({ id: nextSigId++, image_path: '', x_mm: 50, y_mm: 160, width_mm: 40, height_mm: 20 });
     renderSignaturesList();
     renderSignatures();
+    selectItem('sig', signatures[signatures.length - 1].id);
 }
 function removeSignature(id) {
     if (!confirm('حذف هذا التوقيع؟')) return;
@@ -365,26 +385,38 @@ function removeSignature(id) {
 function renderSignaturesList() {
     const list = document.getElementById('signaturesList');
     if (!list) return;
-    list.innerHTML = signatures.map((s, i) => '<div class="border rounded p-2 mb-2 bg-light">' +
-        '<div class="d-flex justify-content-between align-items-center mb-1">' +
-        '<small class="fw-medium">توقيع ' + (i + 1) + '</small>' +
-        '<button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeSignature(' + s.id + ')"><i class="bi bi-x"></i></button>' +
-        '</div>' +
-        '<input type="file" name="signature_image_' + i + '" accept="image/png,image/jpeg" class="form-control form-control-sm mb-1" onchange="onSigFileChange(' + s.id + ', this)">' +
-        (s.image_path ? '<div class="small text-muted">✓ صورة محفوظة</div>' : '') +
-        '</div>'
-    ).join('');
+    list.innerHTML = signatures.map((s, i) => {
+        const hasImg = s._preview || s.image_path;
+        const imgSrc = s._preview || (s.image_path ? '{{ asset("storage") }}/' + s.image_path : '');
+        return '<div class="border rounded p-2 mb-2 bg-light" style="cursor:pointer;" onclick="selectItem(\'sig\',' + s.id + ')">' +
+            '<div class="d-flex justify-content-between align-items-center mb-1">' +
+            '<small class="fw-medium">توقيع ' + (i + 1) + '</small>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="event.stopPropagation();removeSignature(' + s.id + ')"><i class="bi bi-x"></i></button>' +
+            '</div>' +
+            (hasImg
+                ? '<div class="text-center mb-1"><img src="' + imgSrc + '" style="max-height:40px;max-width:100%;object-fit:contain;border:1px solid #dee2e6;border-radius:4px;padding:2px;background:#fff;"></div>'
+                : '<div class="text-center text-muted small py-2"><i class="bi bi-image me-1"></i>اختر صورة التوقيع</div>') +
+            '<input type="file" id="sigFile_' + s.id + '" name="signature_image_' + i + '" accept="image/png,image/jpeg" class="form-control form-control-sm" onchange="onSigFileChange(' + s.id + ', this)">' +
+            '</div>';
+    }).join('');
 }
 function onSigFileChange(sigId, input) {
     const file = input.files[0];
     if (!file) return;
+    const sig = signatures.find(s => s.id === sigId);
+    if (!sig) return;
+    sig._file = file;
     const reader = new FileReader();
     reader.onload = function(e) {
-        const sig = signatures.find(s => s.id === sigId);
-        if (sig) sig._preview = e.target.result;
+        sig._preview = e.target.result;
         renderSignatures();
+        if (selectedType === 'sig' && selectedId === sigId) showProps('sig', sigId);
     };
     reader.readAsDataURL(file);
+}
+function triggerSigFile(sigId) {
+    const el = document.getElementById('sigFile_' + sigId);
+    if (el) el.click();
 }
 
 /*DRAG + RESIZE (unified)*/
@@ -429,7 +461,7 @@ function onDragMove(e) {
     item.x_mm = Math.max(0, Math.min(CANVAS_W_MM - item.width_mm, (e.clientX - rect.left) / pxX - dragOffsetX));
     item.y_mm = Math.max(0, Math.min(CANVAS_H_MM - item.height_mm, (e.clientY - rect.top) / pxY - dragOffsetY));
     if (dragType === 'field') renderFields();
-    else { renderSignatures(); renderSignaturesList(); }
+    else renderSignatures();
 }
 function onDragEnd() {
     dragTarget = null; dragType = null;
@@ -463,7 +495,7 @@ function onResizeMove(e) {
     if (resizeType === 'field') {
         if (item.type === 'barcode') { const sz = Math.max(10, item.width_mm, item.height_mm); item.width_mm = item.height_mm = sz; }
         renderFields();
-    } else { renderSignatures(); renderSignaturesList(); }
+    } else renderSignatures();
 }
 function onResizeEnd() {
     resizeTarget = null; resizeType = null;
@@ -478,13 +510,18 @@ function showProps(type, id) {
     if (type === 'sig') {
         const s = signatures.find(x => x.id === id);
         if (!s) return;
-        panel.innerHTML = '<div class="prop-group"><label>النوع</label><input value="توقيع" readonly style="background:#f1f5f9;"></div>'
+        const imgSrc = s._preview || (s.image_path ? '{{ asset("storage") }}/' + s.image_path : '');
+        let html = '<div class="prop-group"><label>النوع</label><input value="توقيع" readonly style="background:#f1f5f9;"></div>'
             + '<div class="prop-group"><label>الموقع X (مم)</label><input type="number" value="' + s.x_mm + '" step="1" onchange="updateSig(' + id + ',\'x_mm\',parseFloat(this.value)||0)"></div>'
             + '<div class="prop-group"><label>الموقع Y (مم)</label><input type="number" value="' + s.y_mm + '" step="1" onchange="updateSig(' + id + ',\'y_mm\',parseFloat(this.value)||0)"></div>'
             + '<div class="prop-group"><label>العرض (مم)</label><input type="number" value="' + s.width_mm + '" step="1" min="10" onchange="updateSig(' + id + ',\'width_mm\',parseFloat(this.value)||10)"></div>'
             + '<div class="prop-group"><label>الارتفاع (مم)</label><input type="number" value="' + s.height_mm + '" step="1" min="5" onchange="updateSig(' + id + ',\'height_mm\',parseFloat(this.value)||5)"></div>'
-            + '<div class="prop-group"><label>الصورة</label><input type="file" accept="image/png,image/jpeg" class="form-control form-control-sm" onchange="onSigFileChange(' + id + ', this)"></div>'
-            + (s.image_path ? '<div class="small text-muted mt-1">✓ صورة محفوظة</div>' : '');
+            + '<div class="prop-group"><label>الصورة</label>';
+        if (imgSrc) {
+            html += '<div class="text-center mb-2 p-2 border rounded bg-white"><img src="' + imgSrc + '" style="max-height:60px;max-width:100%;object-fit:contain;"></div>';
+        }
+        html += '<button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="triggerSigFile(' + id + ')"><i class="bi bi-image me-1"></i> ' + (imgSrc ? 'استبدال الصورة' : 'اختر صورة التوقيع') + '</button>';
+        panel.innerHTML = html;
         return;
     }
     const f = fields.find(x => x.id === id);
@@ -535,7 +572,6 @@ function updateSig(id, prop, value) {
     if (!s) return;
     s[prop] = value;
     renderSignatures();
-    renderSignaturesList();
     if (selectedType === 'sig' && selectedId === id) showProps('sig', id);
 }
 
@@ -560,6 +596,10 @@ function previewBackground(e) {
 /*FONT*/
 function updateFontFamily(font) {
     document.getElementById('fontFamilySelect').value = font;
+    document.querySelector('[name="font_family"]').value = font;
+    document.querySelectorAll('.canvas-field').forEach(el => {
+        el.style.fontFamily = font || "'Tajawal', sans-serif";
+    });
 }
 
 /*SAVE*/
@@ -570,15 +610,27 @@ function saveDesign() {
     const cleanSignatures = signatures.map(function(s) {
         const copy = Object.assign({}, s);
         delete copy._preview;
+        delete copy._file;
         return copy;
     });
     document.getElementById('signaturesConfig').value = JSON.stringify(cleanSignatures);
+    signatures.forEach(function(s) {
+        if (s._file) {
+            var input = document.getElementById('sigFile_' + s.id);
+            if (input) {
+                var dt = new DataTransfer();
+                dt.items.add(s._file);
+                input.files = dt.files;
+            }
+        }
+    });
     document.getElementById('designForm').submit();
 }
 
 @if (isset($design) && $design->font_family)
     document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('[name="font_family"]').value = '{{ $design->font_family }}';
+        document.getElementById('fontFamilySelect').value = '{{ $design->font_family }}';
     });
 @endif
 </script>

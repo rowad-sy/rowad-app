@@ -31,6 +31,20 @@ class CertificateNumberSequence extends Model
             ]);
         }
 
+        $num = $sequence->fresh()->last_number;
+
+        // Check for cancelled certificate numbers to reuse
+        $cancelled = \App\Models\Admin\Student\Certificate::where('cancelled_at', '!=', null)
+            ->where('certificate_number', 'like', $year . '-%')
+            ->orderBy('certificate_number')
+            ->first();
+
+        if ($cancelled) {
+            $num = $cancelled->certificate_number;
+            $cancelled->forceDelete();
+            return $num;
+        }
+
         $sequence->increment('last_number');
         $num = $sequence->fresh()->last_number;
 

@@ -35,18 +35,31 @@ class StudentExportController extends Controller
 
         $fileName = $request->file('file')->getClientOriginalName();
 
-        Excel::import(new StudentImport, $request->file('file'));
+        $beforeCount = \App\Models\Admin\Student\Student::count();
+
+        try {
+            Excel::import(new StudentImport, $request->file('file'));
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'خطأ في الاستيراد: ' . $e->getMessage());
+        }
+
+        $afterCount = \App\Models\Admin\Student\Student::count();
+        $imported = $afterCount - $beforeCount;
 
         AuditLogger::recordEvent(
             modelClass: \App\Models\User::class,
             modelId: auth()->id(),
             event: 'imported',
-            description: "استيراد بيانات طلاب من ملف: {$fileName}",
+            description: "استيراد بيانات طلاب من ملف: {$fileName} — تم استيراد {$imported} طالب",
             oldValues: null,
-            newValues: ['file' => $fileName, 'type' => 'students_basic'],
+            newValues: ['file' => $fileName, 'type' => 'students_basic', 'imported_count' => $imported],
         );
 
-        return redirect()->back()->with('success', 'تم استيراد بيانات الطلاب بنجاح');
+        if ($imported > 0) {
+            return redirect()->back()->with('success', "تم استيراد {$imported} طالب بنجاح من ملف: {$fileName}");
+        }
+
+        return redirect()->back()->with('warning', 'تم قراءة الملف لكن لم يتم استيراد أي طالب. تأكد من أن الملف يحتوي على بيانات صحيحة.');
     }
 
     public function importFull(Request $request)
@@ -57,17 +70,30 @@ class StudentExportController extends Controller
 
         $fileName = $request->file('file')->getClientOriginalName();
 
-        Excel::import(new StudentFullImport, $request->file('file'));
+        $beforeCount = \App\Models\Admin\Student\Student::count();
+
+        try {
+            Excel::import(new StudentFullImport, $request->file('file'));
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'خطأ في الاستيراد: ' . $e->getMessage());
+        }
+
+        $afterCount = \App\Models\Admin\Student\Student::count();
+        $imported = $afterCount - $beforeCount;
 
         AuditLogger::recordEvent(
             modelClass: \App\Models\User::class,
             modelId: auth()->id(),
             event: 'imported',
-            description: "استيراد جميع بيانات الطلاب من ملف: {$fileName}",
+            description: "استيراد جميع بيانات الطلاب من ملف: {$fileName} — تم استيراد {$imported} طالب",
             oldValues: null,
-            newValues: ['file' => $fileName, 'type' => 'students_full'],
+            newValues: ['file' => $fileName, 'type' => 'students_full', 'imported_count' => $imported],
         );
 
-        return redirect()->back()->with('success', 'تم استيراد جميع بيانات الطلاب بنجاح');
+        if ($imported > 0) {
+            return redirect()->back()->with('success', "تم استيراد {$imported} طالب بنجاح من ملف: {$fileName}");
+        }
+
+        return redirect()->back()->with('warning', 'تم قراءة الملف لكن لم يتم استيراد أي طالب. تأكد من أن الملف يحتوي على بيانات صحيحة.');
     }
 }

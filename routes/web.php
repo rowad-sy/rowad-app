@@ -139,6 +139,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::get('students/certificates/issue', [CertificateController::class, 'issue'])->name('students.certificates.issue');
         Route::post('students/certificates/generate', [CertificateController::class, 'generateCertificates'])->name('students.certificates.generate');
         Route::get('students/certificates/{id}/preview', [CertificateController::class, 'preview'])->name('students.certificates.preview');
+        Route::post('students/certificates/{id}/cancel', [CertificateController::class, 'cancel'])->name('students.certificates.cancel');
         Route::get('students/certificates/print-batch', [CertificateController::class, 'printBatch'])->name('students.certificates.print-batch');
         Route::post('students/check-identity', [StudentController::class, 'checkIdentity'])->name('students.check-identity');
         Route::post('students/{student}/add-to-projects', [StudentController::class, 'addToProjects'])->name('students.add-to-projects');
@@ -213,5 +214,6 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
 
 // Public certificate verification
 Route::get('verify-certificate/{hash}', [CertificateController::class, 'verifyCertificate']);
+Route::get('certificate/{hash}', [CertificateController::class, 'publicPreview'])->name('certificate.public-preview');
 
 require __DIR__.'/auth.php';

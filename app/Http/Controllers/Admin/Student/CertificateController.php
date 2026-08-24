@@ -31,13 +31,15 @@ class CertificateController extends Controller
         $perPage = (int) $request->input('per_page', 10);
         $designId = $request->input('design_id');
 
+        $showCancelled = $request->input('show_cancelled');
         $certificates = Certificate::with(['student', 'design'])
+            ->when(!$showCancelled, fn($q) => $q->whereNull('cancelled_at'))
             ->when($search, fn($q, $v) => $q->whereHas('student', fn($sq) => $sq->where('first_name_ar', 'like', "%{$v}%")->orWhere('student_code', 'like', "%{$v}%"))
                 ->orWhere('certificate_number', 'like', "%{$v}%"))
             ->when($designId, fn($q, $v) => $q->where('design_id', $v))
             ->orderBy('id', 'desc')
             ->paginate($perPage)
-            ->appends($request->only(['search', 'per_page', 'design_id']));
+            ->appends($request->only(['search', 'per_page', 'design_id', 'show_cancelled']));
 
         $designs = CertificateDesign::orderBy('name')->get();
 
@@ -261,6 +263,10 @@ class CertificateController extends Controller
                         ->where('course_id', $validated['course_id'])
                         ->where('period_id', $validated['period_id'])
                         ->first();
+                } elseif ($validated['course_id']) {
+                    $enrollment = StudentEnrollment::where('student_id', $student->id)
+                        ->where('course_id', $validated['course_id'])
+                        ->first();
                 }
 
                 $hash = hash('sha256', $student->id . $certNumber . ($enrollment?->id ?? '') . config('app.key'));
@@ -296,7 +302,8 @@ class CertificateController extends Controller
         $designId = $request->input('design_id');
         $certificateIds = $request->input('ids');
 
-        $query = Certificate::with(['student', 'design', 'enrollment.course', 'enrollment.period']);
+        $query = Certificate::with(['student', 'design', 'enrollment.course', 'enrollment.period'])
+            ->whereNull('cancelled_at');
 
         if ($designId) {
             $query->where('design_id', $designId);
@@ -332,7 +339,12 @@ class CertificateController extends Controller
     {
         $certificate = Certificate::with(['student', 'design', 'enrollment.course', 'enrollment.period'])
             ->where('barcode_hash', $hash)
-            ->firstOrFail();
+            ->whereNull('cancelled_at')
+            ->first();
+
+        if (!$certificate) {
+            abort(404, 'الشهادة غير موجودة أو تم إلغاؤها');
+        }
 
         if (!$certificate->is_verified) {
             $certificate->update([
@@ -342,5 +354,24 @@ class CertificateController extends Controller
         }
 
         return view('admin.students.certificates.verify', compact('certificate'));
+    }
+
+    public function publicPreview($hash)
+    {
+        $certificate = Certificate::with(['student', 'design', 'enrollment.course', 'enrollment.period'])
+            ->where('barcode_hash', $hash)
+            ->whereNull('cancelled_at')
+            ->firstOrFail();
+
+        return view('admin.students.certificates.preview', compact('certificate'));
+    }
+
+    public function cancel($id)
+    {
+        $certificate = Certificate::findOrFail($id);
+        $certificate->update(['cancelled_at' => now()]);
+
+        return redirect()->route('admin.students.certificates.index')
+            ->with('success', 'تم إلغاء الشهادة رقم ' . $certificate->certificate_number);
     }
 }

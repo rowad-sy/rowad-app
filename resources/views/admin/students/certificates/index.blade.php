@@ -52,13 +52,13 @@
                     <th>الطالب</th>
                     <th>التصميم</th>
                     <th>تاريخ الإصدار</th>
-                    <th>التحقق</th>
+                    <th>الحالة</th>
                     <th>الإجراءات</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($certificates as $cert)
-                    <tr>
+                    <tr @if($cert->cancelled_at) style="opacity:0.5;text-decoration:line-through;" @endif>
                         <td>{{ $cert->id }}</td>
                         <td><code>{{ $cert->certificate_number }}</code></td>
                         <td>
@@ -70,16 +70,27 @@
                         <td>{{ $cert->design?->name ?? '—' }}</td>
                         <td>{{ $cert->issue_date?->format('Y-m-d') }}</td>
                         <td>
-                            @if ($cert->is_verified)
-                                <span class="badge bg-success">تم</span>
+                            @if($cert->cancelled_at)
+                                <span class="badge bg-danger">ملغاة</span>
+                            @elseif ($cert->is_verified)
+                                <span class="badge bg-success">تم التحقق</span>
                             @else
-                                <span class="badge bg-secondary">لا</span>
+                                <span class="badge bg-secondary">صادرة</span>
                             @endif
                         </td>
                         <td>
-                            <a href="{{ route('admin.students.certificates.preview', $cert) }}" class="btn btn-sm btn-outline-info" target="_blank">
-                                <i class="bi bi-eye"></i> معاينة
-                            </a>
+                            @if(!$cert->cancelled_at)
+                                <a href="{{ route('admin.students.certificates.preview', $cert) }}" class="btn btn-sm btn-outline-info" target="_blank">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <form method="POST" action="{{ route('admin.students.certificates.cancel', $cert) }}" class="d-inline"
+                                      onsubmit="return confirm('هل أنت متأكد من إلغاء هذه الشهادة؟ سيتم تحرير رقم الشهادة لإعادة استخدامه.')">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-danger" title="إلغاء الشهادة">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </form>
+                            @endif
                             <x-audit-history :model="'App\Models\Admin\Student\Certificate'" :model-id="$cert->id" />
                         </td>
                     </tr>

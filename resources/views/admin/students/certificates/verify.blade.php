@@ -44,14 +44,10 @@
                             <div class="col-5 text-muted small">اسم الطالب</div>
                             <div class="col-7 fw-medium">{{ $certificate->student->first_name_ar }} {{ $certificate->student->last_name_ar }}</div>
                         </div>
-                        <div class="row mb-2">
-                            <div class="col-5 text-muted small">كود الطالب</div>
-                            <div class="col-7 fw-medium"><code>{{ $certificate->student->student_code }}</code></div>
-                        </div>
-                        @if ($certificate->enrollment?->course)
+                        @if ($certificate->enrollment?->course || $certificate->design?->course)
                         <div class="row mb-2">
                             <div class="col-5 text-muted small">المقرر</div>
-                            <div class="col-7 fw-medium">{{ $certificate->enrollment->course->name_ar }}</div>
+                            <div class="col-7 fw-medium">{{ $certificate->enrollment?->course?->name_ar ?? $certificate->design?->course?->name_ar }}</div>
                         </div>
                         @endif
                         @if ($certificate->enrollment?->period)
@@ -71,7 +67,7 @@
                     </div>
 
                     <div class="d-grid gap-2 mt-3">
-                        <a href="{{ route('admin.students.certificates.preview', $certificate) }}" class="btn btn-primary" target="_blank">
+                        <a href="{{ route('certificate.public-preview', $certificate->barcode_hash) }}" class="btn btn-primary" target="_blank">
                             <i class="bi bi-eye me-1"></i> إظهار الشهادة كاملة
                         </a>
                     </div>
@@ -79,11 +75,6 @@
                     <div class="mt-3">
                         <a href="https://www.alrowadngo.sy/" target="_blank" class="btn btn-outline-secondary w-100">
                             <i class="bi bi-building me-1"></i> زيارة موقع مؤسسة الرواد للتعاون والتنمية
-                        </a>
-                    </div>
-                    <div class="mt-2">
-                        <a href="https://www.alrowadngo.sy/" target="_blank" download class="btn btn-outline-info btn-sm w-100">
-                            <i class="bi bi-download me-1"></i> تحميل شعار المؤسسة
                         </a>
                     </div>
                 @else

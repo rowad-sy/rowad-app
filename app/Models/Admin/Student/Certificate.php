@@ -11,7 +11,7 @@ class Certificate extends Model
 
     protected $fillable = [
         'certificate_number', 'design_id', 'student_id', 'enrollment_id',
-        'barcode_hash', 'issue_date', 'is_verified', 'verified_at',
+        'barcode_hash', 'issue_date', 'is_verified', 'verified_at', 'cancelled_at',
     ];
 
     protected function casts(): array
@@ -20,6 +20,7 @@ class Certificate extends Model
             'issue_date' => 'date',
             'is_verified' => 'boolean',
             'verified_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
