@@ -48,10 +48,26 @@ class CertificateController extends Controller
 
     // ─── Designs List ───
 
-    public function designs()
+    public function designs(Request $request)
     {
-        $designs = CertificateDesign::with('course')->orderBy('id', 'desc')->get();
-        return view('admin.students.certificates.designs', compact('designs'));
+        $search = $request->input('search');
+        $courseId = $request->input('course_id');
+        $year = $request->input('year');
+        $perPage = (int) $request->input('per_page', 12);
+
+        $designs = CertificateDesign::with('course')->withCount('certificates')
+            ->when($search, fn($q, $v) => $q->where('name', 'like', "%{$v}%"))
+            ->when($courseId, fn($q, $v) => $q->where('course_id', $v))
+            ->when($year, fn($q, $v) => $q->where('year', $v))
+            ->orderBy('id', 'desc')
+            ->paginate($perPage)
+            ->appends($request->only(['search', 'course_id', 'year', 'per_page']));
+
+        $courses = Course::orderBy('name_ar')->get();
+        $years = CertificateDesign::select('year')->distinct()->orderBy('year', 'desc')->pluck('year');
+        $view = $request->input('view', 'table');
+
+        return view('admin.students.certificates.designs', compact('designs', 'courses', 'years', 'search', 'courseId', 'year', 'view'));
     }
 
     // ─── Designer (Create) ───

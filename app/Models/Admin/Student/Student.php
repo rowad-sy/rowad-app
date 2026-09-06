@@ -3,6 +3,7 @@
 namespace App\Models\Admin\Student;
 
 use App\Models\Admin\Center;
+use App\Models\Admin\Cohort;
 use App\Models\Admin\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,7 +25,7 @@ class Student extends Model
         'father_name', 'mother_name',
         'birth_date', 'birth_place', 'gender', 'nationality',
         'phone', 'email', 'address',
-        'center_id', 'project_id',
+        'center_id', 'project_id', 'cohort_id',
         'status', 'enrollment_date', 'notes',
     ];
 
@@ -49,6 +50,11 @@ class Student extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function cohort(): BelongsTo
+    {
+        return $this->belongsTo(Cohort::class, 'cohort_id');
     }
 
     public function projects(): BelongsToMany

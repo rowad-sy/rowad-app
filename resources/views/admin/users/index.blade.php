@@ -12,6 +12,12 @@
     <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة مستخدم
     </a>
+    <a href="{{ route('admin.users.export', request()->query()) }}" class="btn btn-outline-success">
+        <i class="bi bi-download me-1"></i> تصدير
+    </a>
+    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+        <i class="bi bi-upload me-1"></i> استيراد
+    </button>
     @endcanPermission
 </div>
 
@@ -43,16 +49,16 @@
     </div>
     <div class="p-3 border-bottom">
         <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label small mb-1">بحث</label>
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="بحث عن مستخدم..." value="{{ $search }}">
+                    <input type="text" name="search" class="form-control" placeholder="بحث عن مستخدم/مسمى..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small mb-1">الحالة</label>
                 <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
@@ -60,7 +66,34 @@
                     <option value="inactive" {{ ($status ?? '') === 'inactive' ? 'selected' : '' }}>غير مفعّل / مغلق</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">المركز</label>
+                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">الكل</option>
+                    @foreach ($centers as $center)
+                        <option value="{{ $center->id }}" {{ (int)($centerId ?? '') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">المشروع</label>
+                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">الكل</option>
+                    @foreach ($projects as $project)
+                        <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">المسمى الوظيفي</label>
+                <select name="job_title_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">الكل</option>
+                    @foreach ($jobTitles as $jt)
+                        <option value="{{ $jt->id }}" {{ (int)($jobTitleId ?? '') === $jt->id ? 'selected' : '' }}>{{ $jt->title_ar }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-1">
                 <label class="form-label small mb-1">&nbsp;</label>
                 <x-per-page-selector :perPage="$perPage ?? 10" />
             </div>
@@ -74,6 +107,10 @@
                 <th>الاسم</th>
                 <th>البريد الإلكتروني</th>
                 <th>النوع</th>
+                @if ($type === 'employee' || !$type || $type === 'all')
+                <th>المسمى الوظيفي</th>
+                <th>المركز / المشروع</th>
+                @endif
                 <th>الحالة</th>
                 <th>المجموعات</th>
                 <th>الإجراءات</th>
@@ -98,6 +135,27 @@
                             <span class="text-muted">—</span>
                         @endif
                     </td>
+                    @if ($type === 'employee' || !$type || $type === 'all')
+                    <td>
+                        @if ($user->type === 'employee' && $user->jobTitle)
+                            <span class="badge bg-secondary">{{ $user->jobTitle->title_ar }}</span>
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if ($user->type === 'employee')
+                            <div class="small">
+                                <span>{{ $user->center?->name ?? '—' }}</span>
+                                @if ($user->project)
+                                    <span class="text-muted">/ {{ $user->project->name }}</span>
+                                @endif
+                            </div>
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
+                    </td>
+                    @endif
                     <td>
                         @if ($user->is_active)
                             <span class="badge bg-success">نشط</span>
@@ -152,7 +210,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">
+                    <td colspan="9" class="text-center py-4 text-muted">
                         <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                         لا توجد مستخدمين
                     </td>
@@ -168,6 +226,40 @@
         <div>
             {{ $users->links() }}
         </div>
+    </div>
+</div>
+
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('admin.users.import') }}" enctype="multipart/form-data" class="modal-content">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-upload me-1"></i> استيراد مستخدمين
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">ملف إكسل</label>
+                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+                </div>
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    الأعمدة المطلوبة (بعناوين إنجليزية أو عربية): الاسم، البريد الإلكتروني، النوع، المسمى الوظيفي، المركز، المشروع، الحالة.
+                </p>
+                <p class="text-muted small mt-2 mb-0">
+                    يُنشأ المستخدم بصلاحية غير مفعّلة وكلمة مرور افتراضية <code>Password@123</code> (يُجبر على تغييرها).
+                </p>
+                <p class="text-muted small mt-2 mb-0">
+                    <a href="{{ route('admin.users.export') }}" target="_blank">تصدير ملف نموذجي</a> لتعديله ثم إعادة استيراده.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="submit" class="btn btn-primary">استيراد</button>
+            </div>
+        </form>
     </div>
 </div>
 @endsection

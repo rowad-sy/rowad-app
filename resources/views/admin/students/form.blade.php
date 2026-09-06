@@ -11,6 +11,40 @@
     </p>
 </div>
 
+@if (!isset($student))
+{{-- شريط البحث عن طالب موجود (متوافق مع الجوال - داخل الصفحة وليس نافذة منبثقة) --}}
+<div class="table-container mb-4" id="identitySearchSection">
+    <div class="p-3">
+        <label class="form-label"><i class="bi bi-search me-1"></i> البحث عن طالب موجود</label>
+        <p class="text-muted small mb-3">أدخل رقم الهوية. إذا كان الطالب موجوداً ستظهر خيارات (تعديل / إضافة لمشروع آخر)، وإذا لم يكن موجوداً يمكنك إنشاء طالب جديد مباشرة.</p>
+        <div class="row g-2">
+            <div class="col-md-5 col-8">
+                <input type="text" id="identitySearchInput" class="form-control" placeholder="رقم الهوية" dir="ltr" value="{{ $identityNumber ?? '' }}">
+            </div>
+            <div class="col-md-3 col-4">
+                <button type="button" class="btn btn-primary w-100" id="identitySearchBtn" onclick="searchExistingStudent()">
+                    <i class="bi bi-search me-1"></i> بحث
+                </button>
+            </div>
+        </div>
+        <div id="identitySearchResult" class="mt-3"></div>
+    </div>
+</div>
+@endif
+
+@if ($errors->any())
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-circle me-1"></i>
+        <strong>يرجى تصحيح الأخطاء التالية:</strong>
+        <ul class="mb-0 mt-1">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
 <form method="POST" action="{{ isset($student) ? route('admin.students.update', $student) : route('admin.students.store') }}">
     @csrf
     @if (isset($student))
@@ -51,7 +85,7 @@
         <div class="col-md-2">
             <label class="form-label">رقم الهوية</label>
             <input type="text" name="identity_number" class="form-control @error('identity_number') is-invalid @enderror"
-                   value="{{ old('identity_number', $student->identity_number ?? '') }}" dir="ltr">
+                   value="{{ old('identity_number', $student->identity_number ?? $identityNumber ?? '') }}" dir="ltr">
             @error('identity_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
@@ -68,7 +102,7 @@
         <div class="col-md-4">
             <label class="form-label">تاريخ التسجيل</label>
             <input type="date" name="enrollment_date" class="form-control @error('enrollment_date') is-invalid @enderror"
-                   value="{{ old('enrollment_date', $student->enrollment_date?->format('Y-m-d') ?? '') }}">
+                   value="{{ old('enrollment_date', ($student->enrollment_date ?? null)?->format('Y-m-d') ?? '') }}">
             @error('enrollment_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
@@ -126,7 +160,7 @@
         <div class="col-md-2">
             <label class="form-label">تاريخ الميلاد</label>
             <input type="date" name="birth_date" class="form-control @error('birth_date') is-invalid @enderror"
-                   value="{{ old('birth_date', $student->birth_date?->format('Y-m-d') ?? '') }}">
+                   value="{{ old('birth_date', ($student->birth_date ?? null)?->format('Y-m-d') ?? '') }}">
             @error('birth_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
@@ -169,7 +203,7 @@
         <div class="col-md-4">
             <label class="form-label">المشاريع</label>
             <input type="hidden" name="sync_project_ids" value="1">
-            <select name="project_ids[]" class="form-select" multiple onchange="filterCoursesByProjects()">
+            <select name="project_ids[]" class="form-select" multiple onchange="filterCoursesByProjects(); filterCohorts()">
                 @foreach ($projects as $project)
                     @php
                         $selected = false;
@@ -183,6 +217,20 @@
                 @endforeach
             </select>
             <small class="text-muted">اختر مشروعاً واحداً أو أكثر لفلترة المقررات</small>
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">الفوج</label>
+            <select name="cohort_id" id="student_cohort" class="form-select">
+                <option value="">—</option>
+                @foreach ($cohorts as $cohort)
+                    <option value="{{ $cohort->id }}" data-project-id="{{ $cohort->project_id }}"
+                        {{ old('cohort_id', $student->cohort_id ?? $defaultCohortId ?? '') == $cohort->id ? 'selected' : '' }}>
+                        {{ $cohort->name }} ({{ $cohort->project?->name }})
+                    </option>
+                @endforeach
+            </select>
+            <small class="text-muted">الفوج (مجموعة الطلاب) — صباحي/مسائي</small>
         </div>
 
         <div class="col-md-6">
@@ -329,6 +377,30 @@ function addEnrollmentRow() {
     tbody.insertAdjacentHTML('beforeend', html);
     enrollIdx++;
     filterCoursesByProjects();
+    filterCohorts();
+}
+
+function filterCohorts() {
+    var projectSelect = document.querySelector('select[name="project_ids[]"]');
+    var cohortSelect = document.getElementById('student_cohort');
+    if (!projectSelect || !cohortSelect) return;
+
+    var selectedIds = Array.from(projectSelect.selectedOptions).map(o => o.value);
+    var options = cohortSelect.querySelectorAll('option[data-project-id]');
+
+    if (selectedIds.length === 0) {
+        options.forEach(function (o) { o.style.display = ''; });
+        return;
+    }
+
+    options.forEach(function (o) {
+        if (o.value === '') return;
+        o.style.display = selectedIds.includes(o.getAttribute('data-project-id')) ? '' : 'none';
+    });
+
+    if (cohortSelect.selectedOptions.length === 0 || cohortSelect.selectedOptions[0].style.display === 'none') {
+        cohortSelect.value = '';
+    }
 }
 
 function filterCoursesByProjects() {
@@ -356,7 +428,108 @@ function filterCoursesByProjects() {
 
 document.addEventListener('DOMContentLoaded', function() {
     filterCoursesByProjects();
+    filterCohorts();
+
+    var identityInput = document.getElementById('identitySearchInput');
+    if (identityInput) {
+        identityInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); searchExistingStudent(); }
+        });
+    }
 });
+
+function searchExistingStudent() {
+    var input = document.getElementById('identitySearchInput');
+    var result = document.getElementById('identitySearchResult');
+    var btn = document.getElementById('identitySearchBtn');
+    var number = input.value.trim();
+
+    if (!number) { input.focus(); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جاري البحث...';
+    result.innerHTML = '';
+
+    fetch('{{ route("admin.students.check-identity") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ identity_number: number }),
+    })
+    .then(function (res) {
+        if (!res.ok) {
+            throw new Error('HTTP ' + res.status);
+        }
+        return res.json();
+    })
+    .then(function (data) {
+        if (data.found === false) {
+            // الطالب غير موجود → إشارة واضحة + تعبئة رقم الهوية في النموذج
+            result.innerHTML =
+                '<div class="alert alert-warning">' +
+                    '<i class="bi bi-person-plus me-1"></i> لم يتم العثور على طالب بهذا الرقم. يمكنك <strong>إكمال نموذج إنشاء طالب جديد</strong> أدناه (رقم الهوية معبأ تلقائياً).' +
+                '</div>';
+            var formIdentity = document.querySelector('input[name="identity_number"]');
+            if (formIdentity) formIdentity.value = number;
+            document.querySelector('input[name="first_name_ar"]')?.focus();
+            return;
+        }
+
+        if (data.can_edit) {
+            // يملك صلاحية التعديل → زر للانتقال مباشرة
+            result.innerHTML =
+                '<div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-2">' +
+                    '<span><i class="bi bi-check-circle me-1"></i> الطالب موجود ويمكنك تعديله: <strong>' + data.student.name + '</strong>&nbsp;(الكود: <code>' + data.student.code + '</code>)</span>' +
+                    '<a href="' + data.redirect + '" class="btn btn-sm btn-success">' +
+                        '<i class="bi bi-pencil me-1"></i> تعديل الطالب' +
+                    '</a>' +
+                '</div>';
+            return;
+        }
+
+        // طالب موجود لكن لا يمكن تعديله → عرض الإضافة لمشاريع أخرى inline
+        var checkboxes = '';
+        (data.available_projects || []).forEach(function (p) {
+            checkboxes +=
+                '<div class="form-check">' +
+                    '<input class="form-check-input" type="checkbox" name="project_ids[]" value="' + p.id + '" id="proj_' + p.id + '">' +
+                    '<label class="form-check-label" for="proj_' + p.id + '">' + p.name + '</label>' +
+                '</div>';
+        });
+
+        result.innerHTML =
+            '<div class="alert alert-info">' +
+                '<div class="d-flex align-items-center justify-content-between gap-2 mb-2">' +
+                    '<span><strong>' + data.student.name + '</strong>' +
+                    '&nbsp;(الكود: <code>' + data.student.code + '</code>)<br>' +
+                    '<small class="text-muted">المشاريع الحالية: ' + ((data.student.projects || []).join('، ') || 'لا يوجد') + '</small></span>' +
+                '</div>' +
+                '<hr class="my-2">' +
+                '<form method="POST" action="{{ url("admin/students") }}/' + data.student.id + '/add-to-projects" id="addToProjectInlineForm">' +
+                    '<input type="hidden" name="_token" value="{{ csrf_token() }}">' +
+                    '<input type="hidden" name="student_id" value="' + data.student.id + '">' +
+                    '<label class="form-label small">إضافة الطالب لمشاريع:</label>' +
+                    '<div class="d-flex flex-wrap gap-2 mb-2">' + checkboxes + '</div>' +
+                    '<button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-folder-plus me-1"></i> إضافة للمشاريع المحددة</button>' +
+                    '&nbsp;<a href="' + (data.redirect || '') + '" class="btn btn-sm btn-outline-primary">تعديل الطالب</a>' +
+                    '&nbsp;<a href="{{ url("admin/students") }}/' + data.student.id + '" class="btn btn-sm btn-outline-secondary">عرض الملف</a>' +
+                '</form>' +
+            '</div>';
+    })
+    .catch(function () {
+        result.innerHTML = '<div class="alert alert-danger">' +
+            '<i class="bi bi-exclamation-triangle me-1"></i> حدث خطأ أثناء البحث. أعد المحاولة أو تحقق من الاتصال.' +
+            '</div>';
+    })
+    .finally(function () {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-search me-1"></i> بحث';
+    });
+}
 </script>
 @endpush
 

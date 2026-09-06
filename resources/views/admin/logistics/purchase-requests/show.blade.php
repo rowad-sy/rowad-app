@@ -17,6 +17,25 @@
 @endpush
 
 @section('logistics-content')
+@php
+    $user = auth()->user();
+    $isSuper = $user->type === 'super-admin';
+    $isLogistics = $user->id === $purchaseRequest->refer_to_logistics_id;
+    $isDirectManager = $user->id === $purchaseRequest->refer_to_direct_manager_id;
+    $isPm2 = $user->id === $purchaseRequest->refer_to_pm2_id;
+    $isFinance = $user->id === $purchaseRequest->refer_to_finance_id;
+
+    $statusColors = [
+        'pending' => 'warning text-dark', 'priced' => 'info', 'pm_approved' => 'primary',
+        'pm2_approved' => 'primary', 'approved' => 'success', 'rejected' => 'danger', 'executed' => 'dark',
+    ];
+    $statusLabel = \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$purchaseRequest->status] ?? $purchaseRequest->status;
+    $stepColor = [
+        'create' => 'secondary', 'priced' => 'info', 'pm_approved' => 'primary',
+        'pm2_approved' => 'primary', 'approved' => 'success', 'rejected' => 'danger', 'executed' => 'dark',
+    ];
+@endphp
+
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h4>طلب شراء #{{ $purchaseRequest->id }}</h4>
@@ -26,6 +45,9 @@
         </p>
     </div>
     <div class="d-flex gap-2">
+        <span class="badge bg-{{ $statusColors[$purchaseRequest->status] ?? 'secondary' }} fs-6 align-self-center">
+            {{ $statusLabel }}
+        </span>
         <x-audit-history model="App\Models\Admin\Logistics\PurchaseRequest" :modelId="$purchaseRequest->id" />
         <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-right me-1"></i> عودة
@@ -37,11 +59,8 @@
     {{-- Main Info Card --}}
     <div class="col-lg-8">
         <div class="table-container">
-            <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
+            <div class="p-3 border-bottom">
                 <h5 class="mb-0"><i class="bi bi-receipt me-1"></i> بيانات طلب الشراء</h5>
-                <span class="badge bg-{{ $purchaseRequest->status === 'pending' ? 'warning text-dark' : ($purchaseRequest->status === 'approved' ? 'info' : ($purchaseRequest->status === 'rejected' ? 'danger' : 'success')) }} fs-6">
-                    {{ $purchaseRequest->status === 'pending' ? 'قيد الانتظار' : ($purchaseRequest->status === 'approved' ? 'تمت الموافقة' : ($purchaseRequest->status === 'rejected' ? 'مرفوض' : 'منفذ')) }}
-                </span>
             </div>
             <div class="p-3">
                 <div class="info-grid">
@@ -58,10 +77,30 @@
                         <span class="value">{{ $purchaseRequest->project?->name ?? '—' }}</span>
                     </div>
                     <div class="info-item">
+                        <span class="label">مقدم الطلب</span>
+                        <span class="value">{{ $purchaseRequest->user?->name ?? '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">رقم الميزانية</span>
+                        <span class="value">{{ $purchaseRequest->budget_number ?: '—' }}</span>
+                    </div>
+                    <div class="info-item">
                         <span class="label">تاريخ الإنشاء</span>
                         <span class="value">{{ $purchaseRequest->created_at?->format('Y-m-d H:i') }}</span>
                     </div>
                 </div>
+
+                @if ($purchaseRequest->isLocked())
+                    <div class="mt-3 alert alert-warning py-2 small mb-0">
+                        <i class="bi bi-lock-fill me-1"></i>
+                        الطلب <strong>مقفول نهائياً</strong> بعد موافقة مدير المشروع —
+                        @if ($purchaseRequest->locked_at)
+                            أُغلق بواسطة {{ $purchaseRequest->lockedByUser?->name ?? '—' }} بتاريخ {{ $purchaseRequest->locked_at->format('Y-m-d H:i') }}
+                        @else
+                            لا تقبل أي تعديلات أو حذف.
+                        @endif
+                    </div>
+                @endif
 
                 @if ($purchaseRequest->notes)
                     <div class="mt-2 p-2" style="background:#fff3cd;border-radius:6px;">
@@ -112,8 +151,34 @@
         </div>
     </div>
 
-    {{-- Signature Card --}}
+    {{-- Cycle & Signature Card --}}
     <div class="col-lg-4">
+        <div class="table-container mb-3">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-0"><i class="bi bi-diagram-3 me-1"></i> دورة الموافقات</h5>
+            </div>
+            <div class="p-3">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="label">اللوجستي للتسعير</span>
+                        <span class="value">{{ $purchaseRequest->logisticsStaff?->name ?? '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">المدير المباشر</span>
+                        <span class="value">{{ $purchaseRequest->directManager?->name ?? '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">مدير المشاريع</span>
+                        <span class="value">{{ $purchaseRequest->pm2User?->name ?? '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">مدير المالية</span>
+                        <span class="value">{{ $purchaseRequest->financeUser?->name ?? '—' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="table-container">
             <div class="p-3 border-bottom">
                 <h5 class="mb-0"><i class="bi bi-pen me-1"></i> التوقيع</h5>
@@ -132,58 +197,154 @@
         </div>
     </div>
 
-    {{-- Approval Timeline --}}
+    {{-- Step Action --}}
+    @php
+        $canAct = $isSuper
+            || ($purchaseRequest->status === 'pending' && $isLogistics)
+            || ($purchaseRequest->status === 'priced' && $isDirectManager)
+            || ($purchaseRequest->status === 'pm_approved' && $isPm2)
+            || ($purchaseRequest->status === 'pm2_approved' && $isFinance)
+            || ($purchaseRequest->status === 'approved' && $isLogistics);
+    @endphp
+    @if ($canAct)
     <div class="col-12">
         <div class="table-container">
             <div class="p-3 border-bottom">
-                <h5 class="mb-0"><i class="bi bi-timeline me-1"></i> سير الموافقات</h5>
+                <h5 class="mb-0"><i class="bi bi-person-check me-1"></i> الإجراء المتاح لك</h5>
             </div>
             <div class="p-3">
-                    @forelse ($purchaseRequest->approvals as $approval)
-                    <div class="timeline-item">
-                        <div class="dot bg-{{ $approval->status === 'approved' ? 'success' : ($approval->status === 'rejected' ? 'danger' : 'warning') }}"></div>
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <strong>{{ $approval->user?->name ?? '—' }}</strong>
-                                <span class="badge bg-{{ $approval->status === 'approved' ? 'success' : ($approval->status === 'rejected' ? 'danger' : 'warning') }} me-1">
-                                    {{ $approval->status === 'approved' ? 'موافق' : ($approval->status === 'rejected' ? 'رافض' : 'معلق') }}
-                                </span>
-                            </div>
-                            <small class="text-muted">{{ $approval->created_at?->format('Y-m-d H:i') }}</small>
-                        </div>
-                        @if ($approval->notes)
-                            <p class="text-muted small mb-0 mt-1">{{ $approval->notes }}</p>
-                        @endif
-                    </div>
-                @empty
-                    <p class="text-muted text-center py-3 mb-0">لا توجد موافقات بعد</p>
-                @endforelse
-
-                {{-- Approve/Reject Form --}}
-                @php $hasPendingApproval = $purchaseRequest->approvals->contains(fn($a) => $a->user_id === auth()->id() && $a->status === 'pending'); @endphp
-                @if ($purchaseRequest->status === 'pending' && $hasPendingApproval)
-                    <hr>
-                    <form method="POST" action="{{ route('admin.logistics.purchase-requests.approve', $purchaseRequest) }}" class="d-inline-block me-2">
+                @if ($purchaseRequest->status === 'pending')
+                    <a href="{{ route('admin.logistics.purchase-requests.price-form', $purchaseRequest) }}" class="btn btn-primary">
+                        <i class="bi bi-tags me-1"></i> تسعير الطلب
+                    </a>
+                @elseif ($purchaseRequest->status === 'priced')
+                    <form method="POST" action="{{ route('admin.logistics.purchase-requests.manager-decide', $purchaseRequest) }}">
                         @csrf
-                        <div class="mb-2">
-                            <label class="form-label small">ملاحظات</label>
-                            <textarea name="notes" class="form-control form-control-sm" rows="2" style="min-width:250px;"></textarea>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">القرار <span class="text-danger">*</span></label>
+                                <select name="decision" class="form-select" required>
+                                    <option value="approve">موافقة وتوقيع وقفل الطلب</option>
+                                    <option value="reject">رفض الطلب</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">إحالة إلى مدير المشاريع <span class="text-danger">*</span></label>
+                                <select name="refer_to_pm2_id" class="form-select" required>
+                                    @foreach ($candidates ?? [] as $candidate)
+                                        <option value="{{ $candidate->id }}"
+                                            {{ old('refer_to_pm2_id', $purchaseRequest->refer_to_pm2_id ?? $tentativePm2Id ?? '') == $candidate->id ? 'selected' : '' }}>
+                                            {{ $candidate->name }} — {{ $candidate->jobTitle?->title_ar ?? ($candidate->type === 'super-admin' ? 'إدارة' : 'موظف') }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small mb-1">ملاحظات</label>
+                                <textarea name="note" class="form-control" rows="2"></textarea>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-success btn-sm">
-                            <i class="bi bi-check-lg me-1"></i> موافقة
+                        <button type="submit" class="btn btn-success mt-3">
+                            <i class="bi bi-check-lg me-1"></i> اعتماد التوقيع
                         </button>
                     </form>
-                    <form method="POST" action="{{ route('admin.logistics.purchase-requests.reject', $purchaseRequest) }}" class="d-inline-block">
+                @elseif ($purchaseRequest->status === 'pm_approved')
+                    <form method="POST" action="{{ route('admin.logistics.purchase-requests.pm2-decide', $purchaseRequest) }}">
+                        @csrf
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">القرار <span class="text-danger">*</span></label>
+                                <select name="decision" class="form-select" required>
+                                    <option value="approve">موافقة مدير المشاريع</option>
+                                    <option value="reject">رفض الطلب</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">إحالة إلى مدير المالية <span class="text-danger">*</span></label>
+                                <select name="refer_to_finance_id" class="form-select" required>
+                                    @foreach ($candidates ?? [] as $candidate)
+                                        <option value="{{ $candidate->id }}"
+                                            {{ old('refer_to_finance_id', $purchaseRequest->refer_to_finance_id ?? $tentativeFinanceId ?? '') == $candidate->id ? 'selected' : '' }}>
+                                            {{ $candidate->name }} — {{ $candidate->jobTitle?->title_ar ?? ($candidate->type === 'super-admin' ? 'إدارة' : 'موظف') }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small mb-1">ملاحظات</label>
+                                <textarea name="note" class="form-control" rows="2"></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success mt-3">
+                            <i class="bi bi-check-lg me-1"></i> اعتماد
+                        </button>
+                    </form>
+                @elseif ($purchaseRequest->status === 'pm2_approved')
+                    <form method="POST" action="{{ route('admin.logistics.purchase-requests.finance-decide', $purchaseRequest) }}">
+                        @csrf
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">القرار <span class="text-danger">*</span></label>
+                                <select name="decision" class="form-select" required>
+                                    <option value="approve">اعتماد نهائي</option>
+                                    <option value="reject">رفض الطلب</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">ملاحظات</label>
+                                <textarea name="note" class="form-control" rows="2"></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success mt-3">
+                            <i class="bi bi-check-lg me-1"></i> اعتماد الطلب
+                        </button>
+                    </form>
+                @elseif ($purchaseRequest->status === 'approved')
+                    <form method="POST" action="{{ route('admin.logistics.purchase-requests.execute', $purchaseRequest) }}"
+                          onsubmit="return confirm('هل أنت متأكد من تنفيذ هذا الطلب؟')">
                         @csrf
                         <div class="mb-2">
-                            <label class="form-label small">ملاحظات</label>
-                            <textarea name="notes" class="form-control form-control-sm" rows="2" style="min-width:250px;"></textarea>
+                            <label class="form-label small mb-1">ملاحظات التنفيذ</label>
+                            <textarea name="note" class="form-control" rows="2" placeholder="اختياري"></textarea>
                         </div>
-                        <button type="submit" class="btn btn-danger btn-sm">
-                            <i class="bi bi-x-lg me-1"></i> رفض
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-check2-all me-1"></i> تنفيذ الطلب
                         </button>
                     </form>
                 @endif
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Workflow Timeline --}}
+    <div class="col-12">
+        <div class="table-container">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-0"><i class="bi bi-timeline me-1"></i> سجل دورة الشراء</h5>
+            </div>
+            <div class="p-3">
+                @forelse ($purchaseRequest->workflowActions as $action)
+                    <div class="timeline-item">
+                        <div class="dot bg-{{ $stepColor[$action->status] ?? 'secondary' }}"></div>
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>{{ $action->fromUser?->name ?? 'النظام' }}</strong>
+                                <span class="text-muted mx-1"><i class="bi bi-arrow-left"></i></span>
+                                <strong>{{ $action->toUser?->name ?? ($action->action === 'create' ? 'دورة الموافقات' : '—') }}</strong>
+                                <span class="badge bg-{{ $stepColor[$action->status] ?? 'secondary' }} me-1">
+                                    {{ \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$action->status] ?? $action->status }}
+                                </span>
+                            </div>
+                            <small class="text-muted">{{ $action->created_at?->format('Y-m-d H:i') }}</small>
+                        </div>
+                        @if ($action->note)
+                            <p class="text-muted small mb-0 mt-1">{{ $action->note }}</p>
+                        @endif
+                    </div>
+                @empty
+                    <p class="text-muted text-center py-3 mb-0">لا يوجد سجل بعد</p>
+                @endforelse
             </div>
         </div>
     </div>

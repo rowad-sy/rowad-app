@@ -114,6 +114,38 @@
                 </div>
 
                 <div class="mb-3 mt-3">
+                    <label class="form-label fw-bold">دورة الموافقات</label>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1">اللوجستي للتسعير <span class="text-muted">(الافتراضي: لوجستي المركز — قابل للتغيير)</span></label>
+                            <select name="refer_to_logistics_id" class="form-select @error('refer_to_logistics_id') is-invalid @enderror">
+                                <option value="">— اختر اللوجستي —</option>
+                                @foreach ($candidates ?? [] as $user)
+                                    <option value="{{ $user->id }}"
+                                        {{ old('refer_to_logistics_id', $defaultLogisticsId ?? '') == $user->id ? 'selected' : '' }}>
+                                        {{ $user->name }} — {{ $user->jobTitle?->title_ar ?? ($user->type === 'super-admin' ? 'إدارة' : 'موظف') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('refer_to_logistics_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1">المدير المباشر للتوقيع <span class="text-muted">(الافتراضي: مدير المشروع — قابل للتغيير)</span></label>
+                            <select name="refer_to_direct_manager_id" class="form-select @error('refer_to_direct_manager_id') is-invalid @enderror">
+                                <option value="">— اختر المدير المباشر —</option>
+                                @foreach ($candidates ?? [] as $user)
+                                    <option value="{{ $user->id }}"
+                                        {{ old('refer_to_direct_manager_id', $defaultDirectManagerId ?? '') == $user->id ? 'selected' : '' }}>
+                                        {{ $user->name }} — {{ $user->jobTitle?->title_ar ?? ($user->type === 'super-admin' ? 'إدارة' : 'موظف') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('refer_to_direct_manager_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3 mt-3">
                     <label class="form-label">ملاحظات</label>
                     <textarea name="notes" rows="3"
                               class="form-control @error('notes') is-invalid @enderror">{{ old('notes', $purchaseRequest->notes ?? '') }}</textarea>

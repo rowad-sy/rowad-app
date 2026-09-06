@@ -68,6 +68,11 @@
                             @else
                                 <span class="badge bg-secondary badge-scope">جميع المشاريع</span>
                             @endif
+                            @if ($perm->cohort)
+                                <span class="badge bg-dark badge-scope">{{ $perm->cohort->name }}</span>
+                            @else
+                                <span class="badge bg-secondary badge-scope">جميع الأفواج</span>
+                            @endif
                         </td>
                         <td>
                             @if ($perm->can_view) <span class="badge bg-info">عرض</span> @endif

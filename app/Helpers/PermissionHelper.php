@@ -38,9 +38,10 @@ class PermissionHelper
      * @param int|null $modelId معرّف العنصر (اختياري)
      * @param int|null $centerId معرّف المركز (اختياري - null يعني جميع المراكز)
      * @param int|null $projectId معرّف المشروع (اختياري - null يعني جميع المشاريع)
+     * @param int|null $cohortId معرّف الفوج (اختياري - null يعني جميع الأفواج)
      * @return bool
      */
-    public static function can(User $user, string $modelName, string $action, ?int $modelId = null, ?int $centerId = null, ?int $projectId = null): bool
+    public static function can(User $user, string $modelName, string $action, ?int $modelId = null, ?int $centerId = null, ?int $projectId = null, ?int $cohortId = null): bool
     {
         // Super-admin has all permissions
         if ($user->type === 'super-admin') {
@@ -67,6 +68,11 @@ class PermissionHelper
                 continue;
             }
 
+            // التحقق من نطاق الفوج
+            if ($cohortId !== null && $permission->cohort_id !== null && $permission->cohort_id !== $cohortId) {
+                continue;
+            }
+
             if ($permission->$column) {
                 return true;
             }
@@ -79,16 +85,26 @@ class PermissionHelper
      * الحصول على نطاق المستخدم الفعّال من صلاحياته لموديل معين
      * مثال:
      *   إذا كان للمستخدم صلاحية على Student مع center_id=5
-     *   → يرجع ['center_ids' => [5], 'project_ids' => [], 'sees_all' => false]
+     *   → يرجع ['center_ids' => [5], 'project_ids' => [], 'cohort_ids' => [], 'sees_all' => false]
      *
-     * @return array{center_ids: array, project_ids: array, sees_all: bool}
+     * @return array{center_ids: array, project_ids: array, cohort_ids: array, sees_all: bool}
      */
     public static function getEffectiveScope(User $user, string $modelName): array
     {
+        if ($user->type === 'super-admin') {
+            return [
+                'center_ids' => [],
+                'project_ids' => [],
+                'cohort_ids' => [],
+                'sees_all' => true,
+            ];
+        }
+
         $permissions = self::getUserPermissions($user, $modelName);
 
         $centerIds = [];
         $projectIds = [];
+        $cohortIds = [];
         $seesAll = false;
 
         foreach ($permissions as $permission) {
@@ -96,7 +112,8 @@ class PermissionHelper
                 continue;
             }
 
-            if ($permission->center_id === null && $permission->project_id === null) {
+            // يرى كل شيء فقط إذا كانت جميع النطاقات الثلاثة مفتوحة على الكل
+            if ($permission->center_id === null && $permission->project_id === null && $permission->cohort_id === null) {
                 $seesAll = true;
             }
 
@@ -106,14 +123,19 @@ class PermissionHelper
             if ($permission->project_id !== null) {
                 $projectIds[] = $permission->project_id;
             }
+            if ($permission->cohort_id !== null) {
+                $cohortIds[] = $permission->cohort_id;
+            }
         }
 
         $centerIds = array_unique($centerIds);
         $projectIds = array_unique($projectIds);
+        $cohortIds = array_unique($cohortIds);
 
         return [
             'center_ids' => $centerIds,
             'project_ids' => $projectIds,
+            'cohort_ids' => $cohortIds,
             'sees_all' => $seesAll,
         ];
     }

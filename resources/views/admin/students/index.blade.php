@@ -21,9 +21,9 @@
         <button type="button" class="btn btn-success" id="issueCertBtn" style="display:none;" onclick="issueCertificates()">
             <i class="bi bi-file-earmark-check me-1"></i> إصدار شهادة
         </button>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#identityCheckModal">
+        <a href="{{ route('admin.students.create') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> إضافة طالب
-        </button>
+        </a>
         <button type="button" class="btn btn-outline-primary import-btn" data-bs-toggle="modal" data-bs-target="#importModal">
             <i class="bi bi-upload me-1"></i> استيراد
         </button>
@@ -60,6 +60,15 @@
                     <option value="">الكل</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">الفوج</label>
+                <select name="cohort_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">الكل</option>
+                    @foreach ($cohorts as $cohort)
+                        <option value="{{ $cohort->id }}" {{ (int)($cohortId ?? '') === $cohort->id ? 'selected' : '' }}>{{ $cohort->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -133,6 +142,7 @@
                         <th>الهاتف</th>
                         <th>المركز</th>
                         <th>المشاريع</th>
+                        <th>الفوج</th>
                         <th>الحالة</th>
                         <th>الإجراءات</th>
                     </tr>
@@ -162,6 +172,13 @@
                                     @endforeach
                                 @else
                                     {{ $student->project?->name ?? '—' }}
+                                @endif
+                            </td>
+                            <td>
+                                @if ($student->cohort)
+                                    <span class="badge bg-secondary">{{ $student->cohort->name }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
                                 @endif
                             </td>
                             <td>
@@ -198,7 +215,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-4 text-muted">
+                            <td colspan="11" class="text-center py-4 text-muted">
                                 <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                                 لا يوجد طلاب
                             </td>
@@ -296,64 +313,6 @@
         </form>
     </div>
 </div>
-<!-- Hidden triggers for programmatic modal control (avoids bootstrap.Modal JS API) -->
-<button type="button" id="showAddToProjectModalTrigger" class="d-none" data-bs-toggle="modal" data-bs-target="#addToProjectModal"></button>
-<button type="button" id="hideIdentityModalTrigger" class="d-none" data-bs-toggle="modal" data-bs-target="#identityCheckModal"></button>
-
-<!-- مودال البحث عن الطالب بهوية -->
-<div class="modal fade" id="identityCheckModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-search me-1"></i> البحث عن طالب</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted small mb-3">أدخل رقم الهوية للبحث عن الطالب. إذا لم يكن موجوداً سيتم نقلك إلى صفحة إنشاء طالب جديد.</p>
-                <div class="mb-3">
-                    <label class="form-label">رقم الهوية <span class="text-danger">*</span></label>
-                    <input type="text" id="identityCheckInput" class="form-control" placeholder="أدخل رقم الهوية" dir="ltr" autofocus>
-                </div>
-                <div id="identityCheckResult" class="mt-2"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-primary" id="identityCheckBtn" onclick="checkIdentity()">
-                    <i class="bi bi-search me-1"></i> بحث
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- مودال إضافة الطالب لمشاريع أخرى -->
-<div class="modal fade" id="addToProjectModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form id="addToProjectForm" method="POST">
-                @csrf
-                <input type="hidden" name="student_id" id="addProjectStudentId">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-folder-plus me-1"></i> إضافة الطالب لمشاريع</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="addProjectStudentInfo" class="mb-3"></div>
-                    <div class="mb-3">
-                        <label class="form-label">المشاريع المتاحة للإضافة</label>
-                        <div id="availableProjectsList" class="d-flex flex-wrap gap-2"></div>
-                        <small class="text-muted">اختر مشروعاً واحداً أو أكثر</small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">إضافة</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 @endsection
 
 @push('scripts')
@@ -390,99 +349,7 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
         }
     });
-
-    // Enter key triggers search in identity modal
-    document.getElementById('identityCheckInput')?.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); checkIdentity(); }
-    });
-
-    // Re-focus input when modal opens
-    document.getElementById('identityCheckModal')?.addEventListener('shown.bs.modal', function () {
-        document.getElementById('identityCheckInput').focus();
-        document.getElementById('identityCheckInput').value = '';
-        document.getElementById('identityCheckResult').innerHTML = '';
-    });
 });
-
-function checkIdentity() {
-    var input = document.getElementById('identityCheckInput');
-    var result = document.getElementById('identityCheckResult');
-    var btn = document.getElementById('identityCheckBtn');
-    var number = input.value.trim();
-
-    if (!number) { input.focus(); return; }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جاري البحث...';
-    result.innerHTML = '';
-
-    fetch('{{ route("admin.students.check-identity") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ identity_number: number }),
-    })
-    .then(function (res) {
-        if (!res.ok) {
-            throw new Error('HTTP ' + res.status + ': ' + res.statusText);
-        }
-        return res.json();
-    })
-    .then(function (data) {
-        if (data.found === false) {
-            window.location.href = data.redirect;
-            return;
-        }
-
-        if (data.can_edit) {
-            window.location.href = data.redirect;
-            return;
-        }
-
-        // Cannot edit → show add-to-project modal via hidden trigger
-        var info = document.getElementById('addProjectStudentInfo');
-        var projectsStr = data.student.projects && data.student.projects.length
-            ? data.student.projects.join('، ')
-            : 'لا يوجد';
-        info.innerHTML = '<div class="alert alert-info">' +
-            '<strong>' + data.student.name + '</strong><br>' +
-            'الكود: <code>' + data.student.code + '</code><br>' +
-            'المشاريع الحالية: ' + projectsStr +
-            '</div>';
-
-        document.getElementById('addProjectStudentId').value = data.student.id;
-        document.getElementById('addToProjectForm').action = '{{ url("admin/students") }}/' + data.student.id + '/add-to-projects';
-
-        var list = document.getElementById('availableProjectsList');
-        list.innerHTML = '';
-        data.available_projects.forEach(function (p) {
-            var div = document.createElement('div');
-            div.className = 'form-check';
-            div.innerHTML = '<input class="form-check-input" type="checkbox" name="project_ids[]" value="' + p.id + '" id="proj_' + p.id + '">' +
-                '<label class="form-check-label" for="proj_' + p.id + '">' + p.name + '</label>';
-            list.appendChild(div);
-        });
-
-        // Hide identity modal, show add-to-project modal via hidden Bootstrap triggers
-        document.getElementById('hideIdentityModalTrigger').click();
-        setTimeout(function () {
-            document.getElementById('showAddToProjectModalTrigger').click();
-        }, 300);
-    })
-    .catch(function (err) {
-        result.innerHTML = '<div class="alert alert-danger">' +
-            '<i class="bi bi-exclamation-triangle me-1"></i> حدث خطأ أثناء البحث: ' + err.message +
-            '</div>';
-    })
-    .finally(function () {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-search me-1"></i> بحث';
-    });
-}
 
 function issueCertificates() {
     var checked = document.querySelectorAll('.row-checkbox:checked');

@@ -3,6 +3,7 @@
 namespace App\Models\Admin\Hr;
 
 use App\Models\Admin\Center;
+use App\Models\Admin\Cohort;
 use App\Models\Admin\Department;
 use App\Models\Admin\Project;
 use App\Models\User;
@@ -22,7 +23,7 @@ class Employee extends Model
         'first_name_ar', 'last_name_ar', 'first_name_en', 'last_name_en',
         'father_name_ar', 'father_name_en', 'mother_name_ar', 'mother_name_en',
         'gender', 'marital_status', 'children_count', 'birth_date', 'birth_place', 'nationality',
-        'center_id', 'department_id', 'project_id',
+        'center_id', 'department_id', 'project_id', 'cohort_id',
         'has_photo', 'has_cv', 'has_id_copy', 'has_qualification', 'has_experience_certs',
         'has_offer_letter', 'has_contract_doc', 'has_employee_data', 'has_job_description',
         'has_signature_movements', 'has_security_audit', 'has_reference_audit', 'has_code_of_conduct',
@@ -102,6 +103,11 @@ class Employee extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function cohort(): BelongsTo
+    {
+        return $this->belongsTo(Cohort::class, 'cohort_id');
     }
 
     public function educations(): HasMany

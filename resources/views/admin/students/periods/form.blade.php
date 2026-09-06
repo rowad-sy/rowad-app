@@ -73,7 +73,7 @@
                         <div class="form-check">
                             <input type="checkbox" name="course_ids[]" value="{{ $course->id }}" class="form-check-input"
                                    id="course_{{ $course->id }}"
-                                   {{ in_array($course->id, old('course_ids', $period->courses->pluck('id')->toArray() ?? [])) ? 'checked' : '' }}>
+                                   {{ isset($period) && in_array($course->id, old('course_ids', $period->courses->pluck('id')->toArray())) ? 'checked' : '' }}>
                             <label class="form-check-label" for="course_{{ $course->id }}">
                                 {{ $course->name_ar }}
                                 <small class="text-muted">({{ $course->duration ? $course->duration . 'ي' : '—' }})</small>

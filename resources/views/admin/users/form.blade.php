@@ -104,6 +104,45 @@
                     <div class="form-text text-muted">اختر الموظف المراد ربط الحساب به</div>
                 </div>
 
+                <div class="employee-fields" style="display: none;">
+                    <hr>
+                    <h6 class="text-primary"><i class="bi bi-person-workspace me-1"></i> بيانات الموظف</h6>
+                    <p class="text-muted small mb-3">بيانات إضافية للمستخدم من نوع موظف — تُستخدم في البحث والفلترة (مستقلة عن سجل الموارد البشرية).</p>
+
+                    <div class="mb-3">
+                        <label class="form-label">المسمى الوظيفي</label>
+                        <select name="job_title_id" class="form-select @error('job_title_id') is-invalid @enderror">
+                            <option value="">— اختر المسمى —</option>
+                            @foreach ($jobTitles as $jt)
+                                <option value="{{ $jt->id }}" {{ old('job_title_id', $user->job_title_id ?? '') == $jt->id ? 'selected' : '' }}>{{ $jt->title_ar }}</option>
+                            @endforeach
+                        </select>
+                        @error('job_title_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">المركز</label>
+                        <select name="center_id" class="form-select @error('center_id') is-invalid @enderror">
+                            <option value="">— اختر المركز —</option>
+                            @foreach ($centers as $center)
+                                <option value="{{ $center->id }}" {{ old('center_id', $user->center_id ?? '') == $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('center_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">المشروع</label>
+                        <select name="project_id" class="form-select @error('project_id') is-invalid @enderror">
+                            <option value="">— اختر المشروع —</option>
+                            @foreach ($projects as $project)
+                                <option value="{{ $project->id }}" {{ old('project_id', $user->project_id ?? '') == $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('project_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                </div>
+
                 @if (isset($user))
                     <div class="mb-3 form-check form-switch">
                         <input type="hidden" name="is_active" value="0">
@@ -140,12 +179,16 @@
 document.addEventListener('DOMContentLoaded', function () {
     const typeSelect = document.getElementById('userType');
     const linkSelects = document.querySelectorAll('.link-select');
+    const employeeFields = document.querySelector('.employee-fields');
 
     function toggleLinkFields() {
         const selectedType = typeSelect.value;
         linkSelects.forEach(function (el) {
             el.style.display = el.dataset.type === selectedType ? 'block' : 'none';
         });
+        if (employeeFields) {
+            employeeFields.style.display = selectedType === 'employee' ? 'block' : 'none';
+        }
     }
 
     typeSelect.addEventListener('change', toggleLinkFields);

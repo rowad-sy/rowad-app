@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\BeneficiaryController;
 use App\Http\Controllers\Admin\CenterController;
+use App\Http\Controllers\Admin\CohortController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\GroupController;
@@ -17,6 +18,9 @@ use App\Http\Controllers\Admin\Hr\TimesheetController;
 use App\Http\Controllers\Admin\Student\AttendanceController;
 use App\Http\Controllers\Admin\Student\CertificateController;
 use App\Http\Controllers\Admin\Student\CourseController;
+use App\Http\Controllers\Admin\Student\AcademicLevelController;
+use App\Http\Controllers\Admin\Student\TrainingPlanController;
+use App\Http\Controllers\Admin\Student\StudentGradeController;
 use App\Http\Controllers\Admin\Student\PeriodController;
 use App\Http\Controllers\Admin\Student\StudentController;
 use App\Http\Controllers\Admin\Student\StudentExportController;
@@ -25,6 +29,8 @@ use App\Http\Controllers\Admin\Hr\JobPositionController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\ProjectManagerController;
+use App\Http\Controllers\Admin\ProjectOfficerController;
 use App\Http\Controllers\Admin\ProjectTaskController;
 use App\Http\Controllers\Admin\Tech\TechController;
 use App\Http\Controllers\Admin\Tech\TechEquipmentController;
@@ -39,6 +45,8 @@ use App\Http\Controllers\Admin\Logistics\WarehouseItemController;
 use App\Http\Controllers\Admin\Logistics\AssetController;
 use App\Http\Controllers\Admin\Logistics\LogisticsStatisticsController;
 use App\Http\Controllers\Admin\Logistics\LogisticsExportController;
+use App\Http\Controllers\Admin\MediaPlanController;
+use App\Http\Controllers\Admin\MovementPlanController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\ActivationController;
@@ -96,6 +104,8 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('beneficiary/dashboard', [BeneficiaryController::class, 'dashboard'])->name('beneficiary.dashboard');
+        Route::get('project-manager', [ProjectManagerController::class, 'dashboard'])->name('project-manager.dashboard');
+        Route::get('project-officer', [ProjectOfficerController::class, 'dashboard'])->name('project-officer.dashboard');
         Route::resource('centers', CenterController::class)->except(['show']);
         Route::prefix('projects')->name('projects.')->group(function () {
             Route::get('tasks', [ProjectTaskController::class, 'index'])->name('tasks.index');
@@ -109,23 +119,78 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::get('calendar', [ProjectTaskController::class, 'calendar'])->name('calendar');
             Route::get('statistics', [ProjectTaskController::class, 'statistics'])->name('statistics');
         });
+        Route::prefix('media-plans')->name('media-plans.')->group(function () {
+            Route::get('/', [MediaPlanController::class, 'index'])->name('index');
+            Route::get('create', [MediaPlanController::class, 'create'])->name('create');
+            Route::post('/', [MediaPlanController::class, 'store'])->name('store');
+            Route::get('{media_plan}', [MediaPlanController::class, 'show'])->name('show');
+            Route::get('{media_plan}/edit', [MediaPlanController::class, 'edit'])->name('edit');
+            Route::put('{media_plan}', [MediaPlanController::class, 'update'])->name('update');
+            Route::delete('{media_plan}', [MediaPlanController::class, 'destroy'])->name('destroy');
+            Route::post('{media_plan}/events', [MediaPlanController::class, 'storeEvent'])->name('events.store');
+            Route::delete('events/{event}', [MediaPlanController::class, 'destroyEvent'])->name('events.destroy');
+            Route::post('events/{event}/comment', [MediaPlanController::class, 'addComment'])->name('events.comment');
+        });
+        Route::prefix('movement-plans')->name('movement-plans.')->group(function () {
+            Route::get('/', [MovementPlanController::class, 'index'])->name('index');
+            Route::get('create', [MovementPlanController::class, 'create'])->name('create');
+            Route::post('/', [MovementPlanController::class, 'store'])->name('store');
+            Route::get('{movement_plan}', [MovementPlanController::class, 'show'])->name('show');
+            Route::post('{movement_plan}/approve', [MovementPlanController::class, 'approve'])->name('approve');
+            Route::post('{movement_plan}/reject', [MovementPlanController::class, 'reject'])->name('reject');
+            Route::post('{movement_plan}/assign', [MovementPlanController::class, 'assign'])->name('assign');
+            Route::post('{movement_plan}/complete', [MovementPlanController::class, 'complete'])->name('complete');
+            Route::delete('{movement_plan}', [MovementPlanController::class, 'destroy'])->name('destroy');
+        });
         Route::resource('projects', ProjectController::class)->except(['show']);
+        Route::prefix('project-docs')->name('project-docs.')->group(function () {
+            Route::resource('templates', \App\Http\Controllers\Admin\ProjectDocs\AnnexTemplateController::class)->except(['show']);
+            Route::get('documents', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'index'])->name('documents.index');
+            Route::get('documents/create', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'create'])->name('documents.create');
+            Route::post('documents', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'store'])->name('documents.store');
+            Route::get('documents/{document}', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'show'])->name('documents.show');
+            Route::get('documents/{document}/edit', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'edit'])->name('documents.edit');
+            Route::put('documents/{document}', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'update'])->name('documents.update');
+            Route::post('documents/{document}/submit', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'submit'])->name('documents.submit');
+            Route::post('documents/{document}/reopen', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'reopen'])->name('documents.reopen');
+            Route::post('documents/{document}/signoff', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'signoff'])->name('documents.signoff');
+            Route::get('documents/{document}/print', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'printDocument'])->name('documents.print');
+            Route::delete('documents/{document}', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'destroy'])->name('documents.destroy');
+        });
         Route::resource('departments', DepartmentController::class)->except(['show']);
         Route::resource('groups', GroupController::class)->except(['show']);
+        Route::resource('cohorts', CohortController::class)->except(['show']);
         Route::resource('permissions', PermissionController::class)->except(['show']);
 
         // Audit Log
         Route::get('audit-logs', [AuditController::class, 'index'])->name('audit-logs.index');
         Route::get('audit-logs/history', [AuditController::class, 'history'])->name('audit-logs.history');
 
+        Route::get('users/export', [UserController::class, 'export'])->name('users.export');
+        Route::post('users/import', [UserController::class, 'import'])->name('users.import');
         Route::resource('users', UserController::class)->except(['show']);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
 
         // Literal routes before wildcard {student}
         Route::get('students/attendance', [AttendanceController::class, 'index'])->name('students.attendance');
         Route::post('students/attendance', [AttendanceController::class, 'store'])->name('students.attendance.store');
+        Route::get('students/courses/help', [CourseController::class, 'help'])->name('students.courses.help');
         Route::resource('students/courses', CourseController::class)->except(['show'])->names(['index' => 'students.courses.index', 'create' => 'students.courses.create', 'store' => 'students.courses.store', 'edit' => 'students.courses.edit', 'update' => 'students.courses.update', 'destroy' => 'students.courses.destroy']);
+        Route::get('students/enrollments/{enrollment}/grades', [StudentGradeController::class, 'edit'])->name('students.enrollments.grades.edit');
+        Route::put('students/enrollments/{enrollment}/grades', [StudentGradeController::class, 'update'])->name('students.enrollments.grades.update');
         Route::resource('students/periods', PeriodController::class)->except(['show'])->names(['index' => 'students.periods.index', 'create' => 'students.periods.create', 'store' => 'students.periods.store', 'edit' => 'students.periods.edit', 'update' => 'students.periods.update', 'destroy' => 'students.periods.destroy']);
+        Route::get('students/levels', [AcademicLevelController::class, 'index'])->name('students.levels.index');
+        Route::get('students/levels/create', [AcademicLevelController::class, 'create'])->name('students.levels.create');
+        Route::post('students/levels', [AcademicLevelController::class, 'store'])->name('students.levels.store');
+        Route::get('students/levels/{level}/edit', [AcademicLevelController::class, 'edit'])->name('students.levels.edit');
+        Route::put('students/levels/{level}', [AcademicLevelController::class, 'update'])->name('students.levels.update');
+        Route::get('students/levels/{level}', [AcademicLevelController::class, 'show'])->name('students.levels.show');
+        Route::get('students/training-plans', [TrainingPlanController::class, 'index'])->name('students.training-plans.index');
+        Route::get('students/training-plans/create', [TrainingPlanController::class, 'create'])->name('students.training-plans.create');
+        Route::post('students/training-plans', [TrainingPlanController::class, 'store'])->name('students.training-plans.store');
+        Route::get('students/training-plans/{plan}/edit', [TrainingPlanController::class, 'edit'])->name('students.training-plans.edit');
+        Route::put('students/training-plans/{plan}', [TrainingPlanController::class, 'update'])->name('students.training-plans.update');
+        Route::get('students/training-plans/{plan}', [TrainingPlanController::class, 'show'])->name('students.training-plans.show');
         // Student resource (with wildcard {student})
         Route::get('students/statistics', [StudentStatisticsController::class, 'index'])->name('students.statistics');
         // Certificates
@@ -188,6 +253,12 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');
             Route::resource('approval-rules', ApprovalRuleController::class)->except(['show']);
             Route::resource('purchase-requests', PurchaseRequestController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+            Route::get('purchase-requests/{purchaseRequest}/price', [PurchaseRequestController::class, 'priceForm'])->name('purchase-requests.price-form');
+            Route::post('purchase-requests/{purchaseRequest}/price', [PurchaseRequestController::class, 'price'])->name('purchase-requests.price');
+            Route::post('purchase-requests/{purchaseRequest}/manager-decide', [PurchaseRequestController::class, 'managerDecide'])->name('purchase-requests.manager-decide');
+            Route::post('purchase-requests/{purchaseRequest}/pm2-decide', [PurchaseRequestController::class, 'pm2Decide'])->name('purchase-requests.pm2-decide');
+            Route::post('purchase-requests/{purchaseRequest}/finance-decide', [PurchaseRequestController::class, 'financeDecide'])->name('purchase-requests.finance-decide');
+            Route::post('purchase-requests/{purchaseRequest}/execute', [PurchaseRequestController::class, 'execute'])->name('purchase-requests.execute');
             Route::post('purchase-requests/{purchaseRequest}/approve', [PurchaseRequestApprovalController::class, 'approve'])->name('purchase-requests.approve');
             Route::post('purchase-requests/{purchaseRequest}/reject', [PurchaseRequestApprovalController::class, 'reject'])->name('purchase-requests.reject');
             Route::resource('warehouses', WarehouseController::class)->except(['show']);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
+use App\Models\Admin\Cohort;
 use App\Models\Admin\Group;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
@@ -23,7 +24,7 @@ class PermissionController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $permissions = Permission::with(['user', 'group', 'center', 'project'])
+        $permissions = Permission::with(['user', 'group', 'center', 'project', 'cohort'])
             ->when($search, function ($q, $search) {
                 return $q->where(function ($q) use ($search) {
                     $q->whereHas('user', fn($q) => $q->where('name', 'like', "%{$search}%"))
@@ -40,10 +41,11 @@ class PermissionController extends Controller
         $groups = Group::orderBy('name')->get();
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
+        $cohorts = Cohort::with('project')->orderBy('name')->get();
         $modelGroups = $this->modelGroups();
         $availableModels = array_merge(...array_map('array_values', array_values($modelGroups)));
 
-        return view('admin.permissions.form', compact('users', 'groups', 'centers', 'projects', 'modelGroups', 'availableModels'));
+        return view('admin.permissions.form', compact('users', 'groups', 'centers', 'projects', 'cohorts', 'modelGroups', 'availableModels'));
     }
 
     public function store(Request $request)
@@ -57,6 +59,7 @@ class PermissionController extends Controller
             'model_id' => 'nullable|integer',
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
+            'cohort_id' => 'nullable|exists:cohorts,id',
             'can_view' => 'boolean',
             'can_create' => 'boolean',
             'can_edit' => 'boolean',
@@ -70,6 +73,7 @@ class PermissionController extends Controller
             'model_id' => $validated['model_id'] ?? null,
             'center_id' => $validated['center_id'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
+            'cohort_id' => $validated['cohort_id'] ?? null,
             'can_view' => $validated['can_view'] ?? false,
             'can_create' => $validated['can_create'] ?? false,
             'can_edit' => $validated['can_edit'] ?? false,
@@ -86,10 +90,11 @@ class PermissionController extends Controller
         $groups = Group::orderBy('name')->get();
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
+        $cohorts = Cohort::with('project')->orderBy('name')->get();
         $modelGroups = $this->modelGroups();
         $availableModels = array_merge(...array_values($modelGroups));
 
-        return view('admin.permissions.form', compact('permission', 'users', 'groups', 'centers', 'projects', 'modelGroups', 'availableModels'));
+        return view('admin.permissions.form', compact('permission', 'users', 'groups', 'centers', 'projects', 'cohorts', 'modelGroups', 'availableModels'));
     }
 
     public function update(Request $request, Permission $permission)
@@ -103,6 +108,7 @@ class PermissionController extends Controller
             'model_id' => 'nullable|integer',
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
+            'cohort_id' => 'nullable|exists:cohorts,id',
             'can_view' => 'boolean',
             'can_create' => 'boolean',
             'can_edit' => 'boolean',
@@ -116,6 +122,7 @@ class PermissionController extends Controller
             'model_id' => $validated['model_id'] ?? null,
             'center_id' => $validated['center_id'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
+            'cohort_id' => $validated['cohort_id'] ?? null,
             'can_view' => $validated['can_view'] ?? false,
             'can_create' => $validated['can_create'] ?? false,
             'can_edit' => $validated['can_edit'] ?? false,
@@ -140,6 +147,7 @@ class PermissionController extends Controller
             'الإدارة' => [
                 'App\Models\Admin\Center' => 'المراكز',
                 'App\Models\Admin\Project' => 'المشاريع',
+                'App\Models\Admin\Cohort' => 'الأفواج',
                 'App\Models\Admin\Department' => 'الإدارات',
                 'App\Models\User' => 'المستخدمين',
                 'App\Models\Admin\Group' => 'المجموعات',
@@ -175,6 +183,12 @@ class PermissionController extends Controller
             ],
             'إدارة المشاريع' => [
                 'App\Models\Admin\ProjectTask' => 'المهام',
+                'App\Models\Admin\MediaPlan' => 'الخطة الإعلامية',
+                'App\Models\Admin\MovementPlan' => 'خطة الحركة',
+                'App\Models\Admin\ProjectDocs\AnnexTemplate' => 'قوالب وثائق المشروع',
+                'App\Models\Admin\ProjectDocs\AnnexDocument' => 'وثائق المشروع',
+                'page:admin.project-manager.dashboard' => 'لوحة مدير المشروع',
+                'page:admin.project-officer.dashboard' => 'لوحة مسؤول المشروع',
             ],
             'النظام والتدقيق' => [
                 'App\Models\AuditLog' => 'سجل التدقيق',

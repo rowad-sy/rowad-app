@@ -34,10 +34,11 @@
                 <label class="form-label small mb-1">الحالة</label>
                 <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
-                    <option value="pending" {{ ($status ?? '') === 'pending' ? 'selected' : '' }}>قيد الانتظار</option>
-                    <option value="approved" {{ ($status ?? '') === 'approved' ? 'selected' : '' }}>تمت الموافقة</option>
-                    <option value="rejected" {{ ($status ?? '') === 'rejected' ? 'selected' : '' }}>مرفوض</option>
-                    <option value="executed" {{ ($status ?? '') === 'executed' ? 'selected' : '' }}>منفذ</option>
+                    @foreach ($statuses ?? [] as $statusKey)
+                        <option value="{{ $statusKey }}" {{ ($status ?? '') === $statusKey ? 'selected' : '' }}>
+                            {{ \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$statusKey] ?? $statusKey }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
             <div class="col-md-3">
@@ -90,17 +91,14 @@
                         <td>{{ $request->center?->name ?? '—' }}</td>
                         <td>{{ $request->project?->name ?? '—' }}</td>
                         <td>
-                            @if ($request->status === 'pending')
-                                <span class="badge bg-warning text-dark">قيد الانتظار</span>
-                            @elseif ($request->status === 'approved')
-                                <span class="badge bg-info">تمت الموافقة</span>
-                            @elseif ($request->status === 'rejected')
-                                <span class="badge bg-danger">مرفوض</span>
-                            @elseif ($request->status === 'executed')
-                                <span class="badge bg-success">منفذ</span>
-                            @else
-                                <span class="badge bg-secondary">{{ $request->status }}</span>
-                            @endif
+                            @php
+                                $statusLabel = \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$request->status] ?? $request->status;
+                                $statusColors = [
+                                    'pending' => 'warning text-dark', 'priced' => 'info', 'pm_approved' => 'primary',
+                                    'pm2_approved' => 'primary', 'approved' => 'success', 'rejected' => 'danger', 'executed' => 'dark',
+                                ];
+                            @endphp
+                            <span class="badge bg-{{ $statusColors[$request->status] ?? 'secondary' }}">{{ $statusLabel }}</span>
                         </td>
                         <td>{{ $request->created_at?->format('Y-m-d') }}</td>
                         <td>

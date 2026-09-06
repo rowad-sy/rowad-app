@@ -14,7 +14,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->resolving('migrator', function ($migrator) {
+            $migrator->path(database_path('migrations/logistics'));
+        });
     }
 
     public function boot(): void

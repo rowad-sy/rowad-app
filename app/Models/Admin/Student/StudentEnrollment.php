@@ -4,6 +4,7 @@ namespace App\Models\Admin\Student;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StudentEnrollment extends Model
 {
@@ -36,5 +37,10 @@ class StudentEnrollment extends Model
     public function period(): BelongsTo
     {
         return $this->belongsTo(Period::class);
+    }
+
+    public function grades(): HasMany
+    {
+        return $this->hasMany(StudentSubjectGrade::class, 'student_enrollment_id');
     }
 }

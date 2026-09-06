@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Admin\Center;
 use App\Models\Admin\Group;
 use App\Models\Admin\Hr\Employee;
+use App\Models\Admin\Hr\JobPosition;
 use App\Models\Admin\Permission;
+use App\Models\Admin\Project;
 use App\Models\Admin\Student\Student;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -28,6 +32,9 @@ class User extends Authenticatable
         'activation_email_sent_at',
         'activation_email_count',
         'type',
+        'job_title_id',
+        'center_id',
+        'project_id',
     ];
 
     protected $hidden = [
@@ -72,5 +79,20 @@ class User extends Authenticatable
     public function employee(): HasOne
     {
         return $this->hasOne(Employee::class, 'user_id');
+    }
+
+    public function jobTitle(): BelongsTo
+    {
+        return $this->belongsTo(JobPosition::class, 'job_title_id');
+    }
+
+    public function center(): BelongsTo
+    {
+        return $this->belongsTo(Center::class, 'center_id');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class, 'project_id');
     }
 }

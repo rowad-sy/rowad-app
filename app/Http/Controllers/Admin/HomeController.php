@@ -22,6 +22,9 @@ class HomeController extends Controller
             return redirect(route('admin.beneficiary.dashboard', absolute: false));
         }
 
-        return view('admin.home.index');
+        $canProjectManager = \App\Helpers\PermissionHelper::can($user, 'page:admin.project-manager.dashboard', 'view');
+        $canProjectOfficer = \App\Helpers\PermissionHelper::can($user, 'page:admin.project-officer.dashboard', 'view');
+
+        return view('admin.home.index', compact('canProjectManager', 'canProjectOfficer'));
     }
 }

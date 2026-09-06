@@ -156,7 +156,7 @@
 
                 {{-- النطاق --}}
                 <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label">المركز</label>
                         <select name="center_id" class="form-select @error('center_id') is-invalid @enderror">
                             <option value="">جميع المراكز</option>
@@ -169,9 +169,9 @@
                         </select>
                         @error('center_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label">المشروع</label>
-                        <select name="project_id" class="form-select @error('project_id') is-invalid @enderror">
+                        <select name="project_id" id="scope_project" class="form-select @error('project_id') is-invalid @enderror" onchange="filterCohorts()">
                             <option value="">جميع المشاريع</option>
                             @foreach ($projects as $project)
                                 <option value="{{ $project->id }}"
@@ -181,6 +181,19 @@
                             @endforeach
                         </select>
                         @error('project_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">الفوج</label>
+                        <select name="cohort_id" id="scope_cohort" class="form-select @error('cohort_id') is-invalid @enderror">
+                            <option value="">جميع الأفواج</option>
+                            @foreach ($cohorts as $cohort)
+                                <option value="{{ $cohort->id }}" data-project-id="{{ $cohort->project_id }}"
+                                    {{ old('cohort_id', $permission->cohort_id ?? '') == $cohort->id ? 'selected' : '' }}>
+                                    {{ $cohort->name }} ({{ $cohort->project?->name }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('cohort_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
 
@@ -230,6 +243,21 @@ function toggleAssignType() {
     document.getElementById('user_select_div').style.display = userRadio.checked ? 'block' : 'none';
     document.getElementById('group_select_div').style.display = userRadio.checked ? 'none' : 'block';
 }
+
+function filterCohorts() {
+    var projectId = document.getElementById('scope_project').value;
+    var cohortSelect = document.getElementById('scope_cohort');
+    var selectedCohort = cohortSelect.getAttribute('data-selected') || '';
+    cohortSelect.querySelectorAll('option').forEach(function (opt) {
+        if (opt.value === '') { opt.style.display = ''; return; }
+        opt.style.display = (projectId === '' || opt.getAttribute('data-project-id') === projectId) ? '' : 'none';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    toggleAssignType();
+    filterCohorts();
+});
 
 function toggleCategory(header) {
     var body = header.nextElementSibling;

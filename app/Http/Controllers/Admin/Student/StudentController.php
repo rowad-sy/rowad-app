@@ -33,8 +33,9 @@ class StudentController extends Controller
         $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Student');
         $centerId = $request->filled('center_id') ? $request->input('center_id') : (count($scope['center_ids']) === 1 ? $scope['center_ids'][0] : '');
         $projectId = $request->filled('project_id') ? $request->input('project_id') : (count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : '');
+        $cohortId = $request->filled('cohort_id') ? $request->input('cohort_id') : (count($scope['cohort_ids']) === 1 ? $scope['cohort_ids'][0] : '');
 
-        $students = Student::with(['center', 'projects'])
+        $students = Student::with(['center', 'projects', 'cohort'])
             ->when($search, function ($q, $search) {
                 return $q->where(function ($q) use ($search) {
                     $q->where('first_name_ar', 'like', "%{$search}%")
@@ -66,6 +67,9 @@ class StudentController extends Controller
                       });
                 });
             })
+            ->when($cohortId, function ($q, $cohortId) {
+                return $q->where('cohort_id', $cohortId);
+            })
             // Force scope from permission if user didn't explicitly override
             ->unless($scope['sees_all'] || $request->filled('center_id'), function ($q) use ($scope) {
                 if (!empty($scope['center_ids'])) {
@@ -82,31 +86,42 @@ class StudentController extends Controller
                     });
                 }
             })
+            ->unless($scope['sees_all'] || $request->filled('cohort_id'), function ($q) use ($scope) {
+                if (!empty($scope['cohort_ids'])) {
+                    $q->whereIn('cohort_id', $scope['cohort_ids']);
+                }
+            })
             ->orderBy('id', 'desc')
             ->paginate($perPage)
-            ->appends($request->only(['search', 'status', 'center_id', 'project_id', 'gender', 'course_id', 'per_page']));
+            ->appends($request->only(['search', 'status', 'center_id', 'project_id', 'cohort_id', 'gender', 'course_id', 'per_page']));
 
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $courses = Course::orderBy('name_ar')->get();
+        $cohorts = \App\Models\Admin\Cohort::with('project')->orderBy('name')->get();
 
-        return view('admin.students.index', compact('students', 'search', 'status', 'centerId', 'projectId', 'gender', 'courseId', 'perPage', 'centers', 'projects', 'courses'));
+        return view('admin.students.index', compact('students', 'search', 'status', 'centerId', 'projectId', 'cohortId', 'gender', 'courseId', 'perPage', 'centers', 'projects', 'courses', 'cohorts'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $users = User::orderBy('name')->get();
         $courses = \App\Models\Admin\Student\Course::with('project')->orderBy('name_ar')->get();
         $periods = \App\Models\Admin\Student\Period::orderBy('name_ar')->get();
+        $cohorts = \App\Models\Admin\Cohort::with('project')->orderBy('name')->get();
 
         // Default center/project from current user's employee record
         $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();
         $defaultCenterId = $userEmployee?->center_id;
         $defaultProjectId = $userEmployee?->project_id;
+        $defaultCohortId = $userEmployee?->cohort_id;
 
-        return view('admin.students.form', compact('centers', 'projects', 'users', 'courses', 'periods', 'defaultCenterId', 'defaultProjectId'));
+        // Pre-fill identity number from query (e.g. after identity check / create click)
+        $identityNumber = $request->query('identity_number');
+
+        return view('admin.students.form', compact('centers', 'projects', 'users', 'courses', 'periods', 'cohorts', 'defaultCenterId', 'defaultProjectId', 'defaultCohortId', 'identityNumber'));
     }
 
     public function store(Request $request)
@@ -131,6 +146,7 @@ class StudentController extends Controller
             'address' => 'nullable|string',
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
+            'cohort_id' => 'nullable|exists:cohorts,id',
             'sync_project_ids' => 'nullable|in:1',
             'project_ids' => 'nullable|array',
             'project_ids.*' => 'exists:projects,id',
@@ -174,10 +190,11 @@ class StudentController extends Controller
         $users = User::orderBy('name')->get();
         $courses = \App\Models\Admin\Student\Course::with('project')->orderBy('name_ar')->get();
         $periods = \App\Models\Admin\Student\Period::orderBy('name_ar')->get();
+        $cohorts = \App\Models\Admin\Cohort::with('project')->orderBy('name')->get();
 
         $student->load('enrollments', 'projects');
 
-        return view('admin.students.form', compact('student', 'centers', 'projects', 'users', 'courses', 'periods'));
+        return view('admin.students.form', compact('student', 'centers', 'projects', 'users', 'courses', 'periods', 'cohorts'));
     }
 
     public function update(Request $request, Student $student)
@@ -202,6 +219,7 @@ class StudentController extends Controller
             'address' => 'nullable|string',
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
+            'cohort_id' => 'nullable|exists:cohorts,id',
             'sync_project_ids' => 'nullable|in:1',
             'project_ids' => 'nullable|array',
             'project_ids.*' => 'exists:projects,id',
@@ -315,6 +333,12 @@ class StudentController extends Controller
                 'found' => true,
                 'can_edit' => true,
                 'redirect' => route('admin.students.edit', $student),
+                'student' => [
+                    'id' => $student->id,
+                    'name' => $student->first_name_ar . ' ' . $student->last_name_ar,
+                    'code' => $student->student_code,
+                    'projects' => $student->projects->pluck('name'),
+                ],
             ]);
         }
 
@@ -323,6 +347,7 @@ class StudentController extends Controller
         return response()->json([
             'found' => true,
             'can_edit' => false,
+            'redirect' => route('admin.students.edit', $student),
             'student' => [
                 'id' => $student->id,
                 'name' => $student->first_name_ar . ' ' . $student->last_name_ar,

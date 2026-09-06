@@ -66,6 +66,11 @@
                     <i class="bi bi-briefcase"></i> <span>المشاريع</span>
                 </a>
                 @endcanPermission
+                @canPermission('App\Models\Admin\Cohort', 'view')
+                <a href="{{ route('admin.cohorts.index') }}" class="nav-link {{ request()->routeIs('admin.cohorts.*') ? 'active' : '' }}">
+                    <i class="bi bi-people-fill"></i> <span>الأفواج</span>
+                </a>
+                @endcanPermission
                 @canPermission('App\Models\Admin\Department', 'view')
                 <a href="{{ route('admin.departments.index') }}" class="nav-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">
                     <i class="bi bi-diagram-3"></i> <span>الإدارات</span>
@@ -198,6 +203,14 @@
                     <i class="bi bi-calendar-range"></i> <span>الفترات</span>
                 </a>
                 @endcanPermission
+                @canPermission('App\Models\Admin\Student\Course', 'view')
+                <a href="{{ route('admin.students.levels.index') }}" class="nav-link {{ request()->routeIs('admin.students.levels.*') ? 'active' : '' }}">
+                    <i class="bi bi-diagram-3"></i> <span>المستويات والصفوف</span>
+                </a>
+                <a href="{{ route('admin.students.training-plans.index') }}" class="nav-link {{ request()->routeIs('admin.students.training-plans.*') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-week"></i> <span>الخطط التدريبية</span>
+                </a>
+                @endcanPermission
                 @canPermission('App\Models\Admin\Student\Attendance', 'view')
                 <a href="{{ route('admin.students.attendance') }}" class="nav-link {{ request()->routeIs('admin.students.attendance') ? 'active' : '' }}">
                     <i class="bi bi-clipboard-check"></i> <span>الحضور</span>
@@ -227,9 +240,29 @@
                 <i class="bi bi-chevron-down section-arrow"></i>
             </div>
             <div class="section-items">
+                @canPermission('page:admin.project-manager.dashboard', 'view')
+                <a href="{{ route('admin.project-manager.dashboard') }}" class="nav-link {{ request()->routeIs('admin.project-manager.dashboard') ? 'active' : '' }}">
+                    <i class="bi bi-person-workspace"></i> <span>لوحة مدير المشروع</span>
+                </a>
+                @endcanPermission
+                @canPermission('page:admin.project-officer.dashboard', 'view')
+                <a href="{{ route('admin.project-officer.dashboard') }}" class="nav-link {{ request()->routeIs('admin.project-officer.dashboard') ? 'active' : '' }}">
+                    <i class="bi bi-person-badge"></i> <span>لوحة مسؤول المشروع</span>
+                </a>
+                @endcanPermission
                 @canPermission('App\Models\Admin\ProjectTask', 'view')
                 <a href="{{ route('admin.projects.tasks.index') }}" class="nav-link {{ request()->routeIs('admin.projects.tasks.*') ? 'active' : '' }}">
                     <i class="bi bi-list-task"></i> <span>المهام</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\MediaPlan', 'view')
+                <a href="{{ route('admin.media-plans.index') }}" class="nav-link {{ request()->routeIs('admin.media-plans.*') ? 'active' : '' }}">
+                    <i class="bi bi-megaphone"></i> <span>الخطة الإعلامية</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\MovementPlan', 'view')
+                <a href="{{ route('admin.movement-plans.index') }}" class="nav-link {{ request()->routeIs('admin.movement-plans.*') ? 'active' : '' }}">
+                    <i class="bi bi-truck"></i> <span>خطة الحركة</span>
                 </a>
                 @endcanPermission
                 @canPermission('App\Models\Admin\ProjectTask', 'view')
@@ -240,6 +273,16 @@
                 @canPermission('App\Models\Admin\ProjectTask', 'view')
                 <a href="{{ route('admin.projects.statistics') }}" class="nav-link {{ request()->routeIs('admin.projects.statistics') ? 'active' : '' }}">
                     <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'view')
+                <a href="{{ route('admin.project-docs.documents.index') }}" class="nav-link {{ request()->routeIs('admin.project-docs.documents.*') ? 'active' : '' }}">
+                    <i class="bi bi-file-earmark-text"></i> <span>وثائق المشروع</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\ProjectDocs\AnnexTemplate', 'view')
+                <a href="{{ route('admin.project-docs.templates.index') }}" class="nav-link {{ request()->routeIs('admin.project-docs.templates.*') ? 'active' : '' }}">
+                    <i class="bi bi-diagram-3"></i> <span>قوالب الوثائق</span>
                 </a>
                 @endcanPermission
             </div>

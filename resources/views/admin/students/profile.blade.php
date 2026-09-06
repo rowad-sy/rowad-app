@@ -212,6 +212,7 @@
                             <th>الحالة</th>
                             <th>الدرجة</th>
                             <th>شهادة</th>
+                            <th>إجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -239,6 +240,11 @@
                                     @else
                                         <span class="badge bg-secondary">—</span>
                                     @endif
+                                </td>
+                                <td>
+                                    <a href="{{ route('admin.students.enrollments.grades.edit', $enrollment) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil-square me-1"></i> درجات المواد
+                                    </a>
                                 </td>
                             </tr>
                         @empty

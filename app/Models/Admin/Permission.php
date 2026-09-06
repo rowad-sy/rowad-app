@@ -13,7 +13,7 @@ class Permission extends Model
     protected $fillable = [
         'user_id', 'group_id',
         'model_names', 'model_id',
-        'center_id', 'project_id',
+        'center_id', 'project_id', 'cohort_id',
         'can_view', 'can_create', 'can_edit', 'can_delete',
     ];
 
@@ -46,5 +46,10 @@ class Permission extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function cohort(): BelongsTo
+    {
+        return $this->belongsTo(Cohort::class);
     }
 }

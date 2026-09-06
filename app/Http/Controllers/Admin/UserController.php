@@ -2,10 +2,16 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\UserExport;
 use App\Http\Controllers\Controller;
+use App\Imports\UserImport;
+use App\Models\Admin\Center;
+use App\Models\Admin\Hr\JobPosition;
+use App\Models\Admin\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class UserController extends Controller
 {
@@ -22,12 +28,23 @@ class UserController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
         $type = $request->input('type');
+        $centerId = $request->input('center_id');
+        $projectId = $request->input('project_id');
+        $jobTitleId = $request->input('job_title_id');
         $perPage = (int) $request->input('per_page', 10);
 
-        $users = User::withCount('groups')
+        $users = User::with(['jobTitle', 'center', 'project'])
+            ->withCount('groups')
             ->when($search, function ($q, $search) {
-                return $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                return $q->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('official_email', 'like', "%{$search}%")
+                        ->orWhereHas('jobTitle', function ($q) use ($search) {
+                            $q->where('title_ar', 'like', "%{$search}%")
+                                ->orWhere('title_en', 'like', "%{$search}%");
+                        });
+                });
             })
             ->when($status && $status !== 'all', function ($q) use ($status) {
                 return $q->where('is_active', $status === 'active');
@@ -35,16 +52,33 @@ class UserController extends Controller
             ->when($type && $type !== 'all', function ($q) use ($type) {
                 return $q->where('type', $type);
             })
+            ->when($centerId, function ($q) use ($centerId) {
+                return $q->where('center_id', $centerId);
+            })
+            ->when($projectId, function ($q) use ($projectId) {
+                return $q->where('project_id', $projectId);
+            })
+            ->when($jobTitleId, function ($q) use ($jobTitleId) {
+                return $q->where('job_title_id', $jobTitleId);
+            })
             ->orderBy('name')
             ->paginate($perPage)
-            ->appends($request->only(['search', 'status', 'type', 'per_page']));
+            ->appends($request->only(['search', 'status', 'type', 'center_id', 'project_id', 'job_title_id', 'per_page']));
 
-        return view('admin.users.index', compact('users', 'search', 'status', 'type', 'perPage'));
+        $centers = Center::orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
+        $jobTitles = JobPosition::orderBy('title_ar')->get();
+
+        return view('admin.users.index', compact('users', 'search', 'status', 'type', 'centerId', 'projectId', 'jobTitleId', 'perPage', 'centers', 'projects', 'jobTitles'));
     }
 
     public function create()
     {
-        return view('admin.users.form');
+        $centers = Center::orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
+        $jobTitles = JobPosition::orderBy('title_ar')->get();
+
+        return view('admin.users.form', compact('centers', 'projects', 'jobTitles'));
     }
 
     public function store(Request $request)
@@ -57,6 +91,9 @@ class UserController extends Controller
             'type' => 'nullable|string|in:employee,beneficiary,student,super-admin',
             'student_id' => 'nullable|integer|exists:students,id',
             'employee_id' => 'nullable|integer|exists:hr_employees,id',
+            'job_title_id' => 'nullable|exists:hr_job_positions,id',
+            'center_id' => 'nullable|exists:centers,id',
+            'project_id' => 'nullable|exists:projects,id',
         ]);
 
         // المستخدم الجديد يكون غير نشط بشكل تلقائي ويجب عليه تغيير كلمة المرور
@@ -73,7 +110,11 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        return view('admin.users.form', compact('user'));
+        $centers = Center::orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
+        $jobTitles = JobPosition::orderBy('title_ar')->get();
+
+        return view('admin.users.form', compact('user', 'centers', 'projects', 'jobTitles'));
     }
 
     public function update(Request $request, User $user)
@@ -86,6 +127,9 @@ class UserController extends Controller
             'type' => 'nullable|string|in:employee,beneficiary,student,super-admin',
             'student_id' => 'nullable|integer|exists:students,id',
             'employee_id' => 'nullable|integer|exists:hr_employees,id',
+            'job_title_id' => 'nullable|exists:hr_job_positions,id',
+            'center_id' => 'nullable|exists:centers,id',
+            'project_id' => 'nullable|exists:projects,id',
         ]);
 
         if (empty($validated['password'])) {
@@ -148,5 +192,22 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', 'تم تغيير حالة المستخدم بنجاح');
+    }
+
+    public function export(Request $request)
+    {
+        return Excel::download(new UserExport($request->query()), 'users.xlsx');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv',
+        ]);
+
+        Excel::import(new UserImport, $request->file('file'));
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'تم استيراد المستخدمين بنجاح');
     }
 }
