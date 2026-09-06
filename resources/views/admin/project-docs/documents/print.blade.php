@@ -5,24 +5,36 @@
     <title>{{ $document->title ?: $document->template->title_ar }} — طباعة</title>
     @vite(['resources/js/app.js'])
     <style>
-        @page { size: A4 portrait; margin: 14mm 12mm; }
-        body { background: #f1f3f5; font-family: "Tajawal", sans-serif; }
-        .print-sheet { background: #fff; max-width: 196mm; margin: 0 auto; padding: 18mm; }
-        .no-print { margin: 12mm auto 6mm; max-width: 196mm; }
-        .print-header { border-bottom: 2px solid #0d6efd; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; }
-        .print-header .org { font-weight: 700; color: #0d6efd; }
-        .print-header .doc-title { font-size: 1.25rem; font-weight: 700; }
+        @page { size: A4 portrait; margin: 0; }
+        @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+        @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Medium.ttf') format('truetype'); font-weight: 500; font-style: normal; font-display: swap; }
+        @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+        :root { --accent: #f6a13a; --accent-strong: #e07f1f; }
+        body { background: #f1f3f5; font-family: 'Tajawal Local', 'Tajawal', sans-serif; }
+        .print-sheet {
+            position: relative;
+            background: #fff url('{{ asset('branding/Picture1.jpg') }}') center center / 100% 100% no-repeat;
+            max-width: 200mm; margin: 0 auto; min-height: 297mm;
+            padding: 30mm 18mm 18mm;
+            font-family: 'Tajawal Local', 'Tajawal', sans-serif;
+        }
+        .print-header { border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .no-print { margin: 12mm auto 6mm; max-width: 200mm; }
+        .no-print .btn + .btn { margin-inline-start: .5rem; }
+        .print-header .org { font-weight: 700; color: var(--accent-strong); }
+        .print-header .doc-title { font-size: 1.25rem; font-weight: 700; color: var(--accent-strong); }
         .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 12px; font-size: .85rem; margin-bottom: 14px; }
         .meta-grid .m-item b { font-weight: 600; }
-        h2.section-title { font-size: 1rem; font-weight: 700; margin: 16px 0 8px; border-right: 4px solid #0d6efd; padding-right: 8px; }
+        h2.section-title { font-size: 1rem; font-weight: 700; margin: 16px 0 8px; border-right: 4px solid var(--accent); padding-right: 8px; color: var(--accent-strong); }
         .signature-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 30px; }
         .sig-box { text-align: center; }
         .sig-line { border-top: 1px solid #adb5bd; margin-top: 48px; padding-top: 4px; font-size: .8rem; color: #495057; }
         .badge { font-size: .7rem; }
         @media print {
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body { background: #fff; }
             .no-print { display: none; }
-            .print-sheet { max-width: none; margin: 0; padding: 0; }
+            .print-sheet { max-width: none; margin: 0; }
             .sig-line { margin-top: 44px; }
         }
     </style>
