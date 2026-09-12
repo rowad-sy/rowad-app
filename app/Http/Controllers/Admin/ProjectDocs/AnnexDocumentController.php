@@ -53,6 +53,11 @@ class AnnexDocumentController extends Controller
         return view('admin.project-docs.documents.index', compact('documents', 'projects', 'status', 'projectId'));
     }
 
+    public function help()
+    {
+        return view('admin.project-docs.documents.help');
+    }
+
     public function create()
     {
         $templates = AnnexTemplate::where('is_active', true)->orderBy('title_ar')->get();
@@ -70,6 +75,7 @@ class AnnexDocumentController extends Controller
             'project_id' => 'nullable|exists:projects,id',
             'center_id' => 'nullable|exists:centers,id',
             'period' => 'nullable|string|max:20',
+            'page_count' => 'required|integer|min:1|max:20',
         ]);
 
         $template = AnnexTemplate::findOrFail($validated['template_id']);
@@ -82,6 +88,7 @@ class AnnexDocumentController extends Controller
             'center_id' => $validated['center_id'] ?? null,
             'period' => $validated['period'] ?? null,
             'status' => 'draft',
+            'page_count' => $validated['page_count'],
             'data' => null,
             'created_by' => auth()->id(),
             'assigned_to' => null,
@@ -146,10 +153,12 @@ class AnnexDocumentController extends Controller
 
             $value = $this->extractValue($section['type'] ?? 'paragraph', $blocksInput[$key] ?? []);
             $shouldLock = ! empty($locksInput[$key]);
+            $pageNumber = max(1, (int) ($locksInput[$key . '_page'] ?? ($block?->page_number ?? 1)));
 
             if ($block) {
                 $block->update([
                     'json_value' => $value,
+                    'page_number' => $pageNumber,
                     'updated_by' => $user->id,
                     'locked' => $shouldLock,
                 ]);

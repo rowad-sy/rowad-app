@@ -31,6 +31,9 @@
         <i class="bi bi-plus-lg"></i> وثيقة جديدة
     </a>
     @endcanPermission
+    <a href="{{ route('admin.project-docs.documents.help') }}" class="btn btn-outline-info">
+        <i class="bi bi-question-circle"></i> معلومات
+    </a>
 </div>
 
 <div class="card">

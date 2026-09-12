@@ -52,6 +52,21 @@
     </div>
     @endcanPermission
 
+    @if ($canProjectsManager)
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+        <a href="{{ route('admin.projects-manager.dashboard') }}" class="text-decoration-none">
+            <div class="card app-card app-card-admin">
+                <div class="card-body text-center">
+                    <div class="app-icon">
+                        <i class="bi bi-diagram-3-fill"></i>
+                    </div>
+                    <h6 class="app-title">مدير المشاريع</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+    @endif
+
     @if ($canProjectManager || $canProjectOfficer)
     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <a href="{{ $canProjectManager ? route('admin.project-manager.dashboard') : route('admin.project-officer.dashboard') }}" class="text-decoration-none">

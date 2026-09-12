@@ -412,6 +412,9 @@
 21. ✅ **قوالب وثائق المشاريع الإنتاجية (6)** من ملفات "ملحقات مشروع" المرجعية: بطاقة المشروع، فكرة المشروع، الدراسة الأولية، استمارة تحديد معايير المستفيدين، التقرير الشهري، تقرير نهاية المشروع — عبر سيدر `AnnexTemplatesSeeder` (idempotent: `updateOrCreate`).
 22. (أمامي) **التحقق البصري في المتصفح** للقوالب الجديدة: إنشاء وثيقة من كل قالب، تعبئة أقسامه، ثم "طباعة / حفظ PDF" بالهوية الجديدة.
 23. (اختياري) القالبان التجريبيان القديمان `DEMO-project-card`/`DEMO-project-idea` لا يزالان مفعّلين بنفس الاسم — يمكن إيقافهما من واجهة القوالب أو حذفهما (إن لم توجد وثائق منهما).
+24. ✅ **صفحة معلومات ونصائح للوثائق**: مسار `documents/help` (قبل `{document}`) + دالة `help()` في الكنترولر + `resources/views/admin/project-docs/documents/help.blade.php` + زر «معلومات» في index/show — بشرح تفصيلي (القوالب مقابل الوثائق، أنواع الأقسام، دورة الحياة، الوثائق المشتركة بين مستخدمين، الطباعة/PDF).
+25. ✅ **لوحة مدير المشاريع (جديدة ومستقلة عن لوحة مدير المشروع)**: `ProjectsManagerController@dashboard` + مسار `admin/projects-manager` (صلاحية `page:admin.projects-manager.dashboard`) + عرض `admin/projects-manager/dashboard.blade.php` — نظرة شاملة (كل المشاريع/المراكز/مدرائها) تضم: اختصارات وصول سريع (`_shortcuts_projects_manager.blade.php`)، ملخص عام (مشاريع/مراكز/طلاب/مدراء)، المهام (إجمالي/انتظار/متأخرة/منجزة) + مهام قادمة للتقويم، خطط الحركة (توزيع الحالات + قائمة بانتظار مراجعة إدارة المشاريع)، الخطط الإعلامية (شهرية + أحدث الخطط بعدّاد فعاليات)، وثائق المشاريع (قيد الاعتماد + آخر تغييرات الوثائق `WorkflowAction`)، طلبات الشراء (إجمالي + بموجودي للتوقيع + الأحدث)، فريق مدراء المشاريع — + رابط في الشريط الجانبي + بطاقة في الرئيسية (HomeController). فحص التصيير مع `demo.pm2` نجح.
+26. ✅ **سيدر صلاحيات لوحة مدير المشاريع**: `ProjectsManagerDashboardPermissionSeeder` (idempotent — شُغّل) يمنح `demo.pm2` صلاحية اللوحة + عرض Project/ProjectTask/Student/Employee + يفتح نطاق الصفوف الحالية (حركة/إعلامية/وثائق/شراء) على كل المراكز.
 
 ---
 
@@ -430,6 +433,7 @@
 - أخطاء "Attempt to read property is_active on null" في test بالمصدر من عدم وجود مستخدم مسجّل (auth) — في المتصفح يوجد مستخدم
 - `Excel::store` في Laravel 11 يخزّن بالدور الافتراضي في `storage/app/private/`
 - مفاتيح حية: المشاريع 16=الروضة، 17=رواد العلم، 18=أثر، 19=التطوير الإداري، 2=التدريب المهني. المراكز 1=جرابلس، 2=اعزاز، 7=عفرين. المستخدمون 1=Super Admin، 3=omar (employee)، 4/5=طلاب.
+- طباعة الوثائق: خلفية `print.blade.php` بحجم A4 حقيقي (`background-size: 210mm 297mm; repeat`) — صورة كاملة لكل ورقة بلا مطّ (بدلاً من `100% 100%` التي تمد الصورة على كل طول الوثيقة). المعاينة بعرض `210mm`.
 
 ---
 
@@ -447,3 +451,4 @@
 - **المرحلة 9**: `database/migrations/2026_09_05_000006_create_subject_exams_table.php` + `2026_09_05_000007_add_course_id_to_academic_levels_table.php` + `app/Models/Admin/Student/SubjectExam.php` (+ علاقة `exams()` في `Subject` و`levels()` في `Course` و`course_id` في `AcademicLevel`) + `app/Http/Controllers/Admin/Student/CourseController.php` + `resources/views/admin/students/courses/{index, form, help}.blade.php` + بطاقة "إدارة المقررات" في `admin/partials/_shortcuts.blade.php` + `tests/Feature/CourseTest.php` + قسم demo في `database/seeders/DemoPurchaseCycleSeeder.php` (دالة `coursesDemo()` + مؤشر `$coursesDone` في `run()`)
 - **الهوية البصرية للطباعة**: `resources/views/admin/project-docs/documents/print.blade.php` (خلفية `Picture1.jpg` كاملة + padding 30/18mm + `Tajawal Local` + برتقالي) + `public/branding/Picture1.jpg` — التحقّق: `/branding/Picture1.jpg` و`/fonts/Tajawal-Bold.ttf` يعيدان 200.
 - **المرحلة 10 (قوالب الوثائق الإنتاجية)**: `database/seeders/AnnexTemplatesSeeder.php` (6 قوالب: `project-card`, `project-idea`, `project-preliminary-study`, `beneficiary-criteria`, `project-monthly-report`, `project-final-report` — تُشغَّل بـ `php artisan db:seed --class=AnnexTemplatesSeeder`)
+- **صفحة معلومات الوثائق**: مسار `documents/help` في `routes/web.php` (قبل `{document}`) + `help()` في `AnnexDocumentController` + `resources/views/admin/project-docs/documents/help.blade.php` + زر «معلومات» في `documents/{index, show}.blade.php`

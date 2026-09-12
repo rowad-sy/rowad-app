@@ -66,6 +66,14 @@
                            placeholder="مثال: 2026-09 — للتقارير الشهرية">
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label">عدد الصفحات</label>
+                    <input type="number" name="page_count" class="form-control @error('page_count') is-invalid @enderror"
+                           min="1" max="20" value="{{ old('page_count', 1) }}">
+                    @error('page_count') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="form-text">عدد صفحات الوثيقة في الطباعة (A4) — يمكنك توزيع الأقسام على الصفحات لاحقاً</div>
+                </div>
+
                 <button class="btn btn-primary">إنشاء الوثيقة</button>
                 <a href="{{ route('admin.project-docs.documents.index') }}" class="btn btn-outline-secondary">إلغاء</a>
             </form>

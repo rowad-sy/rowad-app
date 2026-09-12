@@ -11,12 +11,13 @@ class AnnexDocumentBlock extends Model
     protected $table = 'annex_document_blocks';
 
     protected $fillable = [
-        'document_id', 'block_key', 'json_value', 'updated_by', 'locked',
+        'document_id', 'block_key', 'page_number', 'json_value', 'updated_by', 'locked',
     ];
 
     protected function casts(): array
     {
         return [
+            'page_number' => 'integer',
             'json_value' => 'array',
             'locked' => 'boolean',
         ];

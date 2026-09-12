@@ -19,7 +19,7 @@ class AnnexDocument extends Model
 
     protected $fillable = [
         'template_id', 'template_version', 'title',
-        'project_id', 'center_id', 'period', 'status', 'data',
+        'project_id', 'center_id', 'period', 'status', 'page_count', 'data',
         'created_by', 'assigned_to', 'signed_at',
     ];
 
@@ -34,6 +34,7 @@ class AnnexDocument extends Model
     {
         return [
             'template_version' => 'integer',
+            'page_count' => 'integer',
             'data' => 'array',
             'signed_at' => 'datetime',
         ];
@@ -113,6 +114,11 @@ class AnnexDocument extends Model
         }
 
         return $missing;
+    }
+
+    public function pages(): Collection
+    {
+        return $this->blocks->sortBy('page_number')->groupBy('page_number');
     }
 
     public function isLocked($section): bool

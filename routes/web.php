@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\ProjectManagerController;
+use App\Http\Controllers\Admin\ProjectsManagerController;
 use App\Http\Controllers\Admin\ProjectOfficerController;
 use App\Http\Controllers\Admin\ProjectTaskController;
 use App\Http\Controllers\Admin\Tech\TechController;
@@ -105,6 +106,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
 
         Route::get('beneficiary/dashboard', [BeneficiaryController::class, 'dashboard'])->name('beneficiary.dashboard');
         Route::get('project-manager', [ProjectManagerController::class, 'dashboard'])->name('project-manager.dashboard');
+        Route::get('projects-manager', [ProjectsManagerController::class, 'dashboard'])->name('projects-manager.dashboard');
         Route::get('project-officer', [ProjectOfficerController::class, 'dashboard'])->name('project-officer.dashboard');
         Route::resource('centers', CenterController::class)->except(['show']);
         Route::prefix('projects')->name('projects.')->group(function () {
@@ -148,6 +150,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::get('documents', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'index'])->name('documents.index');
             Route::get('documents/create', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'create'])->name('documents.create');
             Route::post('documents', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'store'])->name('documents.store');
+            Route::get('documents/help', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'help'])->name('documents.help');
             Route::get('documents/{document}', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'show'])->name('documents.show');
             Route::get('documents/{document}/edit', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'edit'])->name('documents.edit');
             Route::put('documents/{document}', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'update'])->name('documents.update');

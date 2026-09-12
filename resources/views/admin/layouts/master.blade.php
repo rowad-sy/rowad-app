@@ -245,6 +245,11 @@
                     <i class="bi bi-person-workspace"></i> <span>لوحة مدير المشروع</span>
                 </a>
                 @endcanPermission
+                @canPermission('page:admin.projects-manager.dashboard', 'view')
+                <a href="{{ route('admin.projects-manager.dashboard') }}" class="nav-link {{ request()->routeIs('admin.projects-manager.dashboard') ? 'active' : '' }}">
+                    <i class="bi bi-diagram-3-fill"></i> <span>لوحة مدير المشاريع</span>
+                </a>
+                @endcanPermission
                 @canPermission('page:admin.project-officer.dashboard', 'view')
                 <a href="{{ route('admin.project-officer.dashboard') }}" class="nav-link {{ request()->routeIs('admin.project-officer.dashboard') ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i> <span>لوحة مسؤول المشروع</span>

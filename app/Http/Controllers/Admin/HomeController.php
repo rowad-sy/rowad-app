@@ -23,8 +23,9 @@ class HomeController extends Controller
         }
 
         $canProjectManager = \App\Helpers\PermissionHelper::can($user, 'page:admin.project-manager.dashboard', 'view');
+        $canProjectsManager = \App\Helpers\PermissionHelper::can($user, 'page:admin.projects-manager.dashboard', 'view');
         $canProjectOfficer = \App\Helpers\PermissionHelper::can($user, 'page:admin.project-officer.dashboard', 'view');
 
-        return view('admin.home.index', compact('canProjectManager', 'canProjectOfficer'));
+        return view('admin.home.index', compact('canProjectManager', 'canProjectsManager', 'canProjectOfficer'));
     }
 }

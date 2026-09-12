@@ -5,6 +5,7 @@
 @section('content')
 @php
     $isCreator = auth()->id() === (int) $document->created_by;
+    $pageCount = max(1, (int) $document->page_count);
     $badge = [
         'draft' => 'secondary',
         'under_review' => 'warning text-dark',
@@ -28,6 +29,9 @@
         <span class="badge bg-secondary">V{{ $document->template_version }}</span>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('admin.project-docs.documents.help') }}" class="btn btn-outline-info" title="معلومات ونصائح">
+            <i class="bi bi-question-circle"></i> معلومات
+        </a>
         @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'view')
         <a href="{{ route('admin.project-docs.documents.print', $document) }}" target="_blank" class="btn btn-outline-dark">
             <i class="bi bi-printer"></i> طباعة A4
@@ -78,6 +82,7 @@
                     <div class="col-md-4 mb-1"><span class="text-muted">الاعتماد:</span>
                         <strong>{{ $document->signed_at ? \Illuminate\Support\Carbon::parse($document->signed_at)->format('d/m/Y H:i') : '—' }}</strong>
                     </div>
+                    <div class="col-md-4 mb-1"><span class="text-muted">عدد الصفحات:</span> <strong>{{ $pageCount }}</strong></div>
                     <div class="col-md-4 mb-1"><span class="text-muted">آخر تحديث:</span> <strong>{{ $document->updated_at?->format('d/m/Y H:i') }}</strong></div>
                 </div>
             </div>
@@ -87,6 +92,7 @@
             @php
                 $block = $document->blocks->firstWhere('block_key', $section['key'] ?? null);
                 $filled = $block && $document->isBlockComplete($block);
+                $sectionPage = $block?->page_number ?? 1;
                 $typeLabels = ['fields' => 'حقول', 'paragraph' => 'فقرة', 'table' => 'جدول', 'list' => 'قائمة'];
             @endphp
             <div class="card mb-3">
@@ -94,6 +100,9 @@
                     <span class="fw-bold">{{ $section['title'] ?? $section['key'] }}</span>
                     <span>
                         <span class="badge bg-light text-dark border">{{ $typeLabels[$section['type']] ?? $section['type'] }}</span>
+                        @if ($pageCount > 1)
+                            <span class="badge bg-primary-subtle text-primary">صفحة {{ $sectionPage }}</span>
+                        @endif
                         @if (!empty($section['assignee_role']))
                             <span class="badge bg-info text-dark">يُعبأ بواسطة: {{ $section['assignee_role'] }}</span>
                         @endif
