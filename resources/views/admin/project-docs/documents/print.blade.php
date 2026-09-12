@@ -19,7 +19,7 @@
             background-repeat: repeat;
             background-position: top center;
             max-width: 210mm; margin: 0 auto 10mm; min-height: 297mm;
-            padding: 30mm 18mm 22mm;
+            padding: 34mm 18mm 22mm;
             font-family: 'Tajawal Local', 'Tajawal', sans-serif;
             page-break-after: always;
         }
@@ -63,7 +63,9 @@
             $page = (int) ($block?->page_number ?? 1);
             $grouped[$page][] = ['section' => $section, 'block' => $block];
         }
-        $totalPages = max($pageCount, max(array_keys($grouped) ?: [1], 1));
+        $allPages = array_keys($grouped);
+        $maxUsed = $allPages ? max($allPages) : 1;
+        $totalPages = max($pageCount, $maxUsed);
     @endphp
     <div class="no-print">
         <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> طباعة / حفظ PDF</button>
