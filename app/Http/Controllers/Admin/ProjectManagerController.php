@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Logistics\PurchaseRequest;
+use App\Models\Admin\ProjectActivity;
 use App\Models\Admin\ProjectTask;
 use App\Models\Admin\Student\Student;
 use App\Models\Admin\Student\TrainingPlan;
@@ -73,6 +74,15 @@ class ProjectManagerController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
+        $recentActivities = ProjectActivity::query()
+            ->with(['project', 'creator'])
+            ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->orderBy('activity_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(6)
+            ->get();
+
         $scopeCenterId = $centerId;
         $scopeProjectId = $projectId;
         $scopeCohortId = $cohortId;
@@ -83,7 +93,7 @@ class ProjectManagerController extends Controller
         return view('admin.project-manager.dashboard', compact(
             'studentsCount', 'tasksCount', 'myTasksCount', 'trainingPlansCount',
             'pendingPricingCount', 'awaitingMySignCount', 'approvedCount', 'executedCount',
-            'recentPurchaseRequests', 'statusCounts',
+            'recentPurchaseRequests', 'statusCounts', 'recentActivities',
             'scopeCenterId', 'scopeProjectId', 'scopeCohortId',
             'scopeCenter', 'scopeProject', 'scopeCohort'
         ));

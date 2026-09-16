@@ -39,5 +39,23 @@ Route::middleware('auth')->group(function () {
         ->name('password.confirm');
 });
 
+// Generic authenticated landing page and account settings (Flux starter-kit surface)
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
+
+    Route::redirect('settings', 'settings/profile');
+
+    Volt::route('settings/profile', 'settings.profile')
+        ->name('settings.profile');
+
+    Volt::route('settings/password', 'settings.password')
+        ->name('settings.password');
+
+    Volt::route('settings/appearance', 'settings.appearance')
+        ->name('settings.appearance');
+});
+
 Route::post('logout', App\Livewire\Actions\Logout::class)
     ->name('logout');

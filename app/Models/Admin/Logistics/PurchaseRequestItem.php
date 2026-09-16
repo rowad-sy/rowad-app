@@ -11,7 +11,7 @@ class PurchaseRequestItem extends Model
 
     protected $fillable = [
         'purchase_request_id', 'description', 'quantity', 'unit',
-        'unit_price', 'total_price', 'notes',
+        'unit_price', 'total_price', 'notes', 'budget_line',
     ];
 
     protected function casts(): array
@@ -20,6 +20,7 @@ class PurchaseRequestItem extends Model
             'quantity' => 'integer',
             'unit_price' => 'decimal:2',
             'total_price' => 'decimal:2',
+            'budget_line' => 'decimal:2',
         ];
     }
 

@@ -28,7 +28,66 @@
     </div>
 </div>
 
-@include('admin.partials._shortcuts')
+@include('admin.partials._shortcuts', ['hideMovement' => true, 'hideCurriculum' => true])
+
+{{-- My Recent Activities --}}
+<div class="d-flex align-items-center gap-2 mb-3">
+    <div class="bg-warning" style="width: 4px; height: 24px; border-radius: 2px;"></div>
+    <h5 class="mb-0 fw-bold">أنشطتي</h5>
+    <span class="badge bg-secondary">{{ $myActivitiesCount }}</span>
+</div>
+<div class="table-container mb-4">
+    <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+        <h5 class="mb-0"><i class="bi bi-stars me-1"></i> آخر الأنشطة</h5>
+        @canPermission('App\Models\Admin\ProjectActivity', 'create')
+        <a href="{{ route('admin.project-activities.create') }}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-lg"></i> إضافة نشاط
+        </a>
+        @endcanPermission
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>التاريخ</th>
+                    <th>المسؤول</th>
+                    <th>الجهة المستفيدة</th>
+                    <th>ذكور/إناث</th>
+                    <th>سير النشاط</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($myRecentActivities ?? [] as $activity)
+                    <tr>
+                        <td>{{ $activity->activity_date?->format('d/m/Y') }}</td>
+                        <td>{{ $activity->responsible ?: '—' }}</td>
+                        <td>{{ $activity->beneficiary ?: '—' }}</td>
+                        <td class="text-nowrap">
+                            <span class="badge bg-primary-subtle text-primary">{{ $activity->male_count }} ذكر</span>
+                            <span class="badge bg-info-subtle text-info">{{ $activity->female_count }} أنثى</span>
+                        </td>
+                        <td class="small">{{ Str::limit($activity->progress, 50) ?: '—' }}</td>
+                        <td>
+                            @canPermission('App\Models\Admin\ProjectActivity', 'edit')
+                            <a href="{{ route('admin.project-activities.edit', $activity) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            @endcanPermission
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-stars fs-3 d-block mb-2"></i>
+                            لا توجد أنشطة مسجلة بعد
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
 
 {{-- Student / Attendance Cards --}}
 <div class="row g-3 mb-4">

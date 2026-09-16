@@ -24,15 +24,24 @@
     $isDirectManager = $user->id === $purchaseRequest->refer_to_direct_manager_id;
     $isPm2 = $user->id === $purchaseRequest->refer_to_pm2_id;
     $isFinance = $user->id === $purchaseRequest->refer_to_finance_id;
+    $isExecutive = $user->id === $purchaseRequest->refer_to_executive_id;
+    $isCurrentHolder = $purchaseRequest->isCurrentRecipient($user->id)
+        || ($purchaseRequest->status === 'pending' && $isLogistics)
+        || ($purchaseRequest->status === 'priced' && $isDirectManager)
+        || ($purchaseRequest->status === 'pm_approved' && $isPm2)
+        || ($purchaseRequest->status === 'pm2_approved' && $isFinance)
+        || ($purchaseRequest->status === 'finance_approved' && $isExecutive);
 
     $statusColors = [
         'pending' => 'warning text-dark', 'priced' => 'info', 'pm_approved' => 'primary',
-        'pm2_approved' => 'primary', 'approved' => 'success', 'rejected' => 'danger', 'executed' => 'dark',
+        'pm2_approved' => 'primary', 'finance_approved' => 'primary', 'approved' => 'success',
+        'rejected' => 'danger', 'executed' => 'dark',
     ];
     $statusLabel = \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$purchaseRequest->status] ?? $purchaseRequest->status;
     $stepColor = [
         'create' => 'secondary', 'priced' => 'info', 'pm_approved' => 'primary',
-        'pm2_approved' => 'primary', 'approved' => 'success', 'rejected' => 'danger', 'executed' => 'dark',
+        'pm2_approved' => 'primary', 'finance_approved' => 'primary', 'approved' => 'success',
+        'rejected' => 'danger', 'executed' => 'dark',
     ];
 @endphp
 
@@ -93,7 +102,7 @@
                 @if ($purchaseRequest->isLocked())
                     <div class="mt-3 alert alert-warning py-2 small mb-0">
                         <i class="bi bi-lock-fill me-1"></i>
-                        الطلب <strong>مقفول نهائياً</strong> بعد موافقة مدير المشروع —
+                        الطلب <strong>مقفول نهائياً</strong> بعد الاعتماد —
                         @if ($purchaseRequest->locked_at)
                             أُغلق بواسطة {{ $purchaseRequest->lockedByUser?->name ?? '—' }} بتاريخ {{ $purchaseRequest->locked_at->format('Y-m-d H:i') }}
                         @else
@@ -119,6 +128,7 @@
                                     <th>الوصف</th>
                                     <th>الكمية</th>
                                     <th>الوحدة</th>
+                                    <th>خط الميزانية</th>
                                     <th>سعر الوحدة</th>
                                     <th>الإجمالي</th>
                                     <th>ملاحظات</th>
@@ -131,6 +141,7 @@
                                         <td>{{ $item->description }}</td>
                                         <td>{{ $item->quantity }}</td>
                                         <td>{{ $item->unit }}</td>
+                                        <td>{{ $item->budget_line !== null ? number_format($item->budget_line, 0) : '—' }}</td>
                                         <td>{{ number_format($item->unit_price, 2) }}</td>
                                         <td>{{ number_format($item->total_price, 2) }}</td>
                                         <td>{{ $item->notes ?? '—' }}</td>
@@ -139,7 +150,7 @@
                             </tbody>
                             <tfoot>
                                 <tr class="fw-bold">
-                                    <td colspan="5" class="text-start">الإجمالي الكلي</td>
+                                    <td colspan="6" class="text-start">الإجمالي الكلي</td>
                                     <td>{{ number_format($purchaseRequest->total_price, 2) }}</td>
                                     <td></td>
                                 </tr>
@@ -175,9 +186,37 @@
                         <span class="label">مدير المالية</span>
                         <span class="value">{{ $purchaseRequest->financeUser?->name ?? '—' }}</span>
                     </div>
+                    <div class="info-item">
+                        <span class="label">المدير التنفيذي</span>
+                        <span class="value">{{ $purchaseRequest->executiveUser?->name ?? '—' }}</span>
+                    </div>
                 </div>
             </div>
         </div>
+
+        @if ($isCurrentHolder && ! in_array($purchaseRequest->status, ['approved', 'executed', 'rejected'], true))
+        <div class="table-container mb-3">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-0"><i class="bi bi-send me-1"></i> إعادة إحالة</h5>
+            </div>
+            <div class="p-3">
+                <form method="POST" action="{{ route('admin.logistics.purchase-requests.refer', $purchaseRequest) }}">
+                    @csrf
+                    <input type="hidden" name="step"
+                           value="{{ $purchaseRequest->status === 'pending' ? 'logistics' : ($purchaseRequest->status === 'priced' ? 'direct_manager' : ($purchaseRequest->status === 'pm_approved' ? 'pm2' : ($purchaseRequest->status === 'pm2_approved' ? 'finance' : 'executive'))) }}">
+                    <label class="form-label small fw-bold">إحالة إلى</label>
+                    <select name="to_user_id" class="form-select form-select-sm mb-2" required>
+                        <option value="">— اختر —</option>
+                        @foreach ($candidates ?? [] as $candidate)
+                            <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                        @endforeach
+                    </select>
+                    <input type="text" name="note" class="form-control form-control-sm mb-2" placeholder="ملاحظة (اختياري)">
+                    <button class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-send me-1"></i> إعادة إحالة</button>
+                </form>
+            </div>
+        </div>
+        @endif
 
         <div class="table-container">
             <div class="p-3 border-bottom">
@@ -204,6 +243,7 @@
             || ($purchaseRequest->status === 'priced' && $isDirectManager)
             || ($purchaseRequest->status === 'pm_approved' && $isPm2)
             || ($purchaseRequest->status === 'pm2_approved' && $isFinance)
+            || ($purchaseRequest->status === 'finance_approved' && $isExecutive)
             || ($purchaseRequest->status === 'approved' && $isLogistics);
     @endphp
     @if ($canAct)
@@ -286,7 +326,38 @@
                             <div class="col-md-6">
                                 <label class="form-label small mb-1">القرار <span class="text-danger">*</span></label>
                                 <select name="decision" class="form-select" required>
-                                    <option value="approve">اعتماد نهائي</option>
+                                    <option value="approve">موافقة المالية</option>
+                                    <option value="reject">رفض الطلب</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">إحالة إلى المدير التنفيذي <span class="text-danger">*</span></label>
+                                <select name="refer_to_executive_id" class="form-select" required>
+                                    @foreach ($candidates ?? [] as $candidate)
+                                        <option value="{{ $candidate->id }}"
+                                            {{ old('refer_to_executive_id', $purchaseRequest->refer_to_executive_id ?? $tentativeExecutiveId ?? '') == $candidate->id ? 'selected' : '' }}>
+                                            {{ $candidate->name }} — {{ $candidate->jobTitle?->title_ar ?? ($candidate->type === 'super-admin' ? 'إدارة' : 'موظف') }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small mb-1">ملاحظات</label>
+                                <textarea name="note" class="form-control" rows="2"></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success mt-3">
+                            <i class="bi bi-check-lg me-1"></i> اعتماد ومدير المالية
+                        </button>
+                    </form>
+                @elseif ($purchaseRequest->status === 'finance_approved')
+                    <form method="POST" action="{{ route('admin.logistics.purchase-requests.executive-decide', $purchaseRequest) }}">
+                        @csrf
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">القرار <span class="text-danger">*</span></label>
+                                <select name="decision" class="form-select" required>
+                                    <option value="approve">اعتماد نهائي وقفل الطلب</option>
                                     <option value="reject">رفض الطلب</option>
                                 </select>
                             </div>
@@ -296,7 +367,7 @@
                             </div>
                         </div>
                         <button type="submit" class="btn btn-success mt-3">
-                            <i class="bi bi-check-lg me-1"></i> اعتماد الطلب
+                            <i class="bi bi-check-lg me-1"></i> اعتماد الطلب نهائياً
                         </button>
                     </form>
                 @elseif ($purchaseRequest->status === 'approved')

@@ -41,10 +41,14 @@ class VerifyEmailController extends Controller
             return route('admin.beneficiary.dashboard', absolute: false);
         }
 
-        $employee = Employee::where('user_id', $user->id)->first();
-        return $employee
-            ? route('admin.hr.employees.show', $employee, absolute: false)
-            : route('admin.dashboard', absolute: false);
+        if ($user->type === 'employee' || $user->type === 'super-admin') {
+            $employee = Employee::where('user_id', $user->id)->first();
+            return $employee
+                ? route('admin.hr.employees.show', $employee, absolute: false)
+                : route('admin.dashboard', absolute: false);
+        }
+
+        return route('dashboard', absolute: false);
     }
 }
 

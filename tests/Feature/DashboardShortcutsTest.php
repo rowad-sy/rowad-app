@@ -44,14 +44,18 @@ test('project manager dashboard renders with shortcuts for an authorised user', 
         ->assertSeeText('طلب شراء جديد');
 });
 
-test('project officer dashboard renders with shortcuts for an authorised user', function () {
+test('project officer dashboard hides movement and curriculum shortcuts', function () {
     $user = shortcutUser(PO_DASH_MODEL);
 
     $this->actingAs($user)->get('/admin/project-officer')
         ->assertOk()
         ->assertSeeText('وصول سريع')
-        ->assertSeeText('خطة حركة جديدة')
-        ->assertSeeText('طلب شراء جديد');
+        ->assertDontSeeText('خطة حركة جديدة')
+        ->assertDontSeeText('خطط الحركة')
+        ->assertDontSeeText('إدارة المقررات')
+        ->assertSeeText('طلب شراء جديد')
+        ->assertSeeText('خطة إعلامية جديدة')
+        ->assertSeeText('تذكرة تقنية جديدة');
 });
 
 test('dashboards are forbidden without the page permission', function () {

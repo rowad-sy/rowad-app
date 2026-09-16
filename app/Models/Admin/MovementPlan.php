@@ -2,6 +2,7 @@
 
 namespace App\Models\Admin;
 
+use App\Models\Concerns\ManagesReferrals;
 use App\Models\Concerns\RecordsWorkflow;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MovementPlan extends Model
 {
-    use RecordsWorkflow;
+    use RecordsWorkflow, ManagesReferrals;
 
     protected $table = 'movement_plans';
 
@@ -18,7 +19,7 @@ class MovementPlan extends Model
         'request_number', 'created_by', 'center_id', 'project_id',
         'movement_date', 'departure_time', 'return_time',
         'from_location', 'to_location', 'purpose', 'notes',
-        'refer_to_movement_officer_id', 'assigned_by', 'assigned_at',
+        'refer_to_movement_officer_id', 'refer_to_pm2_id', 'assigned_by', 'assigned_at',
         'completed_at', 'status', 'reason',
     ];
 
@@ -65,6 +66,11 @@ class MovementPlan extends Model
         return $this->belongsTo(User::class, 'refer_to_movement_officer_id');
     }
 
+    public function projectsManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'refer_to_pm2_id');
+    }
+
     public function assigner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');
@@ -73,5 +79,41 @@ class MovementPlan extends Model
     public function recipients(): HasMany
     {
         return $this->hasMany(MovementPlanRecipient::class, 'movement_plan_id');
+    }
+
+    /*
+     * حصرية الرؤية (الإحالات): المنشئ + المستلَمون الحاليون (إدارة
+     * المشاريع / مسؤول الحركة / المتابِعون) هم من يرون الخطة فقط.
+     */
+    public function isVisibleToUserId(?int $userId): bool
+    {
+        if ($userId === null) {
+            return false;
+        }
+
+        if ((int) $this->created_by === $userId) {
+            return true;
+        }
+
+        if ($this->isCurrentRecipient($userId)) {
+            return true;
+        }
+
+        return in_array($userId, [
+            (int) $this->refer_to_pm2_id,
+            (int) $this->refer_to_movement_officer_id,
+        ], true);
+    }
+
+    /*
+     * هل المستخدم من جهات المتابعة (المستفيدين)؟
+     */
+    public function isRecipientOfUserId(?int $userId): bool
+    {
+        if ($userId === null) {
+            return false;
+        }
+
+        return $this->recipients()->where('user_id', $userId)->exists();
     }
 }

@@ -5,6 +5,13 @@
 @section('content')
 @php
     $colors = ['review' => 'bg-warning text-dark', 'approved' => 'bg-info', 'assigned' => 'bg-primary', 'completed' => 'bg-success', 'rejected' => 'bg-danger', 'cancelled' => 'bg-secondary'];
+
+    $user = auth()->user();
+    $uid = $user->id;
+    $isSuper = $user->type === 'super-admin';
+    $isPm2 = $uid === (int) $plan->refer_to_pm2_id;
+    $isOfficer = $uid === (int) $plan->refer_to_movement_officer_id;
+    $isCurrentHolder = $plan->isCurrentRecipient($uid);
 @endphp
 
 <div class="page-header d-flex justify-content-between align-items-center">
@@ -42,6 +49,7 @@
                     <tr><th>المركز</th><td>{{ $plan->center?->name ?? '—' }}</td></tr>
                     <tr><th>المشروع</th><td>{{ $plan->project?->name ?? '—' }}</td></tr>
                     <tr><th>أنشأها</th><td>{{ $plan->creator?->name ?? '—' }}</td></tr>
+                    <tr><th>إدارة المشاريع (المراجعة)</th><td>{{ $plan->projectsManager?->name ?? '—' }}</td></tr>
                     <tr><th>مسؤول الحركة</th><td>{{ $plan->movementOfficer?->name ?? '—' }}</td></tr>
                     <tr><th>وزّع المتابعة</th><td>{{ $plan->assigner?->name ?? '—' }} {{ $plan->assigned_at ? '— ' . $plan->assigned_at->format('Y-m-d H:i') : '' }}</td></tr>
                     @if ($plan->reason)
@@ -99,6 +107,7 @@
     <div class="col-lg-4">
         @canPermission('App\Models\Admin\MovementPlan', 'edit')
         @if ($plan->status === 'review')
+            @if ($isSuper || $isPm2 || $isCurrentHolder || ($plan->refer_to_pm2_id === null && $uid !== (int) $plan->created_by))
             <div class="table-container mb-3">
                 <div class="p-3 border-bottom"><h5 class="mb-0">إجراءات إدارة المشاريع</h5></div>
                 <div class="p-3">
@@ -123,7 +132,9 @@
                     </form>
                 </div>
             </div>
+            @endif
         @elseif ($plan->status === 'approved')
+            @if ($isSuper || $isOfficer || $isCurrentHolder)
             <div class="table-container mb-3">
                 <div class="p-3 border-bottom"><h5 class="mb-0">توزيع المتابعة (مسؤول الحركة)</h5></div>
                 <div class="p-3">
@@ -139,7 +150,9 @@
                     </form>
                 </div>
             </div>
+            @endif
         @elseif ($plan->status === 'assigned')
+            @if ($isSuper || $isOfficer || $isCurrentHolder)
             <div class="table-container mb-3">
                 <div class="p-3 border-bottom"><h5 class="mb-0">إكمال الخطة</h5></div>
                 <div class="p-3">
@@ -149,8 +162,30 @@
                     </form>
                 </div>
             </div>
+            @endif
         @endif
         @endcanPermission
+
+        @if (! in_array($plan->status, ['completed', 'rejected', 'cancelled'], true))
+        <div class="table-container mb-3">
+            <div class="p-3 border-bottom"><h5 class="mb-0">إعادة إحالة</h5></div>
+            <div class="p-3">
+                <form method="POST" action="{{ route('admin.movement-plans.refer', $plan) }}">
+                    @csrf
+                    <input type="hidden" name="step" value="{{ $plan->status === 'review' ? 'pm2' : 'movement_officer' }}">
+                    <label class="form-label small fw-bold">إحالة إلى</label>
+                    <select name="to_user_id" class="form-select form-select-sm mb-2" required>
+                        <option value="">— اختر —</option>
+                        @foreach ($users as $u)
+                            <option value="{{ $u->id }}">{{ $u->name }}</option>
+                        @endforeach
+                    </select>
+                    <input type="text" name="note" class="form-control form-control-sm mb-2" placeholder="ملاحظة (اختياري)">
+                    <button class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-send me-1"></i> إعادة إحالة</button>
+                </form>
+            </div>
+        </div>
+        @endif
 
         <div class="table-container">
             <div class="p-3 border-bottom"><h5 class="mb-0">مسار الدورة</h5></div>

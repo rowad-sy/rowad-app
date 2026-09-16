@@ -12,13 +12,16 @@
         <h4>خطة الحركة</h4>
         <p>طلبات الحركة بين المراكز: مدير مشروع → إدارة المشاريع → مسؤول الحركة → المتابِعون</p>
     </div>
-    @canPermission('App\Models\Admin\MovementPlan', 'create')
-    <div>
+    <div class="d-flex gap-2">
+        <a href="{{ route('admin.movement-plans.help') }}" class="btn btn-outline-info">
+            <i class="bi bi-question-circle me-1"></i> معلومات ونصائح
+        </a>
+        @canPermission('App\Models\Admin\MovementPlan', 'create')
         <a href="{{ route('admin.movement-plans.create') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> خطة حركة جديدة
         </a>
+        @endcanPermission
     </div>
-    @endcanPermission
 </div>
 
 <div class="table-container">

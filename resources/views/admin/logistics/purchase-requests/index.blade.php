@@ -9,6 +9,9 @@
         <p>إدارة طلبات الشراء والتوريد</p>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('admin.logistics.purchase-requests.help') }}" class="btn btn-outline-info">
+            <i class="bi bi-question-circle me-1"></i> معلومات ونصائح
+        </a>
         @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'create')
         <a href="{{ route('admin.logistics.purchase-requests.create') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> إضافة طلب شراء

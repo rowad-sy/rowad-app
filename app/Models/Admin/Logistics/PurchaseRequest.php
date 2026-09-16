@@ -4,6 +4,7 @@ namespace App\Models\Admin\Logistics;
 
 use App\Models\Admin\Center;
 use App\Models\Admin\Project;
+use App\Models\Concerns\ManagesReferrals;
 use App\Models\Concerns\RecordsWorkflow;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseRequest extends Model
 {
-    use SoftDeletes, RecordsWorkflow;
+    use SoftDeletes, RecordsWorkflow, ManagesReferrals;
 
     protected $table = 'logistics_purchase_requests';
 
@@ -23,6 +24,7 @@ class PurchaseRequest extends Model
         'center_id', 'project_id', 'status', 'notes', 'signature_path',
         'budget_number', 'locked_at', 'locked_by',
         'refer_to_logistics_id', 'refer_to_direct_manager_id', 'refer_to_pm2_id', 'refer_to_finance_id',
+        'refer_to_executive_id', 'finance_at',
         'approved_at',
     ];
 
@@ -34,6 +36,7 @@ class PurchaseRequest extends Model
             'expected_total_price' => 'decimal:2',
             'locked_at' => 'datetime',
             'approved_at' => 'datetime',
+            'finance_at' => 'datetime',
         ];
     }
 
@@ -46,6 +49,7 @@ class PurchaseRequest extends Model
         'priced' => 'مُسعَّر',
         'pm_approved' => 'وافق مدير المشروع',
         'pm2_approved' => 'وافق مدير المشاريع',
+        'finance_approved' => 'وافق المسؤول المالي',
         'approved' => 'معتمد',
         'rejected' => 'مرفوض',
         'executed' => 'منفَّذ',
@@ -96,6 +100,11 @@ class PurchaseRequest extends Model
         return $this->belongsTo(User::class, 'refer_to_finance_id');
     }
 
+    public function executiveUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'refer_to_executive_id');
+    }
+
     public function lockedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'locked_by');
@@ -112,13 +121,13 @@ class PurchaseRequest extends Model
     }
 
     /*
-     * الطلب مقفول نهائياً (قسم 14.4): بمجرد موافقة مدير المشروع لا تقبل
-     * أي تعديلات/حذف من أي دور، بما فيها اللوجستي نفسه.
+     * الطلب مقفول نهائياً: بمجرد اعتماد المدير التنفيذي لا تقبل أي
+     * تعديلات/حذف. (نُقل القفل من موافقة مدير المشروع إلى الاعتماد النهائي.)
      */
     public function isLocked(): bool
     {
         return $this->locked_at !== null
-            || in_array($this->status, ['pm_approved', 'pm2_approved', 'approved', 'executed'], true);
+            || in_array($this->status, ['approved', 'executed'], true);
     }
 
     /*
@@ -132,7 +141,35 @@ class PurchaseRequest extends Model
             'priced' => $this->refer_to_direct_manager_id,
             'pm_approved' => $this->refer_to_pm2_id,
             'pm2_approved' => $this->refer_to_finance_id,
+            'finance_approved' => $this->refer_to_executive_id,
             default => null,
         };
+    }
+
+    /*
+     * حصرية الرؤية (الإحالات): المنشئ + المستلَمون الحاليون (عبر
+     * الإحالات النشطة أو الأعمدة القديمة المتوافقة) هم من يرون الطلب فقط.
+     */
+    public function isVisibleToUserId(?int $userId): bool
+    {
+        if ($userId === null) {
+            return false;
+        }
+
+        if ((int) $this->user_id === $userId) {
+            return true;
+        }
+
+        if ($this->isCurrentRecipient($userId)) {
+            return true;
+        }
+
+        return in_array($userId, [
+            (int) $this->refer_to_logistics_id,
+            (int) $this->refer_to_direct_manager_id,
+            (int) $this->refer_to_pm2_id,
+            (int) $this->refer_to_finance_id,
+            (int) $this->refer_to_executive_id,
+        ], true);
     }
 }

@@ -79,7 +79,7 @@ class ProjectsManagerController extends Controller
             ->get();
 
         // ── الوثائق (تغييرات الوثائق + قيد المراجعة) ──
-        $documentsUnderReview = AnnexDocument::with(['template', 'project', 'center', 'creator'])
+        $documentsUnderReview = AnnexDocument::with(['template', 'project', 'creator'])
             ->where('status', 'under_review')
             ->orderBy('updated_at', 'desc')
             ->limit(8)

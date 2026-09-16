@@ -43,10 +43,11 @@
                                 <tr>
                                     <th>#</th>
                                     <th>الوصف</th>
-                                    <th style="width:12%">الكمية</th>
-                                    <th style="width:12%">الوحدة</th>
-                                    <th style="width:15%">سعر الوحدة</th>
-                                    <th style="width:15%">الإجمالي</th>
+                                    <th style="width:10%">الكمية</th>
+                                    <th style="width:10%">الوحدة</th>
+                                    <th style="width:12%">خط الميزانية</th>
+                                    <th style="width:14%">سعر الوحدة</th>
+                                    <th style="width:14%">الإجمالي</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -61,6 +62,14 @@
                                         </td>
                                         <td>{{ $item->quantity }}</td>
                                         <td>{{ $item->unit }}</td>
+                                        <td>
+                                            <input type="number"
+                                                   name="items[{{ $i }}][budget_line]"
+                                                   value="{{ old('items.' . $i . '.budget_line', $item->budget_line) }}"
+                                                   class="form-control form-control-sm"
+                                                   min="0" step="0.01" inputmode="decimal"
+                                                   placeholder="خط البند">
+                                        </td>
                                         <td>
                                             <input type="number"
                                                    name="items[{{ $i }}][id]"
@@ -78,7 +87,7 @@
                             </tbody>
                             <tfoot>
                                 <tr class="fw-bold">
-                                    <td colspan="5" class="text-start">الإجمالي الكلي</td>
+                                    <td colspan="6" class="text-start">الإجمالي الكلي</td>
                                     <td id="grandTotal">{{ number_format($purchaseRequest->total_price, 2) }}</td>
                                 </tr>
                             </tfoot>
@@ -86,6 +95,7 @@
                     </div>
                     @error('items') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                     @error('items.*.unit_price') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                    @error('items.*.budget_line') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                 </div>
 
                 <div class="alert alert-info small">

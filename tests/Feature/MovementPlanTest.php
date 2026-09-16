@@ -27,6 +27,18 @@ function movementPermission(User $user, array $flags = []): Permission
     ], $flags));
 }
 
+function projectsManagerPermission(User $user): Permission
+{
+    return Permission::create([
+        'user_id' => $user->id,
+        'model_names' => ['page:admin.project-manager.dashboard'],
+        'can_view' => true,
+        'can_create' => false,
+        'can_edit' => false,
+        'can_delete' => false,
+    ]);
+}
+
 function movementPlanFields(array $overrides = []): array
 {
     return array_merge([
@@ -183,12 +195,12 @@ test('movement officer can assign multiple recipients then complete the plan', f
 
     $pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
-    $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $pm->id]);
+    $officer = movementUser();
+    movementPermission($officer, ['can_edit' => true]);
+    $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id]);
 
     $recipientA = movementUser();
     $recipientB = movementUser();
-    $officer = movementUser();
-    movementPermission($officer, ['can_edit' => true]);
 
     $this->actingAs($officer)
         ->post("/admin/movement-plans/{$plan->id}/assign", [
@@ -220,12 +232,12 @@ test('assigning a plan replaces the previous recipients', function () {
 
     $pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
-    $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $pm->id]);
+    $officer = movementUser();
+    movementPermission($officer, ['can_edit' => true]);
+    $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id]);
 
     $recipientA = movementUser();
     $recipientB = movementUser();
-    $officer = movementUser();
-    movementPermission($officer, ['can_edit' => true]);
 
     $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/assign", [
         'user_ids' => [$recipientA->id],
@@ -261,14 +273,14 @@ test('index scope: recipients see plans they were assigned to', function () {
 
     $plan = MovementPlan::first();
 
-    $pm2 = movementUser();
+$pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
-    $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $pm->id]);
+    $officer = movementUser();
+    movementPermission($officer, ['can_edit' => true]);
+    $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id]);
 
     $recipient = movementUser();
     movementPermission($recipient);
-    $officer = movementUser();
-    movementPermission($officer, ['can_edit' => true]);
 
     $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/assign", [
         'user_ids' => [$recipient->id],
@@ -318,16 +330,18 @@ test('create form is forbidden without create permission', function () {
 test('show page renders the plan through every workflow stage', function () {
     $pm = movementUser();
     movementPermission($pm, ['can_create' => true]);
-    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
-
-    $plan = MovementPlan::first();
 
     $pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
+    projectsManagerPermission($pm2);
 
     $recipient = movementUser();
     $officer = movementUser();
     movementPermission($officer, ['can_edit' => true]);
+
+    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
+
+    $plan = MovementPlan::first();
 
     $this->actingAs($pm2)->get("/admin/movement-plans/{$plan->id}")
         ->assertOk()
@@ -356,11 +370,14 @@ test('show page renders the plan through every workflow stage', function () {
 test('show page renders a rejected plan with its reason', function () {
     $pm = movementUser();
     movementPermission($pm, ['can_create' => true]);
+
+    $pm2 = movementUser();
+    movementPermission($pm2, ['can_edit' => true]);
+    projectsManagerPermission($pm2);
+
     $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
 
     $plan = MovementPlan::first();
-    $pm2 = movementUser();
-    movementPermission($pm2, ['can_edit' => true]);
 
     $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/reject", ['reason' => 'نقص الحافلة']);
     $this->actingAs($pm2)->get("/admin/movement-plans/{$plan->id}")

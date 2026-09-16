@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Logistics\PurchaseRequest;
+use App\Models\Admin\ProjectActivity;
 use App\Models\Admin\Student\Student;
 use Illuminate\Support\Facades\DB;
 
@@ -61,6 +62,20 @@ class ProjectOfficerController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
+        $myRecentActivities = ProjectActivity::query()
+            ->with(['project', 'center', 'creator'])
+            ->where(fn ($q) => $q->where('created_by', auth()->id())
+                ->when($centerId, fn ($qc) => $qc->orWhere('center_id', $centerId))
+                ->when($projectId, fn ($qp) => $qp->orWhere('project_id', $projectId)))
+            ->orderBy('activity_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(6)
+            ->get();
+
+        $myActivitiesCount = ProjectActivity::query()
+            ->where('created_by', auth()->id())
+            ->count();
+
         $scopeCenterId = $centerId;
         $scopeProjectId = $projectId;
         $scopeCohortId = $cohortId;
@@ -71,7 +86,7 @@ class ProjectOfficerController extends Controller
         return view('admin.project-officer.dashboard', compact(
             'studentsCount', 'todayAttendance',
             'myRequestsCount', 'myPendingPricing', 'myPriced', 'myInCycle', 'myApproved', 'myRejected',
-            'myRecentRequests', 'statusCounts',
+            'myRecentRequests', 'statusCounts', 'myRecentActivities', 'myActivitiesCount',
             'scopeCenterId', 'scopeProjectId', 'scopeCohortId',
             'scopeCenter', 'scopeProject', 'scopeCohort'
         ));

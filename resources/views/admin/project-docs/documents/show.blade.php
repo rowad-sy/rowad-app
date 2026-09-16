@@ -76,7 +76,6 @@
             <div class="card-body">
                 <div class="row small">
                     <div class="col-md-4 mb-1"><span class="text-muted">المشروع:</span> <strong>{{ $document->project?->name ?? '—' }}</strong></div>
-                    <div class="col-md-4 mb-1"><span class="text-muted">المركز:</span> <strong>{{ $document->center?->name ?? '—' }}</strong></div>
                     <div class="col-md-4 mb-1"><span class="text-muted">الفترة:</span> <strong>{{ $document->period ?? '—' }}</strong></div>
                     <div class="col-md-4 mb-1"><span class="text-muted">المنشئ:</span> <strong>{{ $document->creator?->name }}</strong></div>
                     <div class="col-md-4 mb-1"><span class="text-muted">الاعتماد:</span>

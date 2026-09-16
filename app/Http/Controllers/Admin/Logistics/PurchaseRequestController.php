@@ -17,15 +17,28 @@ class PurchaseRequestController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,view')->only(['index', 'show']);
+        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,view')->only(['index', 'show', 'help']);
         $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,create')->only(['create', 'store']);
-        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,edit')->only(['priceForm', 'price', 'managerDecide', 'pm2Decide', 'financeDecide', 'execute']);
+        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,edit')->only(['priceForm', 'price', 'managerDecide', 'pm2Decide', 'financeDecide', 'executiveDecide', 'execute', 'refer']);
         $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,delete')->only(['destroy']);
     }
 
     public function index(Request $request)
     {
         $query = PurchaseRequest::with(['user', 'center', 'project', 'items'])->withCount('items');
+
+        $user = auth()->user();
+        if ($user->type !== 'super-admin') {
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhere(fn ($s) => $s->where('refer_to_logistics_id', $user->id)
+                        ->orWhere('refer_to_direct_manager_id', $user->id)
+                        ->orWhere('refer_to_pm2_id', $user->id)
+                        ->orWhere('refer_to_finance_id', $user->id)
+                        ->orWhere('refer_to_executive_id', $user->id))
+                    ->orWhereHas('activeReferrals', fn ($r) => $r->where('to_user_id', $user->id));
+            });
+        }
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -73,6 +86,11 @@ class PurchaseRequestController extends Controller
         ));
     }
 
+    public function help()
+    {
+        return view('admin.logistics.purchase-requests.help');
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -86,6 +104,7 @@ class PurchaseRequestController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit' => 'required|string|max:50',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.budget_line' => 'nullable|numeric|min:0',
             'items.*.notes' => 'nullable|string|max:1000',
             'refer_to_logistics_id' => 'nullable|exists:users,id',
             'refer_to_direct_manager_id' => 'nullable|exists:users,id',
@@ -133,11 +152,16 @@ class PurchaseRequestController extends Controller
                 'unit' => $item['unit'],
                 'unit_price' => $item['unit_price'],
                 'total_price' => $item['quantity'] * $item['unit_price'],
+                'budget_line' => $item['budget_line'] ?? null,
                 'notes' => $item['notes'] ?? null,
             ]);
         }
 
         $this->createApprovals($purchaseRequest);
+
+        $this->pushReferral($purchaseRequest, 'logistics', $purchaseRequest->refer_to_logistics_id, null);
+        $this->pushReferral($purchaseRequest, 'direct_manager', $purchaseRequest->refer_to_direct_manager_id, null);
+
         $purchaseRequest->logWorkflow('create', $purchaseRequest->refer_to_logistics_id, 'تم إنشاء طلب الشراء');
 
         return redirect()->route('admin.logistics.purchase-requests.index')
@@ -146,9 +170,14 @@ class PurchaseRequestController extends Controller
 
     public function show(PurchaseRequest $purchaseRequest)
     {
+        $user = auth()->user();
+        if ($user->type !== 'super-admin' && !$purchaseRequest->isVisibleToUserId($user->id)) {
+            abort(403, 'هذا الطلب ليس موجهًا إليك');
+        }
+
         $purchaseRequest->load([
             'user', 'center', 'project', 'approvals.user', 'items',
-            'logisticsStaff', 'directManager', 'pm2User', 'financeUser', 'lockedByUser',
+            'logisticsStaff', 'directManager', 'pm2User', 'financeUser', 'executiveUser', 'lockedByUser',
             'workflowActions.fromUser', 'workflowActions.toUser',
         ]);
 
@@ -165,11 +194,21 @@ class PurchaseRequestController extends Controller
             ?? $candidates->first()?->id;
 
         $tentativeFinanceId = $purchaseRequest->refer_to_finance_id
+            ?? Permission::whereJsonContains('model_names', 'App\Models\Admin\Logistics\PurchaseRequest')
+                ->where('can_edit', 1)
+                ->whereNotNull('user_id')
+                ->whereNull('center_id')
+                ->whereNull('project_id')
+                ->orderBy('id')
+                ->value('user_id')
+            ?? $candidates->first()?->id;
+
+        $tentativeExecutiveId = $purchaseRequest->refer_to_executive_id
             ?? User::where('type', 'super-admin')->value('id')
             ?? $candidates->first()?->id;
 
         return view('admin.logistics.purchase-requests.show', compact(
-            'purchaseRequest', 'candidates', 'tentativePm2Id', 'tentativeFinanceId'
+            'purchaseRequest', 'candidates', 'tentativePm2Id', 'tentativeFinanceId', 'tentativeExecutiveId'
         ));
     }
 
@@ -195,6 +234,7 @@ class PurchaseRequestController extends Controller
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|integer',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.budget_line' => 'nullable|numeric|min:0',
         ]);
 
         $itemIds = $purchaseRequest->items()->pluck('id')->all();
@@ -213,6 +253,7 @@ class PurchaseRequestController extends Controller
             $row->update([
                 'unit_price' => $item['unit_price'],
                 'total_price' => $total,
+                'budget_line' => $item['budget_line'] ?? null,
             ]);
         }
 
@@ -222,10 +263,21 @@ class PurchaseRequestController extends Controller
             'status' => 'priced',
         ]);
 
+        $purchaseRequest->completeReferral('logistics');
+
+        $noteParts = [];
+        if (! empty($validated['budget_number'] ?? null)) {
+            $noteParts[] = 'رقم الميزانية: ' . $validated['budget_number'];
+        }
+        $budgetLines = collect($validated['items'])->pluck('budget_line')->filter();
+        if ($budgetLines->isNotEmpty()) {
+            $noteParts[] = 'خط الميزانية: ' . $budgetLines->implode(', ');
+        }
+
         $purchaseRequest->logWorkflow(
             'priced',
             $purchaseRequest->refer_to_direct_manager_id,
-            trim(($validated['budget_number'] ?? null) ? 'رقم الميزانية: ' . $validated['budget_number'] : ''),
+            trim(implode(' | ', $noteParts)),
             'priced'
         );
 
@@ -239,7 +291,7 @@ class PurchaseRequestController extends Controller
      */
     public function managerDecide(PurchaseRequest $purchaseRequest, Request $request)
     {
-        $this->authorizeRecipient($purchaseRequest, 'priced', 'refer_to_direct_manager_id');
+        $this->authorizeStep($purchaseRequest, 'direct_manager', 'priced');
 
         $validated = $request->validate([
             'decision' => 'required|in:approve,reject',
@@ -249,6 +301,7 @@ class PurchaseRequestController extends Controller
 
         if ($validated['decision'] === 'reject') {
             $purchaseRequest->update(['status' => 'rejected']);
+            $purchaseRequest->completeReferral('direct_manager');
             $purchaseRequest->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
 
             return redirect()->back()->with('error', 'تم رفض طلب الشراء من المدير المباشر');
@@ -256,10 +309,11 @@ class PurchaseRequestController extends Controller
 
         $purchaseRequest->update([
             'status' => 'pm_approved',
-            'locked_at' => now(),
-            'locked_by' => auth()->id(),
             'refer_to_pm2_id' => $validated['refer_to_pm2_id'],
         ]);
+
+        $purchaseRequest->completeReferral('direct_manager');
+        $this->pushReferral($purchaseRequest, 'pm2', $validated['refer_to_pm2_id'], $validated['note'] ?? null);
 
         $purchaseRequest->logWorkflow(
             'pm_approved',
@@ -268,12 +322,12 @@ class PurchaseRequestController extends Controller
             'pm_approved'
         );
 
-        return redirect()->back()->with('success', 'تمت الموافقة وقفل الطلب نهائياً، وإحالته إلى مدير المشاريع');
+        return redirect()->back()->with('success', 'تمت الموافقة وإحالة الطلب إلى مدير المشاريع');
     }
 
     public function pm2Decide(PurchaseRequest $purchaseRequest, Request $request)
     {
-        $this->authorizeRecipient($purchaseRequest, 'pm_approved', 'refer_to_pm2_id');
+        $this->authorizeStep($purchaseRequest, 'pm2', 'pm_approved');
 
         $validated = $request->validate([
             'decision' => 'required|in:approve,reject',
@@ -283,6 +337,7 @@ class PurchaseRequestController extends Controller
 
         if ($validated['decision'] === 'reject') {
             $purchaseRequest->update(['status' => 'rejected']);
+            $purchaseRequest->completeReferral('pm2');
             $purchaseRequest->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
 
             return redirect()->back()->with('error', 'تم رفض طلب الشراء من مدير المشاريع');
@@ -293,6 +348,9 @@ class PurchaseRequestController extends Controller
             'refer_to_finance_id' => $validated['refer_to_finance_id'],
         ]);
 
+        $purchaseRequest->completeReferral('pm2');
+        $this->pushReferral($purchaseRequest, 'finance', $validated['refer_to_finance_id'], $validated['note'] ?? null);
+
         $purchaseRequest->logWorkflow(
             'pm2_approved',
             $validated['refer_to_finance_id'],
@@ -300,12 +358,53 @@ class PurchaseRequestController extends Controller
             'pm2_approved'
         );
 
-        return redirect()->back()->with('success', 'تمت الموافقة وإحالة الطلب إلى مدير المالية');
+        return redirect()->back()->with('success', 'تمت الموافقة وإحالة الطلب إلى المسؤول المالي');
     }
 
     public function financeDecide(PurchaseRequest $purchaseRequest, Request $request)
     {
-        $this->authorizeRecipient($purchaseRequest, 'pm2_approved', 'refer_to_finance_id');
+        $this->authorizeStep($purchaseRequest, 'finance', 'pm2_approved');
+
+        $validated = $request->validate([
+            'decision' => 'required|in:approve,reject',
+            'note' => 'nullable|string|max:1000',
+            'refer_to_executive_id' => 'required_if:decision,approve|exists:users,id',
+        ]);
+
+        if ($validated['decision'] === 'reject') {
+            $purchaseRequest->update(['status' => 'rejected']);
+            $purchaseRequest->completeReferral('finance');
+            $purchaseRequest->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
+
+            return redirect()->back()->with('error', 'تم رفض طلب الشراء من المسؤول المالي');
+        }
+
+        $purchaseRequest->update([
+            'status' => 'finance_approved',
+            'refer_to_executive_id' => $validated['refer_to_executive_id'],
+            'finance_at' => now(),
+        ]);
+
+        $purchaseRequest->completeReferral('finance');
+        $this->pushReferral($purchaseRequest, 'executive', $validated['refer_to_executive_id'], $validated['note'] ?? null);
+
+        $purchaseRequest->logWorkflow(
+            'finance_approved',
+            $validated['refer_to_executive_id'],
+            $validated['note'] ?? null,
+            'finance_approved'
+        );
+
+        return redirect()->back()->with('success', 'تمت موافقة المالية وإحالة الطلب إلى المدير التنفيذي');
+    }
+
+    /*
+     * الاعتماد النهائي — المدير التنفيذي: هنا يُقفل الطلب نهائياً
+     * (locked_at/locked_by) ويصبح معتمداً.
+     */
+    public function executiveDecide(PurchaseRequest $purchaseRequest, Request $request)
+    {
+        $this->authorizeStep($purchaseRequest, 'executive', 'finance_approved');
 
         $validated = $request->validate([
             'decision' => 'required|in:approve,reject',
@@ -314,19 +413,43 @@ class PurchaseRequestController extends Controller
 
         if ($validated['decision'] === 'reject') {
             $purchaseRequest->update(['status' => 'rejected']);
+            $purchaseRequest->completeReferral('executive');
             $purchaseRequest->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
 
-            return redirect()->back()->with('error', 'تم رفض طلب الشراء من مدير المالية');
+            return redirect()->back()->with('error', 'تم رفض طلب الشراء من المدير التنفيذي');
         }
 
         $purchaseRequest->update([
             'status' => 'approved',
+            'locked_at' => now(),
+            'locked_by' => auth()->id(),
             'approved_at' => now(),
         ]);
 
+        $purchaseRequest->completeReferral('executive');
         $purchaseRequest->logWorkflow('approved', null, $validated['note'] ?? null, 'approved');
 
-        return redirect()->back()->with('success', 'تم اعتماد طلب الشراء نهائياً');
+        return redirect()->back()->with('success', 'تم اعتماد طلب الشراء نهائياً وقفله');
+    }
+
+    /*
+     * إعادة الإحالة: يقوم بها المستلَم الحالي للخطوة فقط، ويمكن أن يعيد
+     * إحالة الخطوة لشخص آخر (تبديل منفذ الخطوة دون تغيير الحالة).
+     */
+    public function refer(PurchaseRequest $purchaseRequest, Request $request)
+    {
+        $validated = $request->validate([
+            'step' => 'required|in:logistics,direct_manager,pm2,finance,executive',
+            'to_user_id' => 'required|exists:users,id',
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        $this->authorizeHolder($purchaseRequest, $validated['step']);
+
+        $this->pushReferral($purchaseRequest, $validated['step'], $validated['to_user_id'], $validated['note'] ?? null);
+        $purchaseRequest->logWorkflow('referred', $validated['to_user_id'], $validated['note'] ?? null);
+
+        return redirect()->back()->with('success', 'أُعيدت إحالة الطلب بنجاح');
     }
 
     /*
@@ -402,19 +525,63 @@ class PurchaseRequestController extends Controller
         }
     }
 
-    /*
-     * فحص "صلاحية الطرف المستقبِل" (الدراسة 14.5): صاحب الخطوة الحالية فقط.
-     */
-    private function authorizeRecipient(PurchaseRequest $purchaseRequest, string $expectedStatus, string $recipientColumn): void
-    {
-        $user = auth()->user();
+    private const STEP_COLUMNS = [
+        'logistics' => 'refer_to_logistics_id',
+        'direct_manager' => 'refer_to_direct_manager_id',
+        'pm2' => 'refer_to_pm2_id',
+        'finance' => 'refer_to_finance_id',
+        'executive' => 'refer_to_executive_id',
+    ];
 
-        if ($user->type !== 'super-admin' && $user->id !== (int) $purchaseRequest->{$recipientColumn}) {
-            abort(403, 'هذه الخطوة ليست موجهة إليك');
-        }
+    /*
+     * فحص "صاحب الخطوة الحالية" (الإحالات): المستلَم الحالي للخطوة فقط،
+     * مع التحقق من حالة الطلب المطلوبة للخطوة.
+     */
+    private function authorizeStep(PurchaseRequest $purchaseRequest, string $step, string $expectedStatus): void
+    {
+        $this->authorizeHolder($purchaseRequest, $step);
 
         if ($purchaseRequest->status !== $expectedStatus) {
             abort(403, 'حالة الطلب لا تسمح بهذه الخطوة');
+        }
+    }
+
+    /*
+     * المستلَم الحالي للخطوة (عبر الإحالة النشطة أو العمود القديم) —
+     * يستخدم للتصرف في الخطوة ولإعادة الإحالة.
+     */
+    private function authorizeHolder(PurchaseRequest $purchaseRequest, string $step): void
+    {
+        $user = auth()->user();
+
+        if ($user->type === 'super-admin') {
+            return;
+        }
+
+        $column = self::STEP_COLUMNS[$step] ?? null;
+
+        $isHolder = $purchaseRequest->isCurrentRecipient($user->id)
+            || ($column !== null && (int) $purchaseRequest->{$column} === (int) $user->id);
+
+        if (! $isHolder) {
+            abort(403, 'هذه الخطوة ليست موجهة إليك');
+        }
+    }
+
+    /*
+     * تسجيل إحالة (عقد حالي) في جدول referrals وتحديث العمود القديم معاً
+     * ليبقى كلاهما متوافقين (الإحالة هي المرجع في الرؤية والتحقق).
+     */
+    private function pushReferral(PurchaseRequest $purchaseRequest, string $step, ?int $toUserId, ?string $note): void
+    {
+        $column = self::STEP_COLUMNS[$step] ?? null;
+
+        if ($column !== null) {
+            $purchaseRequest->update([$column => $toUserId]);
+        }
+
+        if ($toUserId !== null) {
+            $purchaseRequest->referTo($toUserId, $step, $note);
         }
     }
 

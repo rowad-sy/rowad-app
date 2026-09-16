@@ -8,13 +8,16 @@
         <h4>الخطة الإعلامية</h4>
         <p>خطط الإعلام الشهرية وفعاليات التغطية</p>
     </div>
-    @canPermission('App\Models\Admin\MediaPlan', 'create')
-    <div>
+    <div class="d-flex gap-2">
+        <a href="{{ route('admin.media-plans.help') }}" class="btn btn-outline-info">
+            <i class="bi bi-question-circle me-1"></i> معلومات ونصائح
+        </a>
+        @canPermission('App\Models\Admin\MediaPlan', 'create')
         <a href="{{ route('admin.media-plans.create') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> إضافة خطة
         </a>
+        @endcanPermission
     </div>
-    @endcanPermission
 </div>
 
 <div class="table-container">

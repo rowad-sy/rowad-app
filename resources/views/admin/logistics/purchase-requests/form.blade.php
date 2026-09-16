@@ -44,6 +44,7 @@
                                     <th style="width:35%">الوصف</th>
                                     <th style="width:10%">الكمية</th>
                                     <th style="width:10%">الوحدة</th>
+                                    <th style="width:12%">خط الميزانية</th>
                                     <th style="width:12%">سعر الوحدة</th>
                                     <th style="width:12%">الإجمالي</th>
                                     <th style="width:15%">ملاحظات</th>
@@ -64,6 +65,9 @@
                                         <input type="text" class="form-control item-unit" required placeholder="قطعة">
                                     </td>
                                     <td>
+                                        <input type="number" class="form-control item-budget" min="0" step="0.01" inputmode="decimal" placeholder="اختياري">
+                                    </td>
+                                    <td>
                                         <input type="number" class="form-control item-price" value="0" min="0" step="0.01" required oninput="calcRow(this)">
                                     </td>
                                     <td>
@@ -81,7 +85,7 @@
                             </template>
                             <tfoot>
                                 <tr>
-                                    <td colspan="3" class="text-start fw-bold">الإجمالي الكلي:</td>
+                                    <td colspan="4" class="text-start fw-bold">الإجمالي الكلي:</td>
                                     <td class="text-start" id="grandTotal">0.00</td>
                                     <td colspan="3"></td>
                                 </tr>
@@ -210,6 +214,7 @@
         row.querySelector('.item-desc').setAttribute('name', 'items[' + itemIndex + '][description]');
         row.querySelector('.item-qty').setAttribute('name', 'items[' + itemIndex + '][quantity]');
         row.querySelector('.item-unit').setAttribute('name', 'items[' + itemIndex + '][unit]');
+        row.querySelector('.item-budget').setAttribute('name', 'items[' + itemIndex + '][budget_line]');
         row.querySelector('.item-price').setAttribute('name', 'items[' + itemIndex + '][unit_price]');
         row.querySelector('.item-notes').setAttribute('name', 'items[' + itemIndex + '][notes]');
 
@@ -217,6 +222,7 @@
             row.querySelector('.item-desc').value = data.description || '';
             row.querySelector('.item-qty').value = data.quantity || 1;
             row.querySelector('.item-unit').value = data.unit || '';
+            row.querySelector('.item-budget').value = data.budget_line || '';
             row.querySelector('.item-price').value = data.unit_price || 0;
             row.querySelector('.item-notes').value = data.notes || '';
             calcRow(row.querySelector('.item-qty'));

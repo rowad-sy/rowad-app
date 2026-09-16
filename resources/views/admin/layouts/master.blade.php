@@ -285,9 +285,58 @@
                     <i class="bi bi-file-earmark-text"></i> <span>وثائق المشروع</span>
                 </a>
                 @endcanPermission
+                @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'view')
+                <a href="{{ route('admin.monthly-reports.index') }}" class="nav-link {{ request()->routeIs('admin.monthly-reports.*') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-month"></i> <span>التقارير الشهرية</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\MonthlyReports\MonthlyReportTemplate', 'create')
+                <a href="{{ route('admin.monthly-reports.templates.index') }}" class="nav-link {{ request()->routeIs('admin.monthly-reports.templates.*') ? 'active' : '' }}">
+                    <i class="bi bi-collection"></i> <span>قوالب التقارير الشهرية</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\ProjectActivity', 'view')
+                <a href="{{ route('admin.project-activities.index') }}" class="nav-link {{ request()->routeIs('admin.project-activities.*') ? 'active' : '' }}">
+                    <i class="bi bi-stars"></i> <span>الأنشطة</span>
+                </a>
+                @endcanPermission
                 @canPermission('App\Models\Admin\ProjectDocs\AnnexTemplate', 'view')
                 <a href="{{ route('admin.project-docs.templates.index') }}" class="nav-link {{ request()->routeIs('admin.project-docs.templates.*') ? 'active' : '' }}">
                     <i class="bi bi-diagram-3"></i> <span>قوالب الوثائق</span>
+                </a>
+                @endcanPermission
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="nav-section" onclick="toggleSection(this)">
+                <span>العلاج الفيزيائي</span>
+                <i class="bi bi-chevron-down section-arrow"></i>
+            </div>
+            <div class="section-items">
+                @canPermission('App\Models\Admin\Physiotherapy\PhysioPatient', 'view')
+                <a href="{{ route('admin.physiotherapy.patients.index') }}" class="nav-link {{ request()->routeIs('admin.physiotherapy.patients.*') ? 'active' : '' }}">
+                    <i class="bi bi-person-wheelchair"></i> <span>المرضى</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Physiotherapy\PhysioRoom', 'view')
+                <a href="{{ route('admin.physiotherapy.rooms.index') }}" class="nav-link {{ request()->routeIs('admin.physiotherapy.rooms.*') ? 'active' : '' }}">
+                    <i class="bi bi-grid"></i> <span>الغرف</span>
+                </a>
+                @endcanPermission
+                @canPermission('page:admin.physiotherapy.followups.index', 'view')
+                <a href="{{ route('admin.physiotherapy.followups.index') }}" class="nav-link {{ request()->routeIs('admin.physiotherapy.followups.*') ? 'active' : '' }}">
+                    <i class="bi bi-clipboard-pulse"></i> <span>متابعة المرضى</span>
+                </a>
+                @endcanPermission
+                @canPermission('page:admin.physiotherapy.transfers.index', 'view')
+                <a href="{{ route('admin.physiotherapy.transfers.index') }}" class="nav-link {{ request()->routeIs('admin.physiotherapy.transfers.*') ? 'active' : '' }}">
+                    <i class="bi bi-arrow-left-right"></i> <span>مرضى النقل</span>
+                </a>
+                @endcanPermission
+                @canPermission('page:admin.physiotherapy.statistics.index', 'view')
+                <a href="{{ route('admin.physiotherapy.statistics.index') }}" class="nav-link {{ request()->routeIs('admin.physiotherapy.statistics.*') ? 'active' : '' }}">
+                    <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
                 </a>
                 @endcanPermission
             </div>

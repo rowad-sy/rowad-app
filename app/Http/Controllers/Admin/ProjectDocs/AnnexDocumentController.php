@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin\ProjectDocs;
 
 use App\Helpers\PermissionHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Admin\Center;
 use App\Models\Admin\Project;
 use App\Models\Admin\ProjectDocs\AnnexDocument;
 use App\Models\Admin\ProjectDocs\AnnexDocumentBlock;
@@ -28,17 +27,10 @@ class AnnexDocumentController extends Controller
 
         $scope = PermissionHelper::getEffectiveScope(auth()->user(), AnnexDocument::class);
 
-        $query = AnnexDocument::with(['template', 'project', 'center', 'creator', 'blocks']);
+        $query = AnnexDocument::with(['template', 'project', 'creator', 'blocks']);
 
         if (! $scope['sees_all']) {
-            $query->where(function ($q) use ($scope) {
-                if (! empty($scope['center_ids'])) {
-                    $q->orWhereIn('center_id', $scope['center_ids']);
-                }
-                if (! empty($scope['project_ids'])) {
-                    $q->orWhereIn('project_id', $scope['project_ids']);
-                }
-            });
+            $query->whereIn('project_id', $scope['project_ids']);
         }
 
         $documents = $query
@@ -62,9 +54,8 @@ class AnnexDocumentController extends Controller
     {
         $templates = AnnexTemplate::where('is_active', true)->orderBy('title_ar')->get();
         $projects = Project::orderBy('name')->get();
-        $centers = Center::orderBy('name')->get();
 
-        return view('admin.project-docs.documents.form', compact('templates', 'projects', 'centers'));
+        return view('admin.project-docs.documents.form', compact('templates', 'projects'));
     }
 
     public function store(Request $request)
@@ -73,7 +64,6 @@ class AnnexDocumentController extends Controller
             'template_id' => 'required|exists:annex_templates,id',
             'title' => 'nullable|string|max:255',
             'project_id' => 'nullable|exists:projects,id',
-            'center_id' => 'nullable|exists:centers,id',
             'period' => 'nullable|string|max:20',
             'page_count' => 'required|integer|min:1|max:20',
         ]);
@@ -85,7 +75,6 @@ class AnnexDocumentController extends Controller
             'template_version' => $template->version,
             'title' => $validated['title'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
-            'center_id' => $validated['center_id'] ?? null,
             'period' => $validated['period'] ?? null,
             'status' => 'draft',
             'page_count' => $validated['page_count'],
@@ -112,7 +101,7 @@ class AnnexDocumentController extends Controller
 
     public function show(AnnexDocument $document)
     {
-        $document->load(['template', 'project', 'center', 'creator', 'assignee', 'blocks.updater', 'signoffs.user', 'workflowActions.fromUser', 'workflowActions.toUser']);
+        $document->load(['template', 'project', 'creator', 'assignee', 'blocks.updater', 'signoffs.user', 'workflowActions.fromUser', 'workflowActions.toUser']);
 
         return view('admin.project-docs.documents.show', compact('document'));
     }
@@ -124,7 +113,7 @@ class AnnexDocumentController extends Controller
                 ->with('error', 'تعبئة الأقسام متاحة فقط للمسودات أو الوثائق المعاد فتحها');
         }
 
-        $document->load(['template', 'project', 'center', 'creator', 'blocks']);
+        $document->load(['template', 'project', 'creator', 'blocks']);
 
         return view('admin.project-docs.documents.edit', compact('document'));
     }
@@ -245,7 +234,7 @@ class AnnexDocumentController extends Controller
 
     public function printDocument(AnnexDocument $document)
     {
-        $document->load(['template', 'project', 'center', 'creator', 'signoffs.user', 'blocks.updater']);
+        $document->load(['template', 'project', 'creator', 'signoffs.user', 'blocks.updater']);
 
         return view('admin.project-docs.documents.print', compact('document'));
     }

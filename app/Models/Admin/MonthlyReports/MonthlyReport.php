@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Models\Admin\MonthlyReports;
+
+use App\Models\Admin\Project;
+use App\Models\Concerns\RecordsWorkflow;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
+
+class MonthlyReport extends Model
+{
+    use RecordsWorkflow;
+
+    protected $table = 'monthly_reports';
+
+    protected $fillable = [
+        'template_id', 'template_version', 'title',
+        'project_id', 'period', 'status', 'data',
+        'created_by', 'assigned_to', 'signed_at',
+    ];
+
+    public const STATUSES = [
+        'draft' => 'مسودة',
+        'under_review' => 'قيد المراجعة',
+        'approved' => 'معتمد',
+        'rejected' => 'مرفوض',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'template_version' => 'integer',
+            'data' => 'array',
+            'signed_at' => 'datetime',
+        ];
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(MonthlyReportTemplate::class, 'template_id');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function blocks(): HasMany
+    {
+        return $this->hasMany(MonthlyReportBlock::class, 'report_id');
+    }
+
+    public function signoffs(): HasMany
+    {
+        return $this->hasMany(MonthlyReportSignoff::class, 'report_id');
+    }
+
+    public function sections(): Collection
+    {
+        return $this->template?->sections() ?? collect();
+    }
+
+    public function isBlockComplete(MonthlyReportBlock $block): bool
+    {
+        $value = $block->json_value;
+
+        if ($value === null || $value === '') {
+            return false;
+        }
+
+        if (is_array($value)) {
+            if (isset($value[0]) && is_array($value[0])) {
+                return collect($value)->contains(fn ($row) => collect($row)->every(fn ($cell) => trim((string) $cell) !== ''));
+            }
+
+            return collect($value)->every(fn ($v) => trim((string) $v) !== '');
+        }
+
+        return trim((string) $value) !== '';
+    }
+
+    public function missingSections(): array
+    {
+        $missing = [];
+
+        foreach ($this->sections() as $section) {
+            $block = $this->blocks->firstWhere('block_key', $section['key'] ?? null);
+            if (! $block || ! $this->isBlockComplete($block)) {
+                $missing[] = $section['title'] ?? $section['key'] ?? '?';
+            }
+        }
+
+        return $missing;
+    }
+
+    public function isLocked($section): bool
+    {
+        $block = $this->blocks->firstWhere('block_key', $section['key'] ?? null);
+        return $block && $block->locked;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->status === 'approved';
+    }
+}

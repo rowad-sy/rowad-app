@@ -15,12 +15,14 @@ class MediaPlanEvent extends Model
         'media_plan_id', 'event_date', 'office', 'event_name', 'day',
         'event_time', 'location', 'responsible_user_id', 'summary',
         'coverage_type', 'notes',
+        'execution_status', 'execution_note', 'execution_by', 'execution_at',
     ];
 
     protected function casts(): array
     {
         return [
             'event_date' => 'date',
+            'execution_at' => 'datetime',
         ];
     }
 
@@ -32,6 +34,11 @@ class MediaPlanEvent extends Model
     public function responsible(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_user_id');
+    }
+
+    public function executionUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'execution_by');
     }
 
     public function comments(): HasMany

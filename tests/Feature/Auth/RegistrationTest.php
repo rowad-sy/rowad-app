@@ -2,10 +2,11 @@
 
 use Livewire\Volt\Volt;
 
-test('registration screen can be rendered', function () {
+test('registration is not publicly available and redirects guests to login', function () {
+    // Registration is admin-managed; guests are sent to the unified login page.
     $response = $this->get('/register');
 
-    $response->assertStatus(200);
+    $response->assertRedirect('/login');
 });
 
 test('new users can register', function () {

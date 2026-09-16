@@ -20,7 +20,7 @@ class PurchaseRequestExport implements FromCollection, WithHeadings, WithMapping
             ->get()
             ->flatMap(function ($pr) {
                 if ($pr->items->isEmpty()) {
-                    return collect([(object) array_merge($pr->toArray(), ['item_description' => $pr->specifications, 'item_quantity' => $pr->quantity, 'item_unit' => $pr->unit, 'item_unit_price' => $pr->expected_unit_price, 'item_total' => $pr->expected_total_price, 'item_notes' => ''])]);
+                    return collect([(object) array_merge($pr->toArray(), ['item_description' => $pr->specifications, 'item_quantity' => $pr->quantity, 'item_unit' => $pr->unit, 'item_unit_price' => $pr->expected_unit_price, 'item_total' => $pr->expected_total_price, 'item_budget_line' => null, 'item_notes' => ''])]);
                 }
                 return $pr->items->map(fn($item) => (object) array_merge($pr->toArray(), [
                     'item_description' => $item->description,
@@ -28,6 +28,7 @@ class PurchaseRequestExport implements FromCollection, WithHeadings, WithMapping
                     'item_unit' => $item->unit,
                     'item_unit_price' => $item->unit_price,
                     'item_total' => $item->total_price,
+                    'item_budget_line' => $item->budget_line,
                     'item_notes' => $item->notes ?? '',
                 ]));
             });
@@ -36,7 +37,7 @@ class PurchaseRequestExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'رقم الطلب', 'الوصف', 'الكمية', 'الوحدة', 'سعر الوحدة',
+            'رقم الطلب', 'الوصف', 'الكمية', 'الوحدة', 'خط الميزانية', 'سعر الوحدة',
             'الإجمالي', 'ملاحظات البند', 'إجمالي الطلب', 'المركز', 'المشروع',
             'الحالة', 'المستخدم', 'ملاحظات الطلب', 'تاريخ الإنشاء',
         ];
@@ -49,6 +50,7 @@ class PurchaseRequestExport implements FromCollection, WithHeadings, WithMapping
             $row->item_description,
             $row->item_quantity,
             $row->item_unit,
+            $row->item_budget_line !== null ? number_format($row->item_budget_line, 0) : '—',
             number_format($row->item_unit_price, 2),
             number_format($row->item_total, 2),
             $row->item_notes,

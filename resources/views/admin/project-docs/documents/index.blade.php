@@ -44,7 +44,6 @@
                     <th>الوثيقة</th>
                     <th>القالب</th>
                     <th>المشروع</th>
-                    <th>المركز</th>
                     <th>الفترة</th>
                     <th>الحالة</th>
                     <th>المنشئ</th>
@@ -62,7 +61,6 @@
                     </td>
                     <td>{{ $document->template?->title_ar }}</td>
                     <td>{{ $document->project?->name }}</td>
-                    <td>{{ $document->center?->name }}</td>
                     <td>{{ $document->period }}</td>
                     <td>
                         @php $badge = [
@@ -93,7 +91,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="8" class="text-center text-muted py-4">لا توجد وثائق بعد</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">لا توجد وثائق بعد</td></tr>
                 @endforelse
             </tbody>
         </table>

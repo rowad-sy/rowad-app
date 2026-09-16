@@ -2,7 +2,6 @@
 
 namespace App\Models\Admin\ProjectDocs;
 
-use App\Models\Admin\Center;
 use App\Models\Admin\Project;
 use App\Models\Concerns\RecordsWorkflow;
 use App\Models\User;
@@ -19,7 +18,7 @@ class AnnexDocument extends Model
 
     protected $fillable = [
         'template_id', 'template_version', 'title',
-        'project_id', 'center_id', 'period', 'status', 'page_count', 'data',
+        'project_id', 'period', 'status', 'page_count', 'data',
         'created_by', 'assigned_to', 'signed_at',
     ];
 
@@ -48,11 +47,6 @@ class AnnexDocument extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
-    }
-
-    public function center(): BelongsTo
-    {
-        return $this->belongsTo(Center::class);
     }
 
     public function creator(): BelongsTo

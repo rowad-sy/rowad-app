@@ -141,7 +141,8 @@ document.addEventListener('click', function (e) {
     }
     if (e.target.closest('.table-edit-add')) {
         const btn = e.target.closest('.table-edit-add');
-        const tbody = btn.closest('.table-responsive').querySelector('.table-edit-rows');
+        const tbody = btn.closest('.card-body')?.querySelector('.table-edit-rows');
+        if (!tbody) return;
         const inputName = 'blocks[' + btn.dataset.key + '][rows][]';
         let html = '<tr class="table-edit-row">';
         for (let c = 0; c < parseInt(btn.dataset.cols, 10); c++) {
@@ -152,7 +153,7 @@ document.addEventListener('click', function (e) {
     }
     if (e.target.closest('.list-edit-add')) {
         const btn = e.target.closest('.list-edit-add');
-        const container = btn.closest('.card-body').querySelector('.list-edit-items');
+        const container = btn.closest('.card-body')?.querySelector('.list-edit-items');
         if (container) {
             const html = '<div class="input-group mb-1 list-edit-item">' +
                 '<input type="text" name="blocks[' + btn.dataset.key + '][items][]" class="form-control form-control-sm">' +

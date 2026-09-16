@@ -17,10 +17,10 @@
                 </flux:navlist.group>
 
                 <flux:navlist.group heading="{{ __('messages.administration') }}" class="grid">
-                    <flux:navlist.item icon="building-storefront" :href="route('admin.centers')" :current="request()->routeIs('admin.centers')" wire:navigate>{{ __('messages.centers') }}</flux:navlist.item>
-                    <flux:navlist.item icon="briefcase" :href="route('admin.projects')" :current="request()->routeIs('admin.projects')" wire:navigate>{{ __('messages.projects') }}</flux:navlist.item>
-                    <flux:navlist.item icon="users" :href="route('admin.groups')" :current="request()->routeIs('admin.groups')" wire:navigate>{{ __('messages.groups') }}</flux:navlist.item>
-                    <flux:navlist.item icon="shield-check" :href="route('admin.permissions')" :current="request()->routeIs('admin.permissions')" wire:navigate>{{ __('messages.permissions') }}</flux:navlist.item>
+                    <flux:navlist.item icon="building-storefront" :href="route('admin.centers.index')" :current="request()->routeIs('admin.centers.index')" wire:navigate>{{ __('messages.centers') }}</flux:navlist.item>
+                    <flux:navlist.item icon="briefcase" :href="route('admin.projects.index')" :current="request()->routeIs('admin.projects.index')" wire:navigate>{{ __('messages.projects') }}</flux:navlist.item>
+                    <flux:navlist.item icon="users" :href="route('admin.groups.index')" :current="request()->routeIs('admin.groups.index')" wire:navigate>{{ __('messages.groups') }}</flux:navlist.item>
+                    <flux:navlist.item icon="shield-check" :href="route('admin.permissions.index')" :current="request()->routeIs('admin.permissions.index')" wire:navigate>{{ __('messages.permissions') }}</flux:navlist.item>
                 </flux:navlist.group>
             </flux:navlist>
 

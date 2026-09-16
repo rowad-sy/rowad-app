@@ -1,5 +1,22 @@
 @extends('admin.layouts.master')
 
+@php
+if (! function_exists('defaultDefinition')) {
+    function defaultDefinition(): string
+    {
+        return json_encode([
+            'header_meta' => ['اسم المشروع', 'رمز المشروع', 'الموقع', 'المدة'],
+            'sections' => [
+                ['key' => 'info', 'title' => 'المعلومات الأساسية', 'type' => 'fields', 'fields' => ['رقم الاحتياج', 'تاريخ الدراسة'], 'assignee_role' => null],
+                ['key' => 'desc', 'title' => 'خلفية المشروع', 'type' => 'paragraph', 'assignee_role' => null],
+                ['key' => 'target', 'title' => 'الفئة المستهدفة', 'type' => 'table', 'columns' => ['الفئة', 'العدد التقريبي'], 'assignee_role' => null],
+                ['key' => 'activities', 'title' => 'الأنشطة المقترحة', 'type' => 'list', 'assignee_role' => null],
+            ],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+}
+@endphp
+
 @section('title', isset($template) ? 'تعديل قالب الوثيقة' : 'قالب وثيقة جديد')
 
 @section('content')
@@ -72,21 +89,6 @@
     </div>
 </div>
 @endsection
-
-@php
-function defaultDefinition(): string
-{
-    return json_encode([
-        'header_meta' => ['اسم المشروع', 'رمز المشروع', 'الموقع', 'المدة'],
-        'sections' => [
-            ['key' => 'info', 'title' => 'المعلومات الأساسية', 'type' => 'fields', 'fields' => ['رقم الاحتياج', 'تاريخ الدراسة'], 'assignee_role' => null],
-            ['key' => 'desc', 'title' => 'خلفية المشروع', 'type' => 'paragraph', 'assignee_role' => null],
-            ['key' => 'target', 'title' => 'الفئة المستهدفة', 'type' => 'table', 'columns' => ['الفئة', 'العدد التقريبي'], 'assignee_role' => null],
-            ['key' => 'activities', 'title' => 'الأنشطة المقترحة', 'type' => 'list', 'assignee_role' => null],
-        ],
-    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-}
-@endphp
 
 @push('scripts')
 <script>

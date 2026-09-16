@@ -7,6 +7,7 @@ use App\Models\Admin\Center;
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\MovementPlan;
 use App\Models\Admin\MovementPlanRecipient;
+use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -15,9 +16,9 @@ class MovementPlanController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\MovementPlan,view')->only(['index', 'show']);
+        $this->middleware('permission:App\Models\Admin\MovementPlan,view')->only(['index', 'show', 'help']);
         $this->middleware('permission:App\Models\Admin\MovementPlan,create')->only(['create', 'store']);
-        $this->middleware('permission:App\Models\Admin\MovementPlan,edit')->only(['approve', 'reject', 'assign', 'complete']);
+        $this->middleware('permission:App\Models\Admin\MovementPlan,edit')->only(['approve', 'reject', 'assign', 'complete', 'refer']);
         $this->middleware('permission:App\Models\Admin\MovementPlan,delete')->only(['destroy']);
     }
 
@@ -29,14 +30,13 @@ class MovementPlanController extends Controller
             ->withCount('recipients');
 
         if ($user->type !== 'super-admin') {
-            $employee = Employee::where('user_id', $user->id)->first();
-
-            $query->where(function ($q) use ($user, $employee) {
+            $query->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
+                    ->orWhere('refer_to_pm2_id', $user->id)
                     ->orWhere('refer_to_movement_officer_id', $user->id)
                     ->orWhere('assigned_by', $user->id)
                     ->orWhereHas('recipients', fn ($r) => $r->where('user_id', $user->id))
-                    ->when($employee?->center_id, fn ($q2, $centerId) => $q2->orWhere('center_id', $centerId));
+                    ->orWhereHas('activeReferrals', fn ($r) => $r->where('to_user_id', $user->id));
             });
         }
 
@@ -62,6 +62,11 @@ class MovementPlanController extends Controller
         return view('admin.movement-plans.form', compact('centers', 'projects', 'users'));
     }
 
+    public function help()
+    {
+        return view('admin.movement-plans.help');
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -79,8 +84,8 @@ class MovementPlanController extends Controller
         $employee = Employee::where('user_id', auth()->id())->first();
 
         if (
-            $validated['departure_time']
-            && $validated['return_time']
+            ($validated['departure_time'] ?? null)
+            && ($validated['return_time'] ?? null)
             && $validated['return_time'] < $validated['departure_time']
         ) {
             return back()->withInput()->withErrors(['return_time' => 'وقت العودة يجب أن يكون بعد وقت الانطلاق.']);
@@ -98,10 +103,16 @@ class MovementPlanController extends Controller
             'to_location' => $validated['to_location'] ?? null,
             'purpose' => $validated['purpose'],
             'notes' => $validated['notes'] ?? null,
+            'refer_to_pm2_id' => $this->defaultProjectsManagerId($validated['project_id'] ?? $employee?->project_id),
             'status' => 'review',
         ]);
 
-        $plan->logWorkflow('create', null, 'تم إنشاء خطة الحركة وإحالتها لإدارة المشاريع', 'review');
+        $pm2Id = $plan->refer_to_pm2_id;
+        $plan->logWorkflow('create', $pm2Id, 'تم إنشاء خطة الحركة وإحالتها لإدارة المشاريع', 'review');
+
+        if ($pm2Id !== null) {
+            $plan->referTo($pm2Id, 'pm2');
+        }
 
         return redirect()->route('admin.movement-plans.show', $plan)
             ->with('success', 'تم إنشاء خطة الحركة وإحالتها لإدارة المشاريع');
@@ -109,8 +120,13 @@ class MovementPlanController extends Controller
 
     public function show(MovementPlan $movementPlan)
     {
+        $user = auth()->user();
+        if ($user->type !== 'super-admin' && ! $movementPlan->isVisibleToUserId($user->id)) {
+            abort(403, 'هذه الخطة ليست موجهة إليك');
+        }
+
         $movementPlan->load([
-            'creator', 'center', 'project', 'movementOfficer', 'assigner',
+            'creator', 'center', 'project', 'movementOfficer', 'projectsManager', 'assigner',
             'recipients.user', 'workflowActions.fromUser', 'workflowActions.toUser',
         ]);
 
@@ -121,7 +137,7 @@ class MovementPlanController extends Controller
 
     public function approve(Request $request, MovementPlan $movementPlan)
     {
-        abort_if($movementPlan->status !== 'review', 403, 'الخطة ليست بانتظار مراجعة إدارة المشاريع.');
+        $this->authorizeStep($movementPlan, 'pm2', 'review');
 
         $validated = $request->validate([
             'movement_officer_id' => 'required|exists:users,id',
@@ -133,6 +149,9 @@ class MovementPlanController extends Controller
             'status' => 'approved',
         ]);
 
+        $movementPlan->completeReferral('pm2');
+        $movementPlan->referTo($validated['movement_officer_id'], 'movement_officer', $validated['note'] ?? null);
+
         $movementPlan->logWorkflow('approve', $validated['movement_officer_id'], $validated['note'] ?? 'وافقت إدارة المشاريع وأُحيلت لمسؤول الحركة', 'approved');
 
         return back()->with('success', 'اعتُمدت خطة الحركة وأُحيلت لمسؤول الحركة.');
@@ -140,7 +159,7 @@ class MovementPlanController extends Controller
 
     public function reject(Request $request, MovementPlan $movementPlan)
     {
-        abort_if($movementPlan->status !== 'review', 403, 'الخطة ليست بانتظار مراجعة إدارة المشاريع.');
+        $this->authorizeStep($movementPlan, 'pm2', 'review');
 
         $validated = $request->validate([
             'reason' => 'required|string|max:2000',
@@ -151,6 +170,7 @@ class MovementPlanController extends Controller
             'reason' => $validated['reason'],
         ]);
 
+        $movementPlan->completeReferral('pm2');
         $movementPlan->logWorkflow('reject', null, $validated['reason'], 'rejected');
 
         return back()->with('success', 'رُفضت خطة الحركة.');
@@ -159,6 +179,8 @@ class MovementPlanController extends Controller
     public function assign(Request $request, MovementPlan $movementPlan)
     {
         abort_if(! in_array($movementPlan->status, ['approved', 'assigned'], true), 403, 'الخطة ليست في مرحلة توزيع المتابِعين.');
+
+        $this->authorizeHolder($movementPlan, 'movement_officer');
 
         $validated = $request->validate([
             'user_ids' => 'required|array|min:1',
@@ -183,6 +205,9 @@ class MovementPlanController extends Controller
             'status' => 'assigned',
         ]);
 
+        $movementPlan->completeReferral('movement_officer');
+        $movementPlan->referToMany($validated['user_ids'], 'recipient', 'متابعة خطة الحركة');
+
         $movementPlan->logWorkflow('assign', null, 'حدّد مسؤول الحركة المستفيدين للمتابعة', 'assigned');
 
         return back()->with('success', 'حُددت جهات المتابعة — خطة الحركة قيد المتابعة الآن.');
@@ -192,14 +217,89 @@ class MovementPlanController extends Controller
     {
         abort_if($movementPlan->status !== 'assigned', 403, 'الخطة ليست قيد المتابعة.');
 
+        $this->authorizeHolder($movementPlan, 'movement_officer');
+
         $movementPlan->update([
             'status' => 'completed',
             'completed_at' => now(),
         ]);
 
+        $movementPlan->completeReferral('recipient');
         $movementPlan->logWorkflow('complete', null, 'أُنجزت خطة الحركة', 'completed');
 
         return back()->with('success', 'أُنقلت خطة الحركة كمنجزة.');
+    }
+
+    /*
+     * إعادة الإحالة: يقوم بها المستلَم الحالي للخطوة فقط.
+     */
+    public function refer(Request $request, MovementPlan $movementPlan)
+    {
+        $validated = $request->validate([
+            'step' => 'required|in:pm2,movement_officer',
+            'to_user_id' => 'required|exists:users,id',
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        $this->authorizeHolder($movementPlan, $validated['step']);
+
+        $column = $validated['step'] === 'pm2'
+            ? 'refer_to_pm2_id'
+            : 'refer_to_movement_officer_id';
+
+        $movementPlan->update([$column => $validated['to_user_id']]);
+        $movementPlan->referTo($validated['to_user_id'], $validated['step'], $validated['note'] ?? null);
+        $movementPlan->logWorkflow('referred', $validated['to_user_id'], $validated['note'] ?? null);
+
+        return back()->with('success', 'أُعيدت إحالة خطة الحركة بنجاح.');
+    }
+
+    private function authorizeStep(MovementPlan $movementPlan, string $step, string $expectedStatus): void
+    {
+        $this->authorizeHolder($movementPlan, $step);
+
+        if ($movementPlan->status !== $expectedStatus) {
+            abort(403, 'حالة الخطة لا تسمح بهذه الخطوة.');
+        }
+    }
+
+    /*
+     * المستلَم الحالي للخطوة (عبر الإحالة النشطة أو العمود القديم). إذا لم
+     * يُحدَّد أحد بعد (بيانات قديمة) يبقى التصرف متاحاً لمن يملك صلاحية
+     * التعديل توافقاً مع السلوك السابق.
+     */
+    private function authorizeHolder(MovementPlan $movementPlan, string $step): void
+    {
+        $user = auth()->user();
+
+        if ($user->type === 'super-admin') {
+            return;
+        }
+
+        $column = $step === 'pm2' ? 'refer_to_pm2_id' : 'refer_to_movement_officer_id';
+
+        // لا يوجد مستلَم معيّن بعد (بيانات قديمة) → يواصل التصرف لمن يملك
+        // صلاحية التعديل كما كان السلوك سابقاً.
+        if ($movementPlan->{$column} === null) {
+            return;
+        }
+
+        $isHolder = $movementPlan->isCurrentRecipient($user->id)
+            || ((int) $movementPlan->{$column} === (int) $user->id);
+
+        if (! $isHolder) {
+            abort(403, 'هذه الخطوة ليست موجهة إليك.');
+        }
+    }
+
+    private function defaultProjectsManagerId(?int $projectId): ?int
+    {
+        return Permission::whereJsonContains('model_names', 'page:admin.project-manager.dashboard')
+            ->where('can_view', 1)
+            ->when($projectId, fn ($q) => $q->where(fn ($s) => $s->whereNull('project_id')->orWhere('project_id', $projectId)))
+            ->whereNotNull('user_id')
+            ->orderBy('id')
+            ->value('user_id');
     }
 
     public function destroy(MovementPlan $movementPlan)

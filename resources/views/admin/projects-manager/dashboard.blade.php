@@ -277,7 +277,6 @@
                     <th>الوثيقة</th>
                     <th>القالب</th>
                     <th>المشروع</th>
-                    <th>المركز</th>
                     <th>أنشأها</th>
                     <th>آخر تحديث</th>
                     <th>الإجراءات</th>
@@ -289,7 +288,6 @@
                         <td>{{ $doc->title ?: $doc->template?->title_ar }}</td>
                         <td>{{ $doc->template?->title_ar ?? '—' }}</td>
                         <td>{{ $doc->project?->name ?? '—' }}</td>
-                        <td>{{ $doc->center?->name ?? '—' }}</td>
                         <td>{{ $doc->creator?->name ?? '—' }}</td>
                         <td>{{ $doc->updated_at->format('Y-m-d H:i') }}</td>
                         <td>

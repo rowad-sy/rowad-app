@@ -89,7 +89,6 @@
 
                 <div class="meta-grid">
                     <div class="m-item"><b>المشروع:</b> {{ $document->project?->name ?? '—' }}</div>
-                    <div class="m-item"><b>المركز:</b> {{ $document->center?->name ?? '—' }}</div>
                     <div class="m-item"><b>الفترة:</b> {{ $document->period ?? '—' }}</div>
                     <div class="m-item"><b>تاريخ الإعداد:</b> {{ $document->created_at?->format('d/m/Y') }}</div>
                     <div class="m-item"><b>أعدّه:</b> {{ $document->creator?->name }}</div>
@@ -150,10 +149,6 @@
                     <div class="sig-box"><div class="sig-line">توقيع مدير المشروع</div></div>
                     <div class="sig-box"><div class="sig-line">توقيع إدارة المشاريع</div></div>
                     <div class="sig-box"><div class="sig-line">توقيع الإدارة التنفيذية</div></div>
-                </div>
-
-                <div class="text-muted small text-center mt-4 border-top pt-2">
-                    وثيقة مولّدة من نظام رواد — مؤسسة الرواد للتنمية · {{ now()->format('d/m/Y H:i') }}
                 </div>
             @endif
 

@@ -90,7 +90,7 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل الد
                 : route('admin.dashboard', absolute: false);
         } else {
             // Unknown type (null, empty, etc.)
-            $redirectRoute = route('admin.home', absolute: false);
+            $redirectRoute = route('dashboard', absolute: false);
         }
 
         $this->redirectIntended(default: $redirectRoute, navigate: true);

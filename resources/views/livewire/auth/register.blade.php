@@ -43,11 +43,13 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'إنشاء حسا
                 : route('admin.home', absolute: false);
         } elseif ($user->type === 'beneficiary') {
             $redirectRoute = route('admin.beneficiary.dashboard', absolute: false);
-        } else {
+        } elseif ($user->type === 'employee' || $user->type === 'super-admin') {
             $employee = Employee::where('user_id', $user->id)->first();
             $redirectRoute = $employee
                 ? route('admin.hr.employees.show', $employee, absolute: false)
                 : route('admin.dashboard', absolute: false);
+        } else {
+            $redirectRoute = route('dashboard', absolute: false);
         }
 
         $this->redirect($redirectRoute, navigate: true);
