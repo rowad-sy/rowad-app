@@ -29,9 +29,13 @@ use App\Http\Controllers\Admin\Hr\JobPositionController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\ProjectHubController;
 use App\Http\Controllers\Admin\ProjectManagerController;
+use App\Http\Controllers\Admin\ProjectPathController;
 use App\Http\Controllers\Admin\ProjectsManagerController;
 use App\Http\Controllers\Admin\ProjectOfficerController;
+use App\Http\Controllers\Admin\PortalController;
+use App\Http\Controllers\Admin\EventCardController;
 use App\Http\Controllers\Admin\ProjectTaskController;
 use App\Http\Controllers\Admin\ProjectActivityController;
 use App\Http\Controllers\Admin\Tech\TechController;
@@ -66,14 +70,11 @@ Route::get('/', function () {
         } elseif ($user->type === 'beneficiary') {
             return redirect()->route('admin.beneficiary.dashboard');
         } else {
-            $employee = \App\Models\Admin\Hr\Employee::where('user_id', $user->id)->first();
-            if ($employee) {
-                return redirect()->route('admin.hr.employees.show', $employee);
-            }
+            return redirect()->route('admin.portal');
         }
-        return redirect()->route('admin.home');
     }
-    return view('welcome');
+    // الصفحة الرئيسية = تسجيل الدخول فقط مع لوغو المؤسسة
+    return redirect()->route('login');
 })->name('home');
 
 // Accessible to all authenticated users (profile & password change)
@@ -155,6 +156,42 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::delete('{movement_plan}', [MovementPlanController::class, 'destroy'])->name('destroy');
         });
         Route::resource('projects', ProjectController::class)->except(['show']);
+
+        // صفحة المشروع المخصصة (Hub)
+        Route::get('projects/{project}/overview', [ProjectHubController::class, 'show'])->name('projects.overview');
+
+        // المسارات
+        Route::prefix('paths')->name('paths.')->group(function () {
+            Route::get('tree', [ProjectPathController::class, 'tree'])->name('tree');
+            Route::get('export/excel', [ProjectPathController::class, 'exportExcel'])->name('export.excel');
+            Route::get('export/pdf', [ProjectPathController::class, 'exportPdf'])->name('export.pdf');
+            Route::get('/', [ProjectPathController::class, 'index'])->name('index');
+            Route::get('create', [ProjectPathController::class, 'create'])->name('create');
+            Route::post('/', [ProjectPathController::class, 'store'])->name('store');
+            Route::get('{path}/edit', [ProjectPathController::class, 'edit'])->name('edit');
+            Route::put('{path}', [ProjectPathController::class, 'update'])->name('update');
+            Route::delete('{path}', [ProjectPathController::class, 'destroy'])->name('destroy');
+        });
+
+        // بطاقات الفعاليات
+        Route::prefix('event-cards')->name('event-cards.')->group(function () {
+            Route::get('/', [EventCardController::class, 'index'])->name('index');
+            Route::get('create', [EventCardController::class, 'create'])->name('create');
+            Route::post('/', [EventCardController::class, 'store'])->name('store');
+            Route::get('{eventCard}', [EventCardController::class, 'show'])->name('show');
+            Route::get('{eventCard}/edit', [EventCardController::class, 'edit'])->name('edit');
+            Route::put('{eventCard}', [EventCardController::class, 'update'])->name('update');
+            Route::delete('{eventCard}', [EventCardController::class, 'destroy'])->name('destroy');
+            Route::post('{eventCard}/approve', [EventCardController::class, 'approve'])->name('approve');
+            Route::post('{eventCard}/reject', [EventCardController::class, 'reject'])->name('reject');
+            Route::post('{eventCard}/finalize', [EventCardController::class, 'finalize'])->name('finalize');
+            Route::post('{eventCard}/refer', [EventCardController::class, 'refer'])->name('refer');
+        });
+
+        // البوابة: الصفحة الرئيسية بعد تسجيل الدخول + المعرفات + تقويم الفعاليات
+        Route::get('portal', [PortalController::class, 'portal'])->name('portal');
+        Route::get('identities', [PortalController::class, 'identities'])->name('identities');
+        Route::get('events-calendar', [PortalController::class, 'calendar'])->name('events-calendar');
         Route::prefix('project-docs')->name('project-docs.')->group(function () {
             Route::resource('templates', \App\Http\Controllers\Admin\ProjectDocs\AnnexTemplateController::class)->except(['show']);
             Route::get('documents', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'index'])->name('documents.index');

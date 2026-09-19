@@ -32,7 +32,8 @@ class ProjectController extends Controller
     public function create()
     {
         $centers = Center::orderBy('name')->get();
-        return view('admin.projects.form', compact('centers'));
+        $paths = \App\Models\Admin\ProjectPath::orderBy('name')->get();
+        return view('admin.projects.form', compact('centers', 'paths'));
     }
 
     public function store(Request $request)
@@ -40,6 +41,9 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'status' => 'nullable|in:' . implode(',', array_keys(Project::STATUSES)),
+            'code' => 'nullable|string|max:100',
+            'path_id' => 'nullable|exists:project_paths,id',
             'centers' => 'nullable|array',
             'centers.*' => 'exists:centers,id',
         ]);
@@ -47,6 +51,9 @@ class ProjectController extends Controller
         $project = Project::create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'status' => $validated['status'] ?? 'active',
+            'code' => $validated['code'] ?? null,
+            'path_id' => $validated['path_id'] ?? null,
         ]);
 
         if (!empty($validated['centers'])) {
@@ -64,7 +71,8 @@ class ProjectController extends Controller
     {
         $project->load('centers');
         $centers = Center::orderBy('name')->get();
-        return view('admin.projects.form', compact('project', 'centers'));
+        $paths = \App\Models\Admin\ProjectPath::orderBy('name')->get();
+        return view('admin.projects.form', compact('project', 'centers', 'paths'));
     }
 
     public function update(Request $request, Project $project)
@@ -72,6 +80,9 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'status' => 'nullable|in:' . implode(',', array_keys(Project::STATUSES)),
+            'code' => 'nullable|string|max:100',
+            'path_id' => 'nullable|exists:project_paths,id',
             'centers' => 'nullable|array',
             'centers.*' => 'exists:centers,id',
         ]);
@@ -79,6 +90,9 @@ class ProjectController extends Controller
         $project->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'status' => $validated['status'] ?? 'active',
+            'code' => $validated['code'] ?? null,
+            'path_id' => $validated['path_id'] ?? null,
         ]);
 
         $oldIds = $project->centers()->pluck('centers.id')->toArray();

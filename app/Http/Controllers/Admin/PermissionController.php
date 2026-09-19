@@ -9,6 +9,8 @@ use App\Models\Admin\Group;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
 use App\Models\User;
+use App\Support\PermissionModelCatalog;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class PermissionController extends Controller
@@ -37,100 +39,69 @@ class PermissionController extends Controller
 
     public function create()
     {
-        $users = User::orderBy('name')->get();
-        $groups = Group::orderBy('name')->get();
-        $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
-        $cohorts = Cohort::with('project')->orderBy('name')->get();
-        $modelGroups = $this->modelGroups();
-        $availableModels = array_merge(...array_map('array_values', array_values($modelGroups)));
-
-        return view('admin.permissions.form', compact('users', 'groups', 'centers', 'projects', 'cohorts', 'modelGroups', 'availableModels'));
+        return view('admin.permissions.form', $this->formData());
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'assign_to' => 'required|in:user,group',
-            'user_id' => 'required_if:assign_to,user|nullable|exists:users,id',
-            'group_id' => 'required_if:assign_to,group|nullable|exists:groups,id',
-            'model_names' => 'required|array|min:1',
-            'model_names.*' => 'required|string|max:255',
-            'model_id' => 'nullable|integer',
-            'center_id' => 'nullable|exists:centers,id',
-            'project_id' => 'nullable|exists:projects,id',
-            'cohort_id' => 'nullable|exists:cohorts,id',
-            'can_view' => 'boolean',
-            'can_create' => 'boolean',
-            'can_edit' => 'boolean',
-            'can_delete' => 'boolean',
-        ]);
+        $validated = $this->validateMatrix($request);
+        $scope = $this->scopeFromRequest($validated);
 
-        Permission::create([
-            'user_id' => $validated['assign_to'] === 'user' ? $validated['user_id'] : null,
-            'group_id' => $validated['assign_to'] === 'group' ? $validated['group_id'] : null,
-            'model_names' => $validated['model_names'],
-            'model_id' => $validated['model_id'] ?? null,
-            'center_id' => $validated['center_id'] ?? null,
-            'project_id' => $validated['project_id'] ?? null,
-            'cohort_id' => $validated['cohort_id'] ?? null,
-            'can_view' => $validated['can_view'] ?? false,
-            'can_create' => $validated['can_create'] ?? false,
-            'can_edit' => $validated['can_edit'] ?? false,
-            'can_delete' => $validated['can_delete'] ?? false,
-        ]);
+        $count = 0;
+        foreach ($validated['rows'] as $rowIndex => $row) {
+            if ($row['assign_to'] === 'user') {
+                $count += $this->syncEntity('user_id', $row['user_id'], $validated['perms'][$rowIndex] ?? [], $scope);
+            } else {
+                $count += $this->syncEntity('group_id', $row['group_id'], $validated['perms'][$rowIndex] ?? [], $scope);
+            }
+        }
 
         return redirect()->route('admin.permissions.index')
-            ->with('success', 'تم إضافة الصلاحية بنجاح');
+            ->with('success', $count > 0 ? 'تم إضافة الصلاحيات بنجاح' : 'لم يتم تحديد أي صلاحية');
     }
 
     public function edit(Permission $permission)
     {
-        $users = User::orderBy('name')->get();
-        $groups = Group::orderBy('name')->get();
-        $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
-        $cohorts = Cohort::with('project')->orderBy('name')->get();
-        $modelGroups = $this->modelGroups();
-        $availableModels = array_merge(...array_values($modelGroups));
+        $data = $this->formData();
+        $data['permission'] = $permission;
 
-        return view('admin.permissions.form', compact('permission', 'users', 'groups', 'centers', 'projects', 'cohorts', 'modelGroups', 'availableModels'));
+        $isUser = $permission->user_id !== null;
+        $entityId = $isUser ? $permission->user_id : $permission->group_id;
+
+        $recordScope = $this->scopeFromRecord($permission);
+        $data['scope'] = [
+            'center_id' => $recordScope['center_id'],
+            'project_id' => $recordScope['project_id'],
+            'cohort_id' => $recordScope['cohort_id'],
+        ];
+
+        $data['rows'][] = [
+            'assign_to' => $isUser ? 'user' : 'group',
+            'user_id' => $isUser ? $entityId : null,
+            'group_id' => $isUser ? null : $entityId,
+            'label' => $isUser ? ($permission->user?->name ?? 'مستخدم') : ($permission->group?->name ?? 'مجموعة'),
+            'perms' => $this->flagsForEntity($isUser ? 'user_id' : 'group_id', $entityId, $data['scope']),
+        ];
+
+        return view('admin.permissions.form', $data);
     }
 
     public function update(Request $request, Permission $permission)
     {
-        $validated = $request->validate([
-            'assign_to' => 'required|in:user,group',
-            'user_id' => 'required_if:assign_to,user|nullable|exists:users,id',
-            'group_id' => 'required_if:assign_to,group|nullable|exists:groups,id',
-            'model_names' => 'required|array|min:1',
-            'model_names.*' => 'required|string|max:255',
-            'model_id' => 'nullable|integer',
-            'center_id' => 'nullable|exists:centers,id',
-            'project_id' => 'nullable|exists:projects,id',
-            'cohort_id' => 'nullable|exists:cohorts,id',
-            'can_view' => 'boolean',
-            'can_create' => 'boolean',
-            'can_edit' => 'boolean',
-            'can_delete' => 'boolean',
-        ]);
+        $validated = $this->validateMatrix($request);
+        $scope = $this->scopeFromRequest($validated);
 
-        $permission->update([
-            'user_id' => $validated['assign_to'] === 'user' ? $validated['user_id'] : null,
-            'group_id' => $validated['assign_to'] === 'group' ? $validated['group_id'] : null,
-            'model_names' => $validated['model_names'],
-            'model_id' => $validated['model_id'] ?? null,
-            'center_id' => $validated['center_id'] ?? null,
-            'project_id' => $validated['project_id'] ?? null,
-            'cohort_id' => $validated['cohort_id'] ?? null,
-            'can_view' => $validated['can_view'] ?? false,
-            'can_create' => $validated['can_create'] ?? false,
-            'can_edit' => $validated['can_edit'] ?? false,
-            'can_delete' => $validated['can_delete'] ?? false,
-        ]);
+        $count = 0;
+        foreach ($validated['rows'] as $rowIndex => $row) {
+            if ($row['assign_to'] === 'user') {
+                $count += $this->syncEntity('user_id', $row['user_id'], $validated['perms'][$rowIndex] ?? [], $scope);
+            } else {
+                $count += $this->syncEntity('group_id', $row['group_id'], $validated['perms'][$rowIndex] ?? [], $scope);
+            }
+        }
 
         return redirect()->route('admin.permissions.index')
-            ->with('success', 'تم تحديث الصلاحية بنجاح');
+            ->with('success', 'تم تحديث الصلاحيات بنجاح');
     }
 
     public function destroy(Permission $permission)
@@ -141,72 +112,214 @@ class PermissionController extends Controller
             ->with('success', 'تم حذف الصلاحية بنجاح');
     }
 
-    private function modelGroups(): array
+    /*
+     * --------------------------------------------
+     * بيانات ومصفوفة النموذج
+     * --------------------------------------------
+     */
+
+    private function formData(): array
     {
         return [
-            'الإدارة' => [
-                'App\Models\Admin\Center' => 'المراكز',
-                'App\Models\Admin\Project' => 'المشاريع',
-                'App\Models\Admin\Cohort' => 'الأفواج',
-                'App\Models\Admin\Department' => 'الإدارات',
-                'App\Models\User' => 'المستخدمين',
-                'App\Models\Admin\Group' => 'المجموعات',
-                'App\Models\Admin\Permission' => 'الصلاحيات',
-            ],
-            'الموارد البشرية' => [
-                'App\Models\Admin\Hr\Employee' => 'الموظفين',
-                'App\Models\Admin\Hr\JobPosition' => 'المناصب الوظيفية',
-                'App\Models\Admin\Hr\Warning' => 'التنبيهات',
-                'App\Models\Admin\Hr\LeaveType' => 'سياسة الإجازات',
-                'App\Models\Admin\Hr\LeaveRequest' => 'طلبات الإجازات',
-                'App\Models\Admin\Hr\EmployeeAttendance' => 'دوام الموظفين',
-            ],
-            'الطلاب' => [
-                'App\Models\Admin\Student\Student' => 'الطلاب',
-                'App\Models\Admin\Student\Course' => 'الدورات',
-                'App\Models\Admin\Student\Period' => 'الفترات',
-                'App\Models\Admin\Student\StudentEnrollment' => 'التسجيلات',
-                'App\Models\Admin\Student\Attendance' => 'الحضور',
-                'App\Models\Admin\Student\Certificate' => 'الشهادات',
-                'App\Models\Admin\Student\CertificateDesign' => 'تصاميم الشهادات',
-            ],
-            'التقنية' => [
-                'App\Models\Admin\Tech\TechIssue' => 'التذاكر',
-                'App\Models\Admin\Tech\TechEquipment' => 'المعدات',
-            ],
-            'اللوجستي' => [
-                'App\Models\Admin\Logistics\PurchaseRequest' => 'طلبات الشراء',
-                'App\Models\Admin\Logistics\ApprovalRule' => 'قواعد الموافقات',
-                'App\Models\Admin\Logistics\Warehouse' => 'المخازن',
-                'App\Models\Admin\Logistics\Asset' => 'الأصول',
-                'App\Models\Admin\Logistics\LogisticsSetting' => 'إعدادات اللوجستي',
-            ],
-            'إدارة المشاريع' => [
-                'App\Models\Admin\ProjectTask' => 'المهام',
-                'App\Models\Admin\MediaPlan' => 'الخطة الإعلامية',
-                'App\Models\Admin\MovementPlan' => 'خطة الحركة',
-                'App\Models\Admin\ProjectDocs\AnnexTemplate' => 'قوالب وثائق المشروع',
-                'App\Models\Admin\ProjectDocs\AnnexDocument' => 'وثائق المشروع',
-                'App\Models\Admin\MonthlyReports\MonthlyReport' => 'التقارير الشهرية',
-                'App\Models\Admin\MonthlyReports\MonthlyReportTemplate' => 'قوالب التقارير الشهرية',
-                'App\Models\Admin\ProjectActivity' => 'الأنشطة',
-                'page:admin.project-manager.dashboard' => 'لوحة مدير المشروع',
-                'page:admin.project-officer.dashboard' => 'لوحة مسؤول المشروع',
-            ],
-            'العلاج الفيزيائي' => [
-                'App\Models\Admin\Physiotherapy\PhysioRoom' => 'غرف العلاج الفيزيائي',
-                'App\Models\Admin\Physiotherapy\PhysioPatient' => 'مرضى العلاج الفيزيائي',
-                'App\Models\Admin\Physiotherapy\PhysioSession' => 'جلسات العلاج الفيزيائي',
-                'page:admin.physiotherapy.followups.index' => 'متابعة المرضى (حسب المعالج)',
-                'page:admin.physiotherapy.transfers.index' => 'مرضى النقل',
-                'page:admin.physiotherapy.statistics.index' => 'إحصائيات العلاج الفيزيائي',
-            ],
-            'النظام والتدقيق' => [
-                'App\Models\AuditLog' => 'سجل التدقيق',
-            ],
-            'الصفحات' => [
-                'page:admin.logistics.statistics' => 'إحصائيات اللوجستي',
+            'users' => User::orderBy('name')->get(),
+            'groups' => Group::orderBy('name')->get(),
+            'centers' => Center::orderBy('name')->get(),
+            'projects' => Project::orderBy('name')->get(),
+            'cohorts' => Cohort::with('project')->orderBy('name')->get(),
+            'modelGroups' => PermissionModelCatalog::groups(),
+            'modelKeys' => PermissionModelCatalog::keys(),
+            'rows' => [],
+            'scope' => [
+                'center_id' => null,
+                'project_id' => null,
+                'cohort_id' => null,
             ],
         ];
+    }
+
+    private function validateMatrix(Request $request): array
+    {
+        return $request->validate([
+            'rows' => 'required|array|min:1',
+            'rows.*.assign_to' => 'required|in:user,group',
+            'rows.*.user_id' => 'required_if:rows.*.assign_to,user|nullable|exists:users,id',
+            'rows.*.group_id' => 'required_if:rows.*.assign_to,group|nullable|exists:groups,id',
+            'perms' => 'nullable|array',
+            'center_id' => 'nullable|exists:centers,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'cohort_id' => 'nullable|exists:cohorts,id',
+        ]);
+    }
+
+    private function scopeFromRequest(array $validated): array
+    {
+        return [
+            'center_id' => $validated['center_id'] ?? null,
+            'project_id' => $validated['project_id'] ?? null,
+            'cohort_id' => $validated['cohort_id'] ?? null,
+        ];
+    }
+
+    private function scopeFromRecord(Permission $permission): array
+    {
+        return [
+            'center_id' => $permission->center_id,
+            'project_id' => $permission->project_id,
+            'cohort_id' => $permission->cohort_id,
+        ];
+    }
+
+    /*
+     * قراءة حالات الخلايا الحالية لكيان (مستخدم/مجموعة) ضمن النطاق المعروض فقط:
+     * النطاقات الأخرى تُحفظ كما هي ولا تُظهر في الشبكة.
+     */
+    private function flagsForEntity(string $column, int $entityId, array $scope): array
+    {
+        $flags = [];
+
+        $this->scopeQuery(Permission::query(), $scope)
+            ->where($column, $entityId)
+            ->whereNull('model_id')
+            ->get()
+            ->each(function (Permission $record) use (&$flags) {
+                foreach ($record->model_names ?? [] as $model) {
+                    foreach (['can_view', 'can_create', 'can_edit', 'can_delete'] as $flag) {
+                        $flags[$model][$flag] = ($flags[$model][$flag] ?? false) || $record->$flag;
+                    }
+                }
+            });
+
+        $keyed = [];
+        foreach ($flags as $model => $rowFlags) {
+            $modelKey = PermissionModelCatalog::keyFor($model);
+            if ($modelKey !== null) {
+                $keyed[$modelKey] = $rowFlags;
+            }
+        }
+
+        return $keyed;
+    }
+
+    /*
+     * تقسيم المدخلات من الشبكة إلى سجل واحد لكل (تعيين × موديل) ضمن النطاق المشترك.
+     *
+     * المواءمة (reconcile):
+     *  - السجلات القديمة متعددة الموديلات تُقسم عند مواجهتها (فكّ تصاعدي).
+     *  - كل خلية محددة تُحدّث/تُنشأ كسجل بموديل واحد وأعلامه الخاصة.
+     *  - الخلايا غير المحددة تُحذف من السجلات الموجودة (ضمن النطاق المعروض فقط).
+     */
+    private function syncEntity(string $column, int $entityId, array $matrixRow, array $scope): int
+    {
+        $columns = ['can_view', 'can_create', 'can_edit', 'can_delete'];
+        $models = PermissionModelCatalog::all();
+
+        $existing = $this->scopeQuery(Permission::query(), $scope)
+            ->where($column, $entityId)
+            ->whereNull('model_id')
+            ->get();
+
+        $existingByModel = [];
+
+        foreach ($existing as $record) {
+            $names = array_values($record->model_names ?? []);
+
+            if (count($names) > 1) {
+                foreach ($names as $name) {
+                    if (! $this->sameRecordExists($column, $entityId, $scope, $name, $record)) {
+                        Permission::create($this->recordData($column, $entityId, $scope, $name, $record));
+                    }
+                }
+                $record->delete();
+                continue;
+            }
+
+            if (count($names) === 1) {
+                $existingByModel[$names[0]] = $record;
+            }
+        }
+
+        $desiredModels = [];
+        $count = 0;
+
+        foreach ($matrixRow as $modelKey => $cell) {
+            $model = $models[$modelKey]['model'] ?? null;
+            if ($model === null || ! is_array($cell)) {
+                continue;
+            }
+
+            $flags = [];
+            foreach ($columns as $flag) {
+                $flags[$flag] = filter_var($cell[$flag] ?? false, FILTER_VALIDATE_BOOL);
+            }
+
+            if (! array_filter($flags)) {
+                continue;
+            }
+
+            $desiredModels[] = $model;
+
+            if (isset($existingByModel[$model])) {
+                $existingByModel[$model]->update($flags);
+            } else {
+                Permission::create($this->recordData($column, $entityId, $scope, $model, flags: $flags));
+            }
+
+            $count++;
+        }
+
+        // حذف السجلات الموجودة ضمن النطاق للموديلات غير المحددة
+        foreach ($existingByModel as $model => $record) {
+            if (! in_array($model, $desiredModels, true)) {
+                $record->delete();
+            }
+        }
+
+        return $count;
+    }
+
+    private function sameRecordExists(string $column, int $entityId, array $scope, string $model, Permission $exclude): bool
+    {
+        $candidates = $this->scopeQuery(Permission::query(), $scope)
+            ->where($column, $entityId)
+            ->where('id', '!=', $exclude->id)
+            ->whereJsonContains('model_names', $model)
+            ->get();
+
+        return $candidates->contains(fn (Permission $p) => count($p->model_names ?? []) === 1);
+    }
+
+    private function recordData(
+        string $column,
+        int $entityId,
+        array $scope,
+        string $model,
+        ?Permission $source = null,
+        array $flags = []
+    ): array {
+        if ($source !== null) {
+            $flags = [
+                'can_view' => $source->can_view,
+                'can_create' => $source->can_create,
+                'can_edit' => $source->can_edit,
+                'can_delete' => $source->can_delete,
+            ];
+        }
+
+        return array_merge([
+            $column => $entityId,
+            'model_names' => [$model],
+            'model_id' => $source?->model_id,
+            'center_id' => $scope['center_id'],
+            'project_id' => $scope['project_id'],
+            'cohort_id' => $scope['cohort_id'],
+        ], $flags);
+    }
+
+    private function scopeQuery(Builder $query, array $scope): Builder
+    {
+        return $query
+            ->where('center_id', $scope['center_id'])
+            ->where('project_id', $scope['project_id'])
+            ->where('cohort_id', $scope['cohort_id']);
     }
 }

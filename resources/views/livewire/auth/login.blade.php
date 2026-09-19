@@ -84,10 +84,7 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل الد
         } elseif ($user->type === 'beneficiary') {
             $redirectRoute = route('admin.beneficiary.dashboard', absolute: false);
         } elseif ($user->type === 'employee' || $user->type === 'super-admin') {
-            $employee = Employee::where('user_id', $user->id)->first();
-            $redirectRoute = $employee
-                ? route('admin.hr.employees.show', $employee, absolute: false)
-                : route('admin.dashboard', absolute: false);
+            $redirectRoute = route('admin.portal', absolute: false);
         } else {
             // Unknown type (null, empty, etc.)
             $redirectRoute = route('dashboard', absolute: false);

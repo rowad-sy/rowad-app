@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
     <title>@yield('title', 'لوحة التحكم') | مؤسسة الرواد</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700&display=swap" rel="stylesheet">
@@ -28,13 +30,26 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="brand">
-            <i class="bi bi-building me-2"></i>
+            <img src="{{ asset('images/logo.png') }}" alt="لوغو المؤسسة">
             <span class="brand-text">مؤسسة الرواد</span>
         </div>
 
         {{-- Employee/Admin Navigation --}}
         @if (auth()->user()->is_active)
         @if (auth()->user()->type === 'employee' || auth()->user()->type === 'super-admin')
+        @php
+            $canAnyPerm = function (array $perms): bool {
+                if (!auth()->check()) {
+                    return false;
+                }
+                foreach ($perms as [$model, $action]) {
+                    if (\App\Helpers\PermissionHelper::can(auth()->user(), $model, $action)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+        @endphp
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>الرئيسية</span>
@@ -50,6 +65,15 @@
             </div>
         </div>
 
+        @if ($canAnyPerm([
+            ['App\Models\Admin\Center', 'view'],
+            ['App\Models\Admin\Project', 'view'],
+            ['App\Models\Admin\Cohort', 'view'],
+            ['App\Models\Admin\Department', 'view'],
+            ['App\Models\Admin\Group', 'view'],
+            ['App\Models\Admin\Permission', 'view'],
+            ['App\Models\User', 'view'],
+        ]))
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>الإدارة</span>
@@ -59,11 +83,6 @@
                 @canPermission('App\Models\Admin\Center', 'view')
                 <a href="{{ route('admin.centers.index') }}" class="nav-link {{ request()->routeIs('admin.centers.*') ? 'active' : '' }}">
                     <i class="bi bi-geo-alt"></i> <span>المراكز</span>
-                </a>
-                @endcanPermission
-                @canPermission('App\Models\Admin\Project', 'view')
-                <a href="{{ route('admin.projects.index') }}" class="nav-link {{ request()->routeIs('admin.projects.*') ? 'active' : '' }}">
-                    <i class="bi bi-briefcase"></i> <span>المشاريع</span>
                 </a>
                 @endcanPermission
                 @canPermission('App\Models\Admin\Cohort', 'view')
@@ -93,7 +112,16 @@
                 @endcanPermission
             </div>
         </div>
+        @endif
 
+        @if ($canAnyPerm([
+            ['App\Models\Admin\Hr\Employee', 'view'],
+            ['App\Models\Admin\Hr\JobPosition', 'view'],
+            ['App\Models\Admin\Hr\LeaveRequest', 'view'],
+            ['App\Models\Admin\Hr\LeaveRequest', 'edit'],
+            ['App\Models\Admin\Hr\LeaveType', 'view'],
+            ['App\Models\Admin\Hr\EmployeeAttendance', 'view'],
+        ]))
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>الموارد البشرية</span>
@@ -142,7 +170,15 @@
                 @endcanPermission
             </div>
         </div>
+        @endif
 
+        @if ($canAnyPerm([
+            ['App\Models\Admin\Logistics\PurchaseRequest', 'view'],
+            ['App\Models\Admin\Logistics\ApprovalRule', 'view'],
+            ['App\Models\Admin\Logistics\Warehouse', 'view'],
+            ['App\Models\Admin\Logistics\Asset', 'view'],
+            ['App\Models\Admin\Logistics\LogisticsSetting', 'view'],
+        ]))
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>اللوجستي</span>
@@ -181,7 +217,15 @@
                 @endcanPermission
             </div>
         </div>
+        @endif
 
+        @if ($canAnyPerm([
+            ['App\Models\Admin\Student\Student', 'view'],
+            ['App\Models\Admin\Student\Course', 'view'],
+            ['App\Models\Admin\Student\Period', 'view'],
+            ['App\Models\Admin\Student\Attendance', 'view'],
+            ['App\Models\Admin\Student\Certificate', 'view'],
+        ]))
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>الطلاب</span>
@@ -233,7 +277,23 @@
                 @endcanPermission
             </div>
         </div>
+        @endif
 
+        @if ($canAnyPerm([
+            ['page:admin.project-manager.dashboard', 'view'],
+            ['page:admin.projects-manager.dashboard', 'view'],
+            ['page:admin.project-officer.dashboard', 'view'],
+            ['App\Models\Admin\ProjectTask', 'view'],
+            ['App\Models\Admin\MediaPlan', 'view'],
+            ['App\Models\Admin\MovementPlan', 'view'],
+            ['App\Models\Admin\ProjectDocs\AnnexDocument', 'view'],
+            ['App\Models\Admin\MonthlyReports\MonthlyReport', 'view'],
+            ['App\Models\Admin\MonthlyReports\MonthlyReportTemplate', 'create'],
+            ['App\Models\Admin\ProjectActivity', 'view'],
+            ['App\Models\Admin\EventCard', 'view'],
+            ['App\Models\Admin\ProjectPath', 'view'],
+            ['App\Models\Admin\ProjectDocs\AnnexTemplate', 'view'],
+        ]))
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>إدارة المشاريع</span>
@@ -253,6 +313,21 @@
                 @canPermission('page:admin.project-officer.dashboard', 'view')
                 <a href="{{ route('admin.project-officer.dashboard') }}" class="nav-link {{ request()->routeIs('admin.project-officer.dashboard') ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i> <span>لوحة مسؤول المشروع</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\Project', 'view')
+                <a href="{{ route('admin.projects.index') }}" class="nav-link {{ request()->routeIs('admin.projects.index') || request()->routeIs('admin.projects.create') || request()->routeIs('admin.projects.edit') ? 'active' : '' }}">
+                    <i class="bi bi-briefcase"></i> <span>المشاريع</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\ProjectPath', 'view')
+                <a href="{{ route('admin.paths.index') }}" class="nav-link {{ request()->routeIs('admin.paths.index') || request()->routeIs('admin.paths.create') || request()->routeIs('admin.paths.edit') ? 'active' : '' }}">
+                    <i class="bi bi-signpost-split"></i> <span>المسارات</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\ProjectPath', 'view')
+                <a href="{{ route('admin.paths.tree') }}" class="nav-link {{ request()->routeIs('admin.paths.tree') ? 'active' : '' }}">
+                    <i class="bi bi-diagram-2"></i> <span>شجرة المسارات والمشاريع</span>
                 </a>
                 @endcanPermission
                 @canPermission('App\Models\Admin\ProjectTask', 'view')
@@ -300,6 +375,11 @@
                     <i class="bi bi-stars"></i> <span>الأنشطة</span>
                 </a>
                 @endcanPermission
+                @canPermission('App\Models\Admin\EventCard', 'view')
+                <a href="{{ route('admin.event-cards.index') }}" class="nav-link {{ request()->routeIs('admin.event-cards.*') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-event"></i> <span>بطاقات الفعاليات</span>
+                </a>
+                @endcanPermission
                 @canPermission('App\Models\Admin\ProjectDocs\AnnexTemplate', 'view')
                 <a href="{{ route('admin.project-docs.templates.index') }}" class="nav-link {{ request()->routeIs('admin.project-docs.templates.*') ? 'active' : '' }}">
                     <i class="bi bi-diagram-3"></i> <span>قوالب الوثائق</span>
@@ -307,7 +387,15 @@
                 @endcanPermission
             </div>
         </div>
+        @endif
 
+        @if ($canAnyPerm([
+            ['App\Models\Admin\Physiotherapy\PhysioPatient', 'view'],
+            ['App\Models\Admin\Physiotherapy\PhysioRoom', 'view'],
+            ['page:admin.physiotherapy.followups.index', 'view'],
+            ['page:admin.physiotherapy.transfers.index', 'view'],
+            ['page:admin.physiotherapy.statistics.index', 'view'],
+        ]))
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>العلاج الفيزيائي</span>
@@ -341,7 +429,13 @@
                 @endcanPermission
             </div>
         </div>
+        @endif
 
+        @if ($canAnyPerm([
+            ['App\Models\Admin\Tech\TechIssue', 'view'],
+            ['App\Models\Admin\Tech\TechEquipment', 'view'],
+            ['App\Models\User', 'view'],
+        ]))
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>التقنية</span>
@@ -370,7 +464,11 @@
                 @endcanPermission
             </div>
         </div>
+        @endif
 
+        @if ($canAnyPerm([
+            ['App\Models\AuditLog', 'view'],
+        ]))
         <div class="sidebar-section">
             <div class="nav-section" onclick="toggleSection(this)">
                 <span>النظام والتدقيق</span>
@@ -384,6 +482,7 @@
                 @endcanPermission
             </div>
         </div>
+        @endif
         @endif
 
         {{-- Student Navigation --}}
@@ -464,6 +563,12 @@
                 </span>
             </div>
             <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-light btn-sm theme-toggle-btn" type="button" title="تبديل الوضع الليلي/النهاري">
+                    <i class="bi bi-moon-stars"></i>
+                </button>
+                <a href="{{ route('admin.portal') }}" class="btn btn-light btn-sm text-decoration-none" title="الصفحة الرئيسية">
+                    <i class="bi bi-house-door"></i>
+                </a>
                 <div class="dropdown">
                     <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle me-1"></i>

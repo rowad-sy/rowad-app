@@ -32,7 +32,9 @@
             <tr>
                 <th>#</th>
                 <th>اسم المشروع</th>
-                <th>الوصف</th>
+                <th>الكود</th>
+                <th>المسار</th>
+                <th>الحالة</th>
                 <th>المراكز النشطة</th>
                 <th>الإجراءات</th>
             </tr>
@@ -42,11 +44,9 @@
                 <tr>
                     <td>{{ $project->id }}</td>
                     <td class="fw-medium">{{ $project->name }}</td>
-                    <td class="text-muted" style="max-width: 250px;">
-                        <span class="d-inline-block text-truncate" style="max-width: 250px;">
-                            {{ $project->description ?? '—' }}
-                        </span>
-                    </td>
+                    <td class="text-muted">{{ $project->code ?? '—' }}</td>
+                    <td class="text-muted">{{ $project->path?->name ?? '—' }}</td>
+                    <td><span class="status-pill {{ $project->statusBadgeClass() }}">{{ $project->statusLabel() }}</span></td>
                     <td>
                         @foreach ($project->centers as $center)
                             <span class="badge bg-light text-dark border me-1">{{ $center->name }}</span>
@@ -56,6 +56,9 @@
                         @endif
                     </td>
                     <td>
+                        <a href="{{ route('admin.projects.overview', $project) }}" class="btn btn-sm btn-outline-brand" title="صفحة المشروع">
+                            <i class="bi bi-box-arrow-up-left"></i>
+                        </a>
                         <a href="{{ route('admin.projects.edit', $project) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
@@ -72,7 +75,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="text-center py-4 text-muted">
+                    <td colspan="7" class="text-center py-4 text-muted">
                         <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                         لا توجد مشاريع
                     </td>

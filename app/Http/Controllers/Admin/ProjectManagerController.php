@@ -90,12 +90,33 @@ class ProjectManagerController extends Controller
         $scopeProject = $employee?->project;
         $scopeCohort = $employee?->cohort;
 
+        // بطاقات الفعاليات الخاصة بنطاق مدير المشروع
+        $eventCardsCount = \App\Models\Admin\EventCard::query()
+            ->where('created_by', auth()->id())
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->count();
+        $recentEventCards = \App\Models\Admin\EventCard::query()
+            ->with(['project', 'referredUser'])
+            ->where('created_by', auth()->id())
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->latest()
+            ->limit(6)
+            ->get();
+        $awaitingMyEventCards = \App\Models\Admin\EventCard::query()
+            ->with(['project', 'creator'])
+            ->where('status', 'review')
+            ->whereHas('activeReferrals', fn ($r) => $r->where('to_user_id', auth()->id()))
+            ->orderBy('event_date')
+            ->limit(6)
+            ->get();
+
         return view('admin.project-manager.dashboard', compact(
             'studentsCount', 'tasksCount', 'myTasksCount', 'trainingPlansCount',
             'pendingPricingCount', 'awaitingMySignCount', 'approvedCount', 'executedCount',
             'recentPurchaseRequests', 'statusCounts', 'recentActivities',
             'scopeCenterId', 'scopeProjectId', 'scopeCohortId',
-            'scopeCenter', 'scopeProject', 'scopeCohort'
+            'scopeCenter', 'scopeProject', 'scopeCohort',
+            'eventCardsCount', 'recentEventCards', 'awaitingMyEventCards'
         ));
     }
 }

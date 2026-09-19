@@ -191,6 +191,84 @@
     </div>
 </div>
 
+{{-- Event Cards --}}
+<div class="d-flex align-items-center gap-2 mb-3">
+    <div class="bg-warning" style="width: 4px; height: 24px; border-radius: 2px;"></div>
+    <h5 class="mb-0 fw-bold">بطاقات الفعاليات</h5>
+</div>
+<div class="table-container mb-4">
+    <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+        <h5 class="mb-0"><i class="bi bi-calendar-event me-1"></i> بطاقاتي <span class="badge text-bg-secondary ms-1">{{ $eventCardsCount }}</span></h5>
+        @canPermission('App\Models\Admin\EventCard', 'create')
+        <a href="{{ route('admin.event-cards.create') }}" class="btn btn-sm btn-brand">
+            <i class="bi bi-plus-lg"></i> بطاقة فعالية جديدة
+        </a>
+        @endcanPermission
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>اسم الفعالية</th>
+                    <th>المشروع</th>
+                    <th>التاريخ</th>
+                    <th>المحال إليه</th>
+                    <th>الحالة</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($recentEventCards as $card)
+                    <tr>
+                        <td class="fw-medium">{{ $card->name }}</td>
+                        <td class="text-muted">{{ $card->project?->name ?? '—' }}</td>
+                        <td class="text-muted">{{ $card->event_date?->format('d/m/Y') ?? '—' }}</td>
+                        <td class="text-muted">{{ $card->referredUser?->name ?? '—' }}</td>
+                        <td><span class="badge {{ $card->statusBadgeClass() }}">{{ $card->statusLabel() }}</span></td>
+                        <td>
+                            <a href="{{ route('admin.event-cards.show', $card) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-calendar-event fs-3 d-block mb-2"></i>
+                            لا توجد بطاقات فعاليات بعد
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if ($awaitingMyEventCards->isNotEmpty())
+<div class="d-flex align-items-center gap-2 mb-3">
+    <div class="bg-danger" style="width: 4px; height: 24px; border-radius: 2px;"></div>
+    <h5 class="mb-0 fw-bold">بانتظار موافقتي</h5>
+</div>
+<div class="table-container mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>اسم الفعالية</th><th>المشروع</th><th>التاريخ</th><th>أنشأها</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach ($awaitingMyEventCards as $card)
+                    <tr>
+                        <td class="fw-medium">{{ $card->name }}</td>
+                        <td class="text-muted">{{ $card->project?->name ?? '—' }}</td>
+                        <td class="text-muted">{{ $card->event_date?->format('d/m/Y') ?? '—' }}</td>
+                        <td class="text-muted">{{ $card->creator?->name ?? '—' }}</td>
+                        <td><a href="{{ route('admin.event-cards.show', $card) }}" class="btn btn-sm btn-brand"><i class="bi bi-check2-circle me-1"></i>مراجعة</a></td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
+
 {{-- Recent Activities --}}
 <div class="d-flex align-items-center gap-2 mb-3">
     <div class="bg-warning" style="width: 4px; height: 24px; border-radius: 2px;"></div>

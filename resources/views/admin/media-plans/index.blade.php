@@ -23,6 +23,9 @@
 <div class="table-container">
     <div class="p-3 border-bottom">
         <form method="GET" class="row g-2 align-items-end">
+            @if (request('project_id'))
+                <input type="hidden" name="project_id" value="{{ request('project_id') }}">
+            @endif
             <div class="col-md-3">
                 <label class="form-label small mb-1">الشهر</label>
                 <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">

@@ -36,6 +36,37 @@
                     @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">كود المشروع</label>
+                        <input type="text" name="code"
+                               class="form-control @error('code') is-invalid @enderror"
+                               value="{{ old('code', $project->code ?? '') }}">
+                        @error('code') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">حالة المشروع</label>
+                        <select name="status" class="form-select @error('status') is-invalid @enderror">
+                            @foreach (\App\Models\Admin\Project::STATUSES as $key => $label)
+                                <option value="{{ $key }}" @selected(old('status', $project->status ?? 'active') === $key)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('status') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">المسار</label>
+                    <select name="path_id" class="form-select @error('path_id') is-invalid @enderror">
+                        <option value="">— بدون مسار —</option>
+                        @foreach ($paths as $path)
+                            <option value="{{ $path->id }}" @selected((int) old('path_id', $project->path_id ?? 0) === $path->id)>{{ $path->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('path_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="form-text">يمكن إدارة المسارات من صفحة المسارات في قسم إدارة المشاريع.</div>
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label">المراكز النشطة</label>
                     <div class="row g-2 mt-1">

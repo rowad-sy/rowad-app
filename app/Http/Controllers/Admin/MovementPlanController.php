@@ -46,8 +46,11 @@ class MovementPlanController extends Controller
         if ($request->filled('center_id')) {
             $query->where('center_id', $request->center_id);
         }
+        if ($request->filled('project_id')) {
+            $query->where('project_id', $request->project_id);
+        }
 
-        $plans = $query->orderBy('movement_date', 'desc')->paginate(15);
+        $plans = $query->orderBy('movement_date', 'desc')->paginate(15)->withQueryString();
         $centers = Center::orderBy('name')->get();
 
         return view('admin.movement-plans.index', compact('plans', 'centers'));

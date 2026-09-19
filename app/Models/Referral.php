@@ -34,6 +34,8 @@ class Referral extends Model
         'media_officer' => 'المسؤول الإعلامي',
         'movement_officer' => 'مسؤول الحركة',
         'recipient' => 'متابعة',
+        'event_approve' => 'موافقة على بطاقة الفعالية',
+        'event_finalize' => 'اعتماد بطاقة الفعالية',
     ];
 
     protected $fillable = [
