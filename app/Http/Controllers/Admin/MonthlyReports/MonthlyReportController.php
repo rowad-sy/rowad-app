@@ -14,7 +14,7 @@ class MonthlyReportController extends Controller
     public function __construct()
     {
         $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,view')->only(['index', 'show', 'printDocument']);
-        $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,create')->only(['create', 'store']);
+        $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,create')->only(['create', 'store', 'duplicate']);
         $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,edit')->only(['edit', 'update', 'submit', 'reopen', 'signoff']);
         $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,delete')->only(['destroy']);
     }
@@ -93,6 +93,56 @@ class MonthlyReportController extends Controller
 
         return redirect()->route('admin.monthly-reports.edit', $report)
             ->with('success', 'تم إنشاء التقرير — ابدأ بتعبئة أقسامه');
+    }
+
+    public function duplicate(MonthlyReport $report)
+    {
+        $pageCount = max(1, (int) $report->page_count);
+        $template = $report->template;
+
+        $copy = MonthlyReport::create([
+            'template_id' => $report->template_id,
+            'template_version' => $report->template_version,
+            'title' => trim(($report->title ?: ($template?->title_ar ?? 'تقرير شهري')) . ' — نسخة'),
+            'project_id' => $report->project_id,
+            'period' => $report->period,
+            'status' => 'draft',
+            'page_count' => $pageCount,
+            'data' => $report->data,
+            'created_by' => auth()->id(),
+            'assigned_to' => null,
+            'signed_at' => null,
+        ]);
+
+        $copiedKeys = [];
+        foreach ($report->blocks as $block) {
+            $copy->blocks()->create([
+                'block_key' => $block->block_key,
+                'page_number' => max(1, min((int) $block->page_number, $pageCount)),
+                'json_value' => $block->json_value,
+                'updated_by' => auth()->id(),
+                'locked' => false,
+            ]);
+            $copiedKeys[] = $block->block_key;
+        }
+
+        // أقسام أُضيفت على القالب بعد إنشاء التقرير الأصلي — تُنسخ كفراغات
+        foreach ($template->sections() as $section) {
+            if (! in_array($section['key'] ?? null, $copiedKeys, true)) {
+                $copy->blocks()->create([
+                    'block_key' => $section['key'] ?? null,
+                    'page_number' => max(1, min((int) ($section['page'] ?? 1), $pageCount)),
+                    'json_value' => null,
+                    'updated_by' => null,
+                    'locked' => false,
+                ]);
+            }
+        }
+
+        $copy->logWorkflow('create', null, 'نسخة من التقرير #' . $report->id . ' قابلة للتعديل', 'draft');
+
+        return redirect()->route('admin.monthly-reports.edit', $copy)
+            ->with('success', 'تم إنشاء نسخة من التقرير — عدّلها كما تريد');
     }
 
     public function show(MonthlyReport $report)

@@ -37,6 +37,13 @@
             <i class="bi bi-printer"></i> طباعة A4
         </a>
         @endcanPermission
+        @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'create')
+        <form method="POST" action="{{ route('admin.project-docs.documents.duplicate', $document) }}"
+              onsubmit="return confirm('إنشاء نسخة جديدة من هذه الوثيقة بكل محتواها لتعديلها؟')">
+            @csrf
+            <button class="btn btn-outline-primary"><i class="bi bi-files"></i> نسخة جديدة</button>
+        </form>
+        @endcanPermission
         @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'edit')
         @if (in_array($document->status, ['draft', 'rejected'], true))
         <a href="{{ route('admin.project-docs.documents.edit', $document) }}" class="btn btn-primary">

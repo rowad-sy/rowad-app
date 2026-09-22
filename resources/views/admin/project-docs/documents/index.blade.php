@@ -88,6 +88,15 @@
                             <i class="bi bi-printer"></i>
                         </a>
                         @endcanPermission
+                        @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'create')
+                        <form method="POST" action="{{ route('admin.project-docs.documents.duplicate', $document) }}" class="d-inline"
+                              onsubmit="return confirm('إنشاء نسخة جديدة من هذه الوثيقة بكل محتواها لتعديلها؟')">
+                            @csrf
+                            <button class="btn btn-sm btn-outline-primary" title="نسخ كوثيقة جديدة">
+                                <i class="bi bi-files"></i>
+                            </button>
+                        </form>
+                        @endcanPermission
                     </td>
                 </tr>
                 @empty

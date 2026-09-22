@@ -230,6 +230,81 @@ it('serves the shared robust add-row script on both edit pages', function () {
         ->assertDontSee("closest('.table-responsive')", false);
 });
 
+it('duplicates a document with its content as a fresh editable draft', function () {
+    $user = pagesSuperAdmin();
+    $other = pagesSuperAdmin();
+
+    $template = AnnexTemplate::create([
+        'key' => 'smr-dup',
+        'title_ar' => 'قالب نسخ',
+        'version' => 1,
+        'default_page_count' => 2,
+        'is_active' => true,
+        'json_definition' => [
+            'sections' => [
+                ['key' => 'intro', 'title' => 'مقدمة', 'type' => 'paragraph', 'page' => 1],
+                ['key' => 'grid', 'title' => 'جدول', 'type' => 'table', 'columns' => ['أ', 'ب'], 'page' => 2],
+            ],
+        ],
+    ]);
+
+    $document = AnnexDocument::create([
+        'template_id' => $template->id,
+        'template_version' => 1,
+        'title' => 'وثيقة أصلية',
+        'status' => 'approved',
+        'page_count' => 2,
+        'created_by' => $other->id,
+    ]);
+    $document->blocks()->create(['block_key' => 'intro', 'page_number' => 1, 'json_value' => 'نص الأصلي', 'locked' => true]);
+    $document->blocks()->create(['block_key' => 'grid', 'page_number' => 2, 'json_value' => [['1', '2']], 'locked' => true]);
+    $document->signoffs()->create(['user_id' => $other->id, 'action' => 'approve']);
+
+    $this->actingAs($user)
+        ->post(route('admin.project-docs.documents.duplicate', $document))
+        ->assertStatus(302);
+
+    $copy = AnnexDocument::firstWhere('title', 'وثيقة أصلية — نسخة');
+    expect($copy)->not->toBeNull()
+        ->and($copy->status)->toBe('draft')
+        ->and($copy->created_by)->toBe($user->id)
+        ->and($copy->page_count)->toBe(2)
+        ->and($copy->signoffs)->toHaveCount(0)
+        ->and($copy->blocks->firstWhere('block_key', 'intro')->json_value)->toBe('نص الأصلي')
+        ->and($copy->blocks->firstWhere('block_key', 'intro')->locked)->toBeFalse()
+        ->and($copy->blocks->firstWhere('block_key', 'grid')->page_number)->toBe(2);
+});
+
+it('duplicates a monthly report with its content as a fresh editable draft', function () {
+    $user = pagesSuperAdmin();
+    $template = monthlyTemplate();
+
+    $report = MonthlyReport::create([
+        'template_id' => $template->id,
+        'template_version' => 1,
+        'title' => 'تقرير أصلي',
+        'status' => 'under_review',
+        'page_count' => 3,
+        'created_by' => $user->id,
+    ]);
+    $report->blocks()->create(['block_key' => 'intro', 'page_number' => 1, 'json_value' => 'محتوى التقرير', 'locked' => true]);
+    $report->blocks()->create(['block_key' => 'body', 'page_number' => 2]);
+    $report->blocks()->create(['block_key' => 'tail', 'page_number' => 3]);
+
+    $this->actingAs($user)
+        ->post(route('admin.monthly-reports.duplicate', $report))
+        ->assertStatus(302);
+
+    $copy = MonthlyReport::firstWhere('title', 'تقرير أصلي — نسخة');
+    expect($copy)->not->toBeNull()
+        ->and($copy->status)->toBe('draft')
+        ->and($copy->page_count)->toBe(3)
+        ->and($copy->blocks)->toHaveCount(3)
+        ->and($copy->blocks->firstWhere('block_key', 'intro')->json_value)->toBe('محتوى التقرير')
+        ->and($copy->blocks->firstWhere('block_key', 'intro')->locked)->toBeFalse()
+        ->and($copy->blocks->firstWhere('block_key', 'tail')->page_number)->toBe(3);
+});
+
 it('shows default page count for production templates after seeding', function () {
     $this->seed(\Database\Seeders\AnnexTemplatesSeeder::class);
     $this->seed(\Database\Seeders\MonthlyReportTemplatesSeeder::class);

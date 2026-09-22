@@ -204,6 +204,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::post('documents/{document}/submit', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'submit'])->name('documents.submit');
             Route::post('documents/{document}/reopen', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'reopen'])->name('documents.reopen');
             Route::post('documents/{document}/signoff', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'signoff'])->name('documents.signoff');
+            Route::post('documents/{document}/duplicate', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'duplicate'])->name('documents.duplicate');
             Route::get('documents/{document}/print', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'printDocument'])->name('documents.print');
             Route::delete('documents/{document}', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'destroy'])->name('documents.destroy');
         });
@@ -218,6 +219,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::post('{report}/submit', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'submit'])->name('submit');
             Route::post('{report}/reopen', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'reopen'])->name('reopen');
             Route::post('{report}/signoff', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'signoff'])->name('signoff');
+            Route::post('{report}/duplicate', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'duplicate'])->name('duplicate');
             Route::get('{report}/print', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'printDocument'])->name('print');
             Route::delete('{report}', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'destroy'])->name('destroy');
         });

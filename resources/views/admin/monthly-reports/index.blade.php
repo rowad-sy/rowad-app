@@ -90,6 +90,15 @@
                             <i class="bi bi-printer"></i>
                         </a>
                         @endcanPermission
+                        @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'create')
+                        <form method="POST" action="{{ route('admin.monthly-reports.duplicate', $report) }}" class="d-inline"
+                              onsubmit="return confirm('إنشاء نسخة جديدة من هذا التقرير بكل محتواه لتعديلها؟')">
+                            @csrf
+                            <button class="btn btn-sm btn-outline-primary" title="نسخ كتقرير جديد">
+                                <i class="bi bi-files"></i>
+                            </button>
+                        </form>
+                        @endcanPermission
                     </td>
                 </tr>
                 @empty

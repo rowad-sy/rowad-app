@@ -34,6 +34,13 @@
             <i class="bi bi-printer"></i> طباعة A4
         </a>
         @endcanPermission
+        @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'create')
+        <form method="POST" action="{{ route('admin.monthly-reports.duplicate', $report) }}"
+              onsubmit="return confirm('إنشاء نسخة جديدة من هذا التقرير بكل محتواه لتعديلها؟')">
+            @csrf
+            <button class="btn btn-outline-primary"><i class="bi bi-files"></i> نسخة جديدة</button>
+        </form>
+        @endcanPermission
         @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'edit')
         @if (in_array($report->status, ['draft', 'rejected'], true))
         <a href="{{ route('admin.monthly-reports.edit', $report) }}" class="btn btn-primary">

@@ -15,8 +15,8 @@ class AnnexDocumentController extends Controller
     public function __construct()
     {
         $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,view')->only(['index', 'show', 'printDocument']);
-        $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,create')->only(['create', 'store']);
-        $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,edit')->only(['edit', 'update', 'submit', 'signoff']);
+        $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,create')->only(['create', 'store', 'duplicate']);
+        $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,edit')->only(['edit', 'update', 'submit', 'reopen', 'signoff']);
         $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,delete')->only(['destroy']);
     }
 
@@ -99,6 +99,56 @@ class AnnexDocumentController extends Controller
 
         return redirect()->route('admin.project-docs.documents.edit', $document)
             ->with('success', 'تم إنشاء الوثيقة — ابدأ بتعبئة أقسامها');
+    }
+
+    public function duplicate(AnnexDocument $document)
+    {
+        $pageCount = max(1, (int) $document->page_count);
+        $template = $document->template;
+
+        $copy = AnnexDocument::create([
+            'template_id' => $document->template_id,
+            'template_version' => $document->template_version,
+            'title' => trim(($document->title ?: ($template?->title_ar ?? 'وثيقة')) . ' — نسخة'),
+            'project_id' => $document->project_id,
+            'period' => $document->period,
+            'status' => 'draft',
+            'page_count' => $pageCount,
+            'data' => $document->data,
+            'created_by' => auth()->id(),
+            'assigned_to' => null,
+            'signed_at' => null,
+        ]);
+
+        $copiedKeys = [];
+        foreach ($document->blocks as $block) {
+            $copy->blocks()->create([
+                'block_key' => $block->block_key,
+                'page_number' => max(1, min((int) $block->page_number, $pageCount)),
+                'json_value' => $block->json_value,
+                'updated_by' => auth()->id(),
+                'locked' => false,
+            ]);
+            $copiedKeys[] = $block->block_key;
+        }
+
+        // أقسام أُضيفت على القالب بعد إنشاء الوثيقة الأصلية — تُنسخ كفراغات
+        foreach ($template->sections() as $section) {
+            if (! in_array($section['key'] ?? null, $copiedKeys, true)) {
+                $copy->blocks()->create([
+                    'block_key' => $section['key'] ?? null,
+                    'page_number' => max(1, min((int) ($section['page'] ?? 1), $pageCount)),
+                    'json_value' => null,
+                    'updated_by' => null,
+                    'locked' => false,
+                ]);
+            }
+        }
+
+        $copy->logWorkflow('create', null, 'نسخة من الوثيقة #' . $document->id . ' قابلة للتعديل', 'draft');
+
+        return redirect()->route('admin.project-docs.documents.edit', $copy)
+            ->with('success', 'تم إنشاء نسخة من الوثيقة — عدّلها كما تريد');
     }
 
     public function show(AnnexDocument $document)
