@@ -32,9 +32,11 @@ class AttendanceController extends Controller
 
         $students = Student::where('status', 'active')
             ->when($centerId, fn($q, $v) => $q->where('center_id', $v))
-            ->when($projectId, fn($q, $v) => $q->where('project_id', $v))
-            ->unless($scope['sees_all'] || $request->filled('center_id'), fn ($q) => !empty($scope['center_ids']) ? $q->whereIn('center_id', $scope['center_ids']) : $q)
-            ->unless($scope['sees_all'] || $request->filled('project_id'), fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('project_id', $scope['project_ids']) : $q)
+            ->when($projectId, fn($q, $v) => $q->inProjects([(int) $v]))
+            // نطاق الصلاحية يُطبَّق دائماً ولا يمكن تجاوزه بالفلاتر اليدوية
+            ->when(!$scope['sees_all'] && !empty($scope['center_ids']), fn($q) => $q->whereIn('center_id', $scope['center_ids']))
+            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->inProjects($scope['project_ids']))
+            ->when(!$scope['sees_all'] && !empty($scope['cohort_ids']), fn($q) => $q->whereIn('cohort_id', $scope['cohort_ids']))
             ->when($courseId || $periodId, function ($q) use ($courseId, $periodId) {
                 $q->whereHas('enrollments', function ($eq) use ($courseId, $periodId) {
                     $eq->when($courseId, fn($qq, $v) => $qq->where('course_id', $v))
@@ -49,8 +51,8 @@ class AttendanceController extends Controller
             ->get()
             ->keyBy('student_id');
 
-        $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $centers = Center::when(!$scope['sees_all'] && !empty($scope['center_ids']), fn($q) => $q->whereIn('id', $scope['center_ids']))->orderBy('name')->get();
+        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->orderBy('name')->get();
         $courses = Course::orderBy('name_ar')->get();
         $periods = Period::orderBy('name_ar')->get();
 
@@ -68,6 +70,28 @@ class AttendanceController extends Controller
             'attendance.*.student_id' => 'required|exists:students,id',
             'attendance.*.status' => 'required|in:present,absent,excused',
         ]);
+
+        // منع تسجيل الحضور لطلاب خارج نطاق صلاحية المستخدم
+        $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Attendance');
+
+        if (!$scope['sees_all']) {
+            $allowedStudentIds = Student::query()
+                ->when(!empty($scope['center_ids']), fn($q) => $q->whereIn('center_id', $scope['center_ids']))
+                ->when(!empty($scope['project_ids']), fn($q) => $q->inProjects($scope['project_ids']))
+                ->when(!empty($scope['cohort_ids']), fn($q) => $q->whereIn('cohort_id', $scope['cohort_ids']))
+                ->pluck('id')
+                ->all();
+
+            $submittedStudentIds = collect($request->input('attendance'))
+                ->pluck('student_id')
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->all();
+
+            if (array_diff($submittedStudentIds, $allowedStudentIds)) {
+                abort(403, 'ليس لديك صلاحية تسجيل الحضور لهؤلاء الطلاب');
+            }
+        }
 
         $date = $request->input('date');
 

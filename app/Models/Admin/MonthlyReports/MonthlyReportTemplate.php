@@ -11,7 +11,7 @@ class MonthlyReportTemplate extends Model
     protected $table = 'monthly_report_templates';
 
     protected $fillable = [
-        'key', 'title_ar', 'slug', 'version', 'json_definition', 'is_active',
+        'key', 'title_ar', 'slug', 'version', 'default_page_count', 'json_definition', 'is_active',
     ];
 
     protected function casts(): array
@@ -20,6 +20,7 @@ class MonthlyReportTemplate extends Model
             'json_definition' => 'array',
             'is_active' => 'boolean',
             'version' => 'integer',
+            'default_page_count' => 'integer',
         ];
     }
 

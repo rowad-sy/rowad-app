@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مؤسسة الرواد للتنمية</title>
+    <title>مؤسسة الرواد للتعاون والتنمية</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700,800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -160,14 +160,14 @@
 <body>
     <section class="hero">
         <div class="hero-logo"><i class="bi bi-building"></i></div>
-        <h1>مؤسسة الرواد للتنمية</h1>
+        <h1>مؤسسة الرواد للتعاون والتنمية</h1>
         <p>منصة إدارية متكاملة لإدارة شؤون الموظفين، والمستفيدين، والمشاريع التنموية. نسعى لتمكين الكوادر البشرية وتحقيق التميز المؤسسي.</p>
         <div class="hero-buttons">
             <a href="{{ route('login') }}" class="btn-hero btn-hero-primary">
                 <i class="bi bi-person"></i> تسجيل الدخول
             </a>
         </div>
-        <div class="hero-footer">© 2026 مؤسسة الرواد للتنمية. جميع الحقوق محفوظة.</div>
+        <div class="hero-footer">© 2026 مؤسسة الرواد للتعاون والتنمية. جميع الحقوق محفوظة.</div>
     </section>
 
     <section class="features">

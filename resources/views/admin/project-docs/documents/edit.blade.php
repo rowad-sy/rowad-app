@@ -30,6 +30,15 @@
     @csrf
     @method('PUT')
 
+    @if ($document->status === 'draft')
+    <div class="row align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label mb-1 small text-muted">عدد صفحات الوثيقة (قابل للتعديل)</label>
+            <input type="number" name="page_count" min="1" max="60" value="{{ $pageCount }}" class="form-control form-control-sm" style="width: 120px;">
+        </div>
+    </div>
+    @endif
+
     @if ($pageCount > 1)
     <ul class="nav nav-tabs mb-3" role="tablist">
         @for ($p = 1; $p <= $pageCount; $p++)
@@ -129,38 +138,5 @@
 @endsection
 
 @push('scripts')
-<script>
-document.addEventListener('click', function (e) {
-    if (e.target.closest('.table-edit-remove')) {
-        const tr = e.target.closest('.table-edit-row');
-        if (tr) tr.remove();
-    }
-    if (e.target.closest('.list-edit-remove')) {
-        const item = e.target.closest('.list-edit-item');
-        if (item) item.remove();
-    }
-    if (e.target.closest('.table-edit-add')) {
-        const btn = e.target.closest('.table-edit-add');
-        const tbody = btn.closest('.card-body')?.querySelector('.table-edit-rows');
-        if (!tbody) return;
-        const inputName = 'blocks[' + btn.dataset.key + '][rows][]';
-        let html = '<tr class="table-edit-row">';
-        for (let c = 0; c < parseInt(btn.dataset.cols, 10); c++) {
-            html += '<td><input type="text" name="' + inputName + '[' + c + ']" class="form-control form-control-sm"></td>';
-        }
-        html += '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger table-edit-remove"><i class="bi bi-x-lg"></i></button></td></tr>';
-        tbody.insertAdjacentHTML('beforeend', html);
-    }
-    if (e.target.closest('.list-edit-add')) {
-        const btn = e.target.closest('.list-edit-add');
-        const container = btn.closest('.card-body')?.querySelector('.list-edit-items');
-        if (container) {
-            const html = '<div class="input-group mb-1 list-edit-item">' +
-                '<input type="text" name="blocks[' + btn.dataset.key + '][items][]" class="form-control form-control-sm">' +
-                '<button type="button" class="btn btn-outline-danger btn-sm list-edit-remove"><i class="bi bi-x-lg"></i></button></div>';
-            container.insertAdjacentHTML('beforeend', html);
-        }
-    }
-});
-</script>
+@include('admin.project-docs.partials.block-edit-scripts')
 @endpush

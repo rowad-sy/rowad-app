@@ -11,12 +11,13 @@ class MonthlyReportBlock extends Model
     protected $table = 'monthly_report_blocks';
 
     protected $fillable = [
-        'report_id', 'block_key', 'json_value', 'updated_by', 'locked',
+        'report_id', 'block_key', 'page_number', 'json_value', 'updated_by', 'locked',
     ];
 
     protected function casts(): array
     {
         return [
+            'page_number' => 'integer',
             'json_value' => 'array',
             'locked' => 'boolean',
         ];

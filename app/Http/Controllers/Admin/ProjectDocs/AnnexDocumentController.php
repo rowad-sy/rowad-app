@@ -65,10 +65,11 @@ class AnnexDocumentController extends Controller
             'title' => 'nullable|string|max:255',
             'project_id' => 'nullable|exists:projects,id',
             'period' => 'nullable|string|max:20',
-            'page_count' => 'required|integer|min:1|max:20',
+            'page_count' => 'required|integer|min:1|max:60',
         ]);
 
         $template = AnnexTemplate::findOrFail($validated['template_id']);
+        $pageCount = (int) $validated['page_count'];
 
         $document = AnnexDocument::create([
             'template_id' => $template->id,
@@ -77,7 +78,7 @@ class AnnexDocumentController extends Controller
             'project_id' => $validated['project_id'] ?? null,
             'period' => $validated['period'] ?? null,
             'status' => 'draft',
-            'page_count' => $validated['page_count'],
+            'page_count' => $pageCount,
             'data' => null,
             'created_by' => auth()->id(),
             'assigned_to' => null,
@@ -87,6 +88,7 @@ class AnnexDocumentController extends Controller
         foreach ($template->sections() as $section) {
             $document->blocks()->create([
                 'block_key' => $section['key'] ?? null,
+                'page_number' => max(1, min((int) ($section['page'] ?? 1), $pageCount)),
                 'json_value' => null,
                 'updated_by' => null,
                 'locked' => false,
@@ -127,6 +129,15 @@ class AnnexDocumentController extends Controller
         $user = auth()->user();
         $isCreator = $user->id === (int) $document->created_by;
 
+        $pageCount = (int) $document->page_count;
+        if ($request->filled('page_count')) {
+            $validatedCount = $request->validate([
+                'page_count' => 'integer|min:1|max:60',
+            ])['page_count'];
+            $pageCount = (int) $validatedCount;
+            $document->update(['page_count' => $pageCount]);
+        }
+
         $blocksInput = $request->input('blocks', []);
         $locksInput = $request->input('lock', []);
         $sections = $document->sections();
@@ -142,7 +153,7 @@ class AnnexDocumentController extends Controller
 
             $value = $this->extractValue($section['type'] ?? 'paragraph', $blocksInput[$key] ?? []);
             $shouldLock = ! empty($locksInput[$key]);
-            $pageNumber = max(1, (int) ($locksInput[$key . '_page'] ?? ($block?->page_number ?? 1)));
+            $pageNumber = max(1, min((int) ($locksInput[$key . '_page'] ?? ($block?->page_number ?? 1)), $pageCount));
 
             if ($block) {
                 $block->update([
@@ -261,9 +272,11 @@ class AnnexDocumentController extends Controller
     {
         return match ($type) {
             'fields' => collect($input['fields'] ?? [])->filter(fn ($v) => trim((string) $v) !== '')->all(),
-            'table' => collect($input['rows'] ?? [])->map(function ($row) {
-                return array_values(array_filter($row ?? [], fn ($v) => trim((string) $v) !== ''));
-            })->filter(fn ($row) => ! empty($row))->values()->all(),
+            'table' => collect($input['rows'] ?? [])
+                ->map(fn ($row) => array_values($row ?? []))
+                ->filter(fn ($row) => collect($row)->contains(fn ($v) => trim((string) $v) !== ''))
+                ->values()
+                ->all(),
             'list' => collect($input['items'] ?? [])->filter(fn ($v) => trim((string) $v) !== '')->values()->all(),
             default => trim((string) ($input['paragraph'] ?? '')),
         };

@@ -89,6 +89,7 @@ class MonthlyReportTemplateController extends Controller
             'key' => 'required|string|max:100|unique:monthly_report_templates,key' . ($ignoreId ? ",{$ignoreId}" : ''),
             'title_ar' => 'required|string|max:200',
             'slug' => 'nullable|string|max:100',
+            'default_page_count' => 'required|integer|min:1|max:60',
             'is_active' => 'nullable|boolean',
         ]);
     }

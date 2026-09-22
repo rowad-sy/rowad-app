@@ -23,9 +23,10 @@
                         @foreach ($templates as $template)
                             <option value="{{ $template->id }}"
                                 data-sections="{{ $template->sections()->count() }}"
+                                data-pages="{{ max(1, (int) ($template->default_page_count ?? 1)) }}"
                                 data-version="{{ $template->version }}"
                                 {{ old('template_id') == $template->id ? 'selected' : '' }}>
-                                {{ $template->title_ar }} (V{{ $template->version }} — {{ $template->sections()->count() }} أقسام)
+                                {{ $template->title_ar }} (V{{ $template->version }} — {{ $template->sections()->count() }} أقسام — {{ max(1, (int) ($template->default_page_count ?? 1)) }} {{ (int) ($template->default_page_count ?? 1) > 3 ? 'صفحات' : 'صفحة' }})
                             </option>
                         @endforeach
                     </select>
@@ -57,10 +58,10 @@
 
                 <div class="mb-3">
                     <label class="form-label">عدد الصفحات</label>
-                    <input type="number" name="page_count" class="form-control @error('page_count') is-invalid @enderror"
-                           min="1" max="20" value="{{ old('page_count', 1) }}">
+                    <input type="number" name="page_count" id="pageCountInput" class="form-control @error('page_count') is-invalid @enderror"
+                           min="1" max="60" value="{{ old('page_count', 1) }}">
                     @error('page_count') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    <div class="form-text">عدد صفحات الوثيقة في الطباعة (A4) — يمكنك توزيع الأقسام على الصفحات لاحقاً</div>
+                    <div class="form-text">القيمة الافتراضية تُقرأ من القالب — يمكن تعديلها؛ توزيع الأقسام على الصفحات يتم لاحقاً من صفحة التعبئة</div>
                 </div>
 
                 <button class="btn btn-primary">إنشاء الوثيقة</button>
@@ -87,14 +88,18 @@
 
 @push('scripts')
 <script>
-document.getElementById('templateSelect').addEventListener('change', function () {
-    const hint = document.getElementById('templateHint');
-    const opt = this.options[this.selectedIndex];
-    if (opt.value) {
-        hint.textContent = 'الإصدار V' + opt.dataset.version + ' — ' + opt.dataset.sections + ' أقسام سيُنشأ منها';
-    } else {
-        hint.textContent = '';
-    }
-});
+const templateSelect = document.getElementById('templateSelect');
+const pageCountInput = document.getElementById('pageCountInput');
+const templateHint = document.getElementById('templateHint');
+
+function applyTemplateInfo(setPages) {
+    const opt = templateSelect.options[templateSelect.selectedIndex];
+    if (!opt.value) { templateHint.textContent = ''; return; }
+    templateHint.textContent = 'الإصدار V' + opt.dataset.version + ' — ' + opt.dataset.sections + ' أقسام — ' + opt.dataset.pages + ' صفحة افتراضياً';
+    if (setPages || pageCountInput.value === '1') pageCountInput.value = opt.dataset.pages;
+}
+
+templateSelect.addEventListener('change', () => applyTemplateInfo(true));
+applyTemplateInfo(false);
 </script>
 @endpush

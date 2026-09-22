@@ -17,6 +17,23 @@ class AnnexTemplatesSeeder extends Seeder
         $templates = $this->templates();
 
         foreach ($templates as $data) {
+            $key = $data['key'];
+
+            if (isset(self::DEFAULT_PAGES[$key])) {
+                $data['default_page_count'] = self::DEFAULT_PAGES[$key];
+            }
+
+            if (isset(self::SECTION_PAGES[$key])) {
+                $mapping = self::SECTION_PAGES[$key];
+                $maxPage = $data['default_page_count'] ?? 1;
+
+                foreach ($data['json_definition']['sections'] as $i => $section) {
+                    $section['page'] = $mapping[$section['key']] ?? 1;
+                    $section['page'] = max(1, min((int) $section['page'], $maxPage));
+                    $data['json_definition']['sections'][$i] = $section;
+                }
+            }
+
             AnnexTemplate::updateOrCreate(
                 ['key' => $data['key']],
                 $data
@@ -24,6 +41,88 @@ class AnnexTemplatesSeeder extends Seeder
             fwrite(STDOUT, "Annex template: {$data['key']} ({$data['title_ar']}) — ready.\n");
         }
     }
+
+    /*
+     * عدد الصفحات الافتراضي لكل قالب — قابل للتعديل من صفحة القالب أو عند إنشاء الوثيقة.
+     * مرجع: project-files/stage 1/project-managment/project-document/عدد صفحات الوثائق.txt
+     */
+    private const DEFAULT_PAGES = [
+        'project-card' => 1,
+        'project-idea' => 2,
+        'project-preliminary-study' => 6,
+        'beneficiary-criteria' => 5,
+        'project-monthly-report' => 15,
+        'project-final-report' => 19,
+    ];
+
+    /*
+     * توزيع الأقسام على الصفحات مطابِقاً لملفات الوورد المرجعية.
+     */
+    private const SECTION_PAGES = [
+        'project-card' => [
+            'basic' => 1, 'timeline' => 1, 'target' => 1, 'goal' => 1, 'activities' => 1,
+        ],
+        'project-idea' => [
+            'basic' => 1, 'need' => 1, 'background' => 1, 'problem' => 1, 'evidence' => 1, 'target' => 1,
+            'goal' => 2, 'indicators' => 2, 'activities_main' => 2, 'activities_secondary' => 2, 'cost' => 2,
+            'integration' => 2, 'risks' => 2, 'decisions' => 2, 'sustainability' => 2,
+        ],
+        'project-preliminary-study' => [
+            'summary_basic' => 1, 'summary_need' => 1, 'summary_solution' => 1,
+            'summary_target' => 1, 'summary_decision' => 1, 'summary_priority' => 1,
+            'context_problem' => 2, 'context_field' => 2, 'context_interviews' => 2, 'context_site' => 2,
+            'design_logframe' => 3, 'design_outputs' => 3,
+            'activities_main' => 4, 'activities_secondary' => 4, 'beneficiaries_size' => 4,
+            'feasibility_team' => 5, 'feasibility_partners' => 5, 'feasibility_permits' => 5,
+            'feasibility_alternatives' => 5, 'cost_budget' => 5, 'cost_total' => 5,
+            'risks' => 6, 'sustainability' => 6, 'recommendation' => 6, 'verification' => 6,
+        ],
+        'beneficiary-criteria' => [
+            'basic' => 1, 'target_classes' => 1,
+            'eligibility_geo' => 2, 'eligibility_demo' => 2, 'eligibility_econ' => 2,
+            'eligibility_vuln' => 3, 'eligibility_project' => 3, 'docs' => 3,
+            'priority_criteria' => 4, 'exclusion' => 4, 'exclusion_notes' => 4,
+            'decision_frame' => 5, 'reserve' => 5, 'comments' => 5,
+        ],
+        'project-monthly-report' => [
+            'exec_summary' => 1, 'monthly_indicators' => 1,
+            'achievements' => 2, 'challenges' => 2,
+            'locations' => 3,
+            'activities' => 4, 'activities_summary' => 4,
+            'kpis' => 5,
+            'risks' => 6,
+            'meal' => 7,
+            'compliance' => 8,
+            'general_challenges' => 9,
+            'lessons' => 10, 'success_stories' => 10,
+            'recommendations' => 11, 'decisions' => 11,
+            'annexes' => 12,
+            'naming' => 13,
+            'pre_submission' => 14,
+            'approvals' => 15,
+        ],
+        'project-final-report' => [
+            'project_card' => 1,
+            'summary' => 2,
+            'background' => 3,
+            'implementation_map' => 4,
+            'achieved' => 5, 'not_achieved' => 5,
+            'indicators' => 6,
+            'impact' => 7,
+            'beneficiaries' => 8,
+            'partnerships' => 9,
+            'logistics' => 10,
+            'it' => 11,
+            'staff' => 12, 'hr_gaps' => 12, 'training' => 12,
+            'finance' => 13, 'finance_notes' => 13,
+            'compliance' => 14,
+            'meal' => 15,
+            'stories' => 16,
+            'lessons' => 17,
+            'sustainability' => 18, 'next' => 18, 'closing_decisions' => 18,
+            'closing' => 19, 'annexes' => 19,
+        ],
+    ];
 
     private function templates(): array
     {

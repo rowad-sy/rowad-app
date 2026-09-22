@@ -84,8 +84,32 @@ class StudentStatisticsController extends Controller
         // ── Center Distribution ──
         $centerStats = Center::select('centers.id', 'centers.name')
             ->selectRaw('COUNT(students.id) as total')
-            ->leftJoin('students', 'centers.id', '=', 'students.center_id')
-            ->when(!empty($filters['project_id']), fn ($q) => $q->where('students.project_id', $filters['project_id']))
+            ->leftJoin('students', function ($join) {
+                $join->on('centers.id', '=', 'students.center_id')
+                    ->whereNull('students.deleted_at');
+            })
+            ->when(!empty($filters['project_id']), function ($q) use ($filters) {
+                $q->where(function ($qq) use ($filters) {
+                    $qq->where('students.project_id', $filters['project_id'])
+                        ->orWhereIn('students.id', function ($sub) use ($filters) {
+                            $sub->select('ps.student_id')
+                                ->from('project_student as ps')
+                                ->where('ps.project_id', $filters['project_id'])
+                                ->whereNull('ps.deleted_at');
+                        });
+                });
+            })
+            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), function ($q) use ($scope) {
+                $q->where(function ($qq) use ($scope) {
+                    $qq->whereIn('students.project_id', $scope['project_ids'])
+                        ->orWhereIn('students.id', function ($sub) use ($scope) {
+                            $sub->select('ps.student_id')
+                                ->from('project_student as ps')
+                                ->whereIn('ps.project_id', $scope['project_ids'])
+                                ->whereNull('ps.deleted_at');
+                        });
+                });
+            })
             ->unless($scope['sees_all'], fn ($q) => !empty($scope['center_ids']) ? $q->whereIn('centers.id', $scope['center_ids']) : $q)
             ->groupBy('centers.id', 'centers.name')
             ->orderByDesc('total')
@@ -94,12 +118,18 @@ class StudentStatisticsController extends Controller
         $centerData = $centerStats->pluck('total')->toArray();
 
         // ── Project Distribution ──
+        $projectCenterCond = !empty($filters['center_id']) ? ' AND s.center_id = ?' : '';
+        $projectCenterBindings = !empty($filters['center_id']) ? [(int) $filters['center_id']] : [];
+
         $projectStats = Project::select('projects.id', 'projects.name')
-            ->selectRaw('COUNT(students.id) as total')
-            ->leftJoin('students', 'projects.id', '=', 'students.project_id')
-            ->when(!empty($filters['center_id']), fn ($q) => $q->where('students.center_id', $filters['center_id']))
+            ->selectRaw(
+                "(SELECT COUNT(DISTINCT s.id) FROM students s WHERE s.deleted_at IS NULL"
+                . " AND (s.project_id = projects.id OR EXISTS (SELECT 1 FROM project_student ps"
+                . " WHERE ps.project_id = projects.id AND ps.student_id = s.id AND ps.deleted_at IS NULL))"
+                . $projectCenterCond . ") as total",
+                $projectCenterBindings
+            )
             ->unless($scope['sees_all'], fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('projects.id', $scope['project_ids']) : $q)
-            ->groupBy('projects.id', 'projects.name')
             ->orderByDesc('total')
             ->get();
         $projectLabels = $projectStats->pluck('name')->toArray();
@@ -213,9 +243,9 @@ class StudentStatisticsController extends Controller
     {
         return Student::query()
             ->when(!empty($filters['center_id']), fn ($q) => $q->where('center_id', $filters['center_id']))
-            ->when(!empty($filters['project_id']), fn ($q) => $q->where('project_id', $filters['project_id']))
-            ->unless($scope['sees_all'] || !empty($filters['center_id']), fn ($q) => !empty($scope['center_ids']) ? $q->whereIn('center_id', $scope['center_ids']) : $q)
-            ->unless($scope['sees_all'] || !empty($filters['project_id']), fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('project_id', $scope['project_ids']) : $q);
+            ->when(!empty($filters['project_id']), fn ($q) => $q->inProjects([(int) $filters['project_id']]))
+            ->when(!$scope['sees_all'] && !empty($scope['center_ids']), fn ($q) => $q->whereIn('center_id', $scope['center_ids']))
+            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), fn ($q) => $q->inProjects($scope['project_ids']));
     }
 
     private function scopeEnrollmentQuery(array $filters, array $scope): \Illuminate\Database\Eloquent\Builder

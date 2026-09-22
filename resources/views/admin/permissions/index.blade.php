@@ -31,8 +31,8 @@
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
-                    <th>#</th>
                     <th>المستخدم / المجموعة</th>
+                    <th>عدد النطاقات</th>
                     <th>الموديل</th>
                     <th>النطاق</th>
                     <th>الصلاحيات</th>
@@ -40,61 +40,68 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse ($permissions as $perm)
-                    <tr>
-                        <td>{{ $perm->id }}</td>
-                        <td class="fw-medium">
-                            @if ($perm->user)
-                                <i class="bi bi-person me-1"></i>{{ $perm->user->name }}
-                            @elseif ($perm->group)
-                                <i class="bi bi-people me-1"></i>{{ $perm->group->name }}
-                            @else
-                                —
+                @forelse ($permissions as $entity)
+                    @foreach ($entity['scopes'] as $si => $scopeGroup)
+                        @php $perm = $scopeGroup['representative']; @endphp
+                        <tr>
+                            @if ($si === 0)
+                                <td rowspan="{{ count($entity['scopes']) }}" class="fw-medium align-middle">
+                                    @if ($entity['is_user'] && $entity['user'])
+                                        <i class="bi bi-person me-1"></i>{{ $entity['user']->name }}
+                                    @elseif (!$entity['is_user'] && $entity['group'])
+                                        <i class="bi bi-people me-1"></i>{{ $entity['group']->name }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                                <td rowspan="{{ count($entity['scopes']) }}" class="align-middle text-muted">
+                                    {{ $entity['scopes']->count() }} نطاق
+                                </td>
                             @endif
-                        </td>
-                        <td>
-                            @foreach ($perm->model_names ?? [] as $model)
-                                <code>{{ class_basename($model) }}</code>@if (!$loop->last), @endif
-                            @endforeach
-                        </td>
-                        <td>
-                            @if ($perm->center)
-                                <span class="badge bg-primary badge-scope">{{ $perm->center->name }}</span>
-                            @else
-                                <span class="badge bg-secondary badge-scope">جميع المراكز</span>
-                            @endif
-                            @if ($perm->project)
-                                <span class="badge bg-success badge-scope">{{ $perm->project->name }}</span>
-                            @else
-                                <span class="badge bg-secondary badge-scope">جميع المشاريع</span>
-                            @endif
-                            @if ($perm->cohort)
-                                <span class="badge bg-dark badge-scope">{{ $perm->cohort->name }}</span>
-                            @else
-                                <span class="badge bg-secondary badge-scope">جميع الأفواج</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if ($perm->can_view) <span class="badge bg-info">عرض</span> @endif
-                            @if ($perm->can_create) <span class="badge bg-success">إضافة</span> @endif
-                            @if ($perm->can_edit) <span class="badge bg-warning text-dark">تعديل</span> @endif
-                            @if ($perm->can_delete) <span class="badge bg-danger">حذف</span> @endif
-                        </td>
-                        <td>
-                            <a href="{{ route('admin.permissions.edit', $perm) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <x-audit-history :model="'App\Models\Admin\Permission'" :model-id="$perm->id" />
-                            <form method="POST" action="{{ route('admin.permissions.destroy', $perm) }}" class="d-inline"
-                                  onsubmit="return confirm('هل أنت متأكد من حذف هذه الصلاحية؟')">
-                                @csrf
-                                @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
+                            <td>
+                                @foreach ($scopeGroup['models'] as $model)
+                                    <code>{{ class_basename($model) }}</code>@if (!$loop->last), @endif
+                                @endforeach
+                            </td>
+                            <td>
+                                @if ($perm->center)
+                                    <span class="badge bg-primary badge-scope">{{ $perm->center->name }}</span>
+                                @else
+                                    <span class="badge bg-secondary badge-scope">جميع المراكز</span>
+                                @endif
+                                @if ($perm->project)
+                                    <span class="badge bg-success badge-scope">{{ $perm->project->name }}</span>
+                                @else
+                                    <span class="badge bg-secondary badge-scope">جميع المشاريع</span>
+                                @endif
+                                @if ($perm->cohort)
+                                    <span class="badge bg-dark badge-scope">{{ $perm->cohort->name }}</span>
+                                @else
+                                    <span class="badge bg-secondary badge-scope">جميع الأفواج</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if ($scopeGroup['flags']['can_view']) <span class="badge bg-info">عرض</span> @endif
+                                @if ($scopeGroup['flags']['can_create']) <span class="badge bg-success">إضافة</span> @endif
+                                @if ($scopeGroup['flags']['can_edit']) <span class="badge bg-warning text-dark">تعديل</span> @endif
+                                @if ($scopeGroup['flags']['can_delete']) <span class="badge bg-danger">حذف</span> @endif
+                            </td>
+                            <td>
+                                <a href="{{ route('admin.permissions.edit', $perm) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <x-audit-history :model="'App\Models\Admin\Permission'" :model-id="$perm->id" />
+                                <form method="POST" action="{{ route('admin.permissions.destroy', $perm) }}" class="d-inline"
+                                      onsubmit="return confirm('سيتم حذف جميع صلاحيات هذا العنصر ضمن هذا النطاق. هل أنت متأكد؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
                 @empty
                     <tr>
                         <td colspan="6" class="text-center py-4 text-muted">

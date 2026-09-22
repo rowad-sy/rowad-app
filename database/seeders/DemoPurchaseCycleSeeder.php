@@ -16,8 +16,8 @@ namespace Database\Seeders;
  *    + page:admin.project-officer.dashboard بنطاقات صحيحة)
  *  - طلبات شراء في كل مراحل الدورة (pending/priced/pm_approved/pm2_approved/approved/executed/rejected)
  *    مع بنود وسجل workflow كامل.
- *  - قالبَي وثائق تجريبيين (بطاقة المشروع + فكرة المشروع) مع صلاحيات AnnexDocument/AnnexTemplate
- *    لنفس المستخدمين التجريبيين.
+ *  - صلاحيات AnnexDocument/AnnexTemplate للمستخدمين التجريبيين
+ *    (تُستخدم القوالب الإنتاجية من AnnexTemplatesSeeder بدل قوالب DEMO).
  *  - مسؤولاً إعلامياً تجريبياً + صلاحيات/بيانات الخطة الإعلامية (MediaPlan).
  *  - مسؤول حركة تجريبياً + صلاحيات/بيانات خطة الحركة (MovementPlan) عبر المراحل.
  *  - صلاحيات + بيانات تجريبية لصفحة إدارة المقررات الموحّدة (Course): ICDL بعروض
@@ -42,7 +42,6 @@ use App\Models\Admin\MovementPlan;
 use App\Models\Admin\MovementPlanRecipient;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
-use App\Models\Admin\ProjectDocs\AnnexTemplate;
 use App\Models\Admin\Student\Course;
 use App\Models\Admin\Student\Period;
 use App\Models\User;
@@ -55,7 +54,7 @@ class DemoPurchaseCycleSeeder extends Seeder
     public function run(): void
     {
         $purchaseDone = PurchaseRequest::where('request_number', 'like', 'PR-2026-%')->exists();
-        $annexDone = AnnexTemplate::where('key', 'like', 'DEMO-%')->exists();
+        $annexDone = Permission::where('model_names', 'like', '%AnnexDocument%')->exists();
         $mediaDone = Permission::where('model_names', 'like', '%MediaPlan%')->exists();
         $movementDone = Permission::where('model_names', 'like', '%MovementPlan%')->exists();
         $coursesDone = Course::where('name_ar', 'like', '%(تجريبي)%')->exists();
@@ -240,80 +239,8 @@ class DemoPurchaseCycleSeeder extends Seeder
         User $finance,
         Center $center,
     ): void {
-        // ── قالبان تجريبيان لوثائق المشاريع ──
-        AnnexTemplate::create([
-            'key' => 'DEMO-project-card',
-            'title_ar' => 'بطاقة المشروع',
-            'slug' => 'project-card',
-            'version' => 1,
-            'is_active' => true,
-            'json_definition' => [
-                'header_meta' => ['وثيقة تعريف المشروع تُرفق في ملف المشروع الرئيسي وتبقى مرجعاً أثناء التنفيذ.'],
-                'sections' => [
-                    [
-                        'key' => 'basic',
-                        'title' => 'البيانات الأساسية',
-                        'type' => 'fields',
-                        'fields' => ['اسم المشروع', 'نوع المشروع', 'المنطقة', 'مدير المشروع', 'تاريخ البدء'],
-                    ],
-                    [
-                        'key' => 'summary',
-                        'title' => 'ملخص المشروع',
-                        'type' => 'paragraph',
-                        'assignee_role' => 'مدير المشروع',
-                    ],
-                    [
-                        'key' => 'indicators',
-                        'title' => 'المؤشرات المستهدفة',
-                        'type' => 'table',
-                        'columns' => ['المؤشر', 'القيمة المستهدفة', 'الوحدة'],
-                    ],
-                    [
-                        'key' => 'outputs',
-                        'title' => 'المخرجات الرئيسية',
-                        'type' => 'list',
-                    ],
-                ],
-            ],
-        ]);
-
-        AnnexTemplate::create([
-            'key' => 'DEMO-project-idea',
-            'title_ar' => 'فكرة المشروع',
-            'slug' => 'project-idea',
-            'version' => 1,
-            'is_active' => true,
-            'json_definition' => [
-                'header_meta' => ['نموذج مقترح مشروع جديد — يُعبأ قبل رفع الوثيقة للاعتماد.'],
-                'sections' => [
-                    [
-                        'key' => 'idea',
-                        'title' => 'الفكرة',
-                        'type' => 'paragraph',
-                        'assignee_role' => 'مسؤول مشروع',
-                    ],
-                    [
-                        'key' => 'problem',
-                        'title' => 'المشكلة والحل',
-                        'type' => 'fields',
-                        'fields' => ['المشكلة المستهدفة', 'الحل المقترح', 'الفئة المستفيدة', 'الموقع المقترح'],
-                    ],
-                    [
-                        'key' => 'budget',
-                        'title' => 'الميزانية التقديرية',
-                        'type' => 'table',
-                        'columns' => ['البند', 'التكلفة التقديرية', 'ملاحظات'],
-                    ],
-                    [
-                        'key' => 'risks',
-                        'title' => 'المخاطر المحتملة',
-                        'type' => 'list',
-                    ],
-                ],
-            ],
-        ]);
-
         // ── صلاحيات AnnexDocument / AnnexTemplate للمستخدمين التجريبيين ──
+        // ملاحظة: لم تعد تُنشأ قوالب DEMO تجريبية — القوالب الإنتاجية في AnnexTemplatesSeeder هي المعتمدة.
         $docModel = 'App\\Models\\Admin\\ProjectDocs\\AnnexDocument';
         $tplModel = 'App\\Models\\Admin\\ProjectDocs\\AnnexTemplate';
 
@@ -332,7 +259,7 @@ class DemoPurchaseCycleSeeder extends Seeder
             ]);
         }
 
-        fwrite(STDOUT, "Demo annex templates + permissions created.\n");
+        fwrite(STDOUT, "Demo annex permissions created (production annex templates are used now).\n");
     }
 
     private function mediaPlanDemo(

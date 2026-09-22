@@ -44,7 +44,7 @@ if (! function_exists('defaultMonthlyReportDefinition')) {
                 @if ($isEdit) @method('PUT') @endif
 
                 <div class="row">
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-5 mb-3">
                         <label class="form-label">اسم القالب <span class="text-danger">*</span></label>
                         <input type="text" name="title_ar" class="form-control @error('title_ar') is-invalid @enderror"
                                value="{{ old('title_ar', $template->title_ar ?? '') }}" required>
@@ -57,10 +57,16 @@ if (! function_exists('defaultMonthlyReportDefinition')) {
                                {{ $isEdit ? 'readonly' : '' }}>
                         @error('key') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label class="form-label">الترويسة (slug)</label>
                         <input type="text" name="slug" dir="ltr" class="form-control"
                                value="{{ old('slug', $template->slug ?? '') }}">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label">عدد الصفحات الافتراضي <span class="text-danger">*</span></label>
+                        <input type="number" name="default_page_count" min="1" max="60" class="form-control @error('default_page_count') is-invalid @enderror"
+                               value="{{ old('default_page_count', $template->default_page_count ?? 1) }}">
+                        @error('default_page_count') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
 
@@ -71,6 +77,7 @@ if (! function_exists('defaultMonthlyReportDefinition')) {
                               spellcheck="false">{{ old('json_definition', $isEdit ? json_encode($template->json_definition, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : \defaultMonthlyReportDefinition()) }}</textarea>
                     @error('json_definition') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     <div id="jsonStatus" class="form-text"></div>
+                    <div class="form-text">توزيع الأقسام على الصفحات: أضف مفتاح <code dir="ltr">"page": N</code> لكل قسم — التقارير المنشأة من القالب ترث الصفحة المحددة، ويمكن تعديلها في صفحة التعبئة.</div>
                 </div>
 
                 <div class="mb-3 w-25">
@@ -103,8 +110,14 @@ if (! function_exists('defaultMonthlyReportDefinition')) {
                 status.textContent = 'يجب أن يحتوي على مصفوفة sections غير فارغة';
                 return;
             }
-            status.className = 'form-text text-success';
-            status.textContent = `JSON صحيح — ${parsed.sections.length} قسم، النوع: ${parsed.sections.map(s => s.type).join(', ')}`;
+            const maxPage = Math.max(1, ...parsed.sections.map(s => parseInt(s.page ?? 1, 10)));
+            const pagesInput = document.querySelector('input[name="default_page_count"]');
+            const pageCount = parseInt(pagesInput?.value ?? '1', 10);
+            const overflow = maxPage > pageCount
+                ? ` — تحذير: أقسام تصل للصفحة ${maxPage} بينما عدد الصفحات ${pageCount}`
+                : '';
+            status.className = 'form-text ' + (overflow ? 'text-warning' : 'text-success');
+            status.textContent = `JSON صحيح — ${parsed.sections.length} قسم على ${maxPage} ${maxPage > 3 ? 'صفحات' : 'صفحة'}، الأنواع: ${parsed.sections.map(s => s.type).join(', ')}${overflow}`;
         } catch (e) {
             status.className = 'form-text text-danger';
             status.textContent = 'صيغة JSON غير صحيحة: ' + e.message;
@@ -112,6 +125,7 @@ if (! function_exists('defaultMonthlyReportDefinition')) {
     }
 
     area.addEventListener('input', validate);
+    document.querySelector('input[name="default_page_count"]')?.addEventListener('input', validate);
     validate();
 })();
 </script>

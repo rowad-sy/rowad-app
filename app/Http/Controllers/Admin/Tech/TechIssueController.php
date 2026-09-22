@@ -42,8 +42,8 @@ class TechIssueController extends Controller
             ->when($priority && $priority !== 'all', fn ($q) => $q->where('priority', $priority))
             ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
-            ->unless($scope['sees_all'] || $request->filled('center_id'), fn ($q) => !empty($scope['center_ids']) ? $q->whereIn('center_id', $scope['center_ids']) : $q)
-            ->unless($scope['sees_all'] || $request->filled('project_id'), fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('project_id', $scope['project_ids']) : $q)
+            ->when(!$scope['sees_all'] && !empty($scope['center_ids']), fn ($q) => $q->whereIn('center_id', $scope['center_ids']))
+            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), fn ($q) => $q->whereIn('project_id', $scope['project_ids']))
             ->orderBy('id', 'desc')
             ->paginate($perPage)
             ->appends($request->only(['search', 'status', 'priority', 'center_id', 'project_id', 'per_page']));

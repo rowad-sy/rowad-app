@@ -60,45 +60,29 @@ class StudentController extends Controller
                 return $q->where('center_id', $centerId);
             })
             ->when($projectId, function ($q, $projectId) {
-                return $q->where(function ($q) use ($projectId) {
-                    $q->where('project_id', $projectId)
-                      ->orWhereHas('projects', function ($q) use ($projectId) {
-                          $q->where('projects.id', $projectId);
-                      });
-                });
+                return $q->inProjects([(int) $projectId]);
             })
             ->when($cohortId, function ($q, $cohortId) {
                 return $q->where('cohort_id', $cohortId);
             })
-            // Force scope from permission if user didn't explicitly override
-            ->unless($scope['sees_all'] || $request->filled('center_id'), function ($q) use ($scope) {
-                if (!empty($scope['center_ids'])) {
-                    $q->whereIn('center_id', $scope['center_ids']);
-                }
+            // Force scope from permission (cannot be bypassed by manual filters)
+            ->when(!$scope['sees_all'] && !empty($scope['center_ids']), function ($q) use ($scope) {
+                $q->whereIn('center_id', $scope['center_ids']);
             })
-            ->unless($scope['sees_all'] || $request->filled('project_id'), function ($q) use ($scope) {
-                if (!empty($scope['project_ids'])) {
-                    $q->where(function ($q) use ($scope) {
-                        $q->whereIn('project_id', $scope['project_ids'])
-                          ->orWhereHas('projects', function ($q) use ($scope) {
-                              $q->whereIn('projects.id', $scope['project_ids']);
-                          });
-                    });
-                }
+            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), function ($q) use ($scope) {
+                $q->inProjects($scope['project_ids']);
             })
-            ->unless($scope['sees_all'] || $request->filled('cohort_id'), function ($q) use ($scope) {
-                if (!empty($scope['cohort_ids'])) {
-                    $q->whereIn('cohort_id', $scope['cohort_ids']);
-                }
+            ->when(!$scope['sees_all'] && !empty($scope['cohort_ids']), function ($q) use ($scope) {
+                $q->whereIn('cohort_id', $scope['cohort_ids']);
             })
             ->orderBy('id', 'desc')
             ->paginate($perPage)
             ->appends($request->only(['search', 'status', 'center_id', 'project_id', 'cohort_id', 'gender', 'course_id', 'per_page']));
 
-        $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $centers = Center::when(!$scope['sees_all'] && !empty($scope['center_ids']), fn($q) => $q->whereIn('id', $scope['center_ids']))->orderBy('name')->get();
+        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->orderBy('name')->get();
         $courses = Course::orderBy('name_ar')->get();
-        $cohorts = \App\Models\Admin\Cohort::with('project')->orderBy('name')->get();
+        $cohorts = \App\Models\Admin\Cohort::when(!$scope['sees_all'] && !empty($scope['cohort_ids']), fn($q) => $q->whereIn('id', $scope['cohort_ids']))->with('project')->orderBy('name')->get();
 
         return view('admin.students.index', compact('students', 'search', 'status', 'centerId', 'projectId', 'cohortId', 'gender', 'courseId', 'perPage', 'centers', 'projects', 'courses', 'cohorts'));
     }

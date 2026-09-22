@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\PermissionModelCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class PermissionController extends Controller
 {
@@ -26,13 +27,55 @@ class PermissionController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $permissions = Permission::with(['user', 'group', 'center', 'project', 'cohort'])
+
+        $records = Permission::with(['user', 'group', 'center', 'project', 'cohort'])
             ->when($search, function ($q, $search) {
                 return $q->where(function ($q) use ($search) {
                     $q->whereHas('user', fn($q) => $q->where('name', 'like', "%{$search}%"))
                       ->orWhereHas('group', fn($q) => $q->where('name', 'like', "%{$search}%"));
                 });
-            })->orderBy('id', 'desc')->paginate(10);
+            })->orderBy('id', 'desc')->get();
+
+        $entities = $records
+            ->groupBy(fn(Permission $p) => $p->user_id !== null ? 'u'.$p->user_id : 'g'.$p->group_id)
+            ->map(function ($entityRecords) {
+                $first = $entityRecords->first();
+
+                $scopes = $entityRecords
+                    ->groupBy(fn(Permission $p) => $p->center_id.'-'.$p->project_id.'-'.$p->cohort_id)
+                    ->values()
+                    ->map(function ($scopeRecords) {
+                        return [
+                            'representative' => $scopeRecords->sortByDesc('id')->first(),
+                            'models' => $scopeRecords->flatMap(fn(Permission $p) => $p->model_names ?? [])->unique()->values(),
+                            'flags' => [
+                                'can_view' => $scopeRecords->contains(fn(Permission $p) => (bool) $p->can_view),
+                                'can_create' => $scopeRecords->contains(fn(Permission $p) => (bool) $p->can_create),
+                                'can_edit' => $scopeRecords->contains(fn(Permission $p) => (bool) $p->can_edit),
+                                'can_delete' => $scopeRecords->contains(fn(Permission $p) => (bool) $p->can_delete),
+                            ],
+                        ];
+                    });
+
+                return [
+                    'is_user' => $first->user_id !== null,
+                    'user' => $first->user,
+                    'group' => $first->group,
+                    'scopes' => $scopes,
+                ];
+            })
+            ->values();
+
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = 10;
+
+        $permissions = new LengthAwarePaginator(
+            $entities->slice(($page - 1) * $perPage, $perPage)->values()->all(),
+            $entities->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         return view('admin.permissions.index', compact('permissions', 'search'));
     }
@@ -106,10 +149,31 @@ class PermissionController extends Controller
 
     public function destroy(Permission $permission)
     {
-        $permission->delete();
+        $this->entityScopeQuery($permission)->delete();
 
         return redirect()->route('admin.permissions.index')
-            ->with('success', 'تم حذف الصلاحية بنجاح');
+            ->with('success', 'تم حذف صلاحيات العنصر ضمن هذا النطاق بنجاح');
+    }
+
+    /*
+     * كل السجلات المنتمية لنفس العنصر (مستخدم/مجموعة) ونفس النطاق.
+     */
+    private function entityScopeQuery(Permission $permission): Builder
+    {
+        $query = Permission::query();
+
+        if ($permission->user_id !== null) {
+            $query->where('user_id', $permission->user_id);
+        } else {
+            $query->where('group_id', $permission->group_id);
+        }
+
+        foreach (['center_id', 'project_id', 'cohort_id'] as $column) {
+            $value = $permission->$column;
+            $value === null ? $query->whereNull($column) : $query->where($column, $value);
+        }
+
+        return $query;
     }
 
     /*

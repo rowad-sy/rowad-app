@@ -17,6 +17,23 @@ class MonthlyReportTemplatesSeeder extends Seeder
         $templates = $this->templates();
 
         foreach ($templates as $data) {
+            $key = $data['key'];
+
+            if (isset(self::DEFAULT_PAGES[$key])) {
+                $data['default_page_count'] = self::DEFAULT_PAGES[$key];
+            }
+
+            if (isset(self::SECTION_PAGES[$key])) {
+                $mapping = self::SECTION_PAGES[$key];
+                $maxPage = $data['default_page_count'] ?? 1;
+
+                foreach ($data['json_definition']['sections'] as $i => $section) {
+                    $section['page'] = $mapping[$section['key']] ?? 1;
+                    $section['page'] = max(1, min((int) $section['page'], $maxPage));
+                    $data['json_definition']['sections'][$i] = $section;
+                }
+            }
+
             MonthlyReportTemplate::updateOrCreate(
                 ['key' => $data['key']],
                 $data
@@ -24,6 +41,36 @@ class MonthlyReportTemplatesSeeder extends Seeder
             fwrite(STDOUT, "Monthly report template: {$data['key']} ({$data['title_ar']}) — ready.\n");
         }
     }
+
+    /*
+     * عدد الصفحات الافتراضي للتقرير الشهري (15) — مرجعه "نموذج تقرير مشروع.docx" و "عدد صفحات الوثائق.txt".
+     */
+    private const DEFAULT_PAGES = [
+        'monthly-project-report' => 15,
+    ];
+
+    /*
+     * توزيع الأقسام على الصفحات مطابِقاً لملف "نموذج تقرير مشروع.docx" المرجعي.
+     */
+    private const SECTION_PAGES = [
+        'monthly-project-report' => [
+            'exec_summary' => 1, 'monthly_indicators' => 1,
+            'achievements' => 2, 'challenges_support' => 2,
+            'locations' => 3,
+            'activities' => 4, 'activities_summary' => 4,
+            'kpis' => 5,
+            'risks' => 6,
+            'meal' => 7,
+            'compliance' => 8,
+            'general_challenges' => 9,
+            'lessons' => 10, 'success_stories' => 10,
+            'recommendations' => 11, 'decisions' => 11,
+            'annexes' => 12,
+            'naming' => 13,
+            'pre_submission' => 14,
+            'approvals' => 15,
+        ],
+    ];
 
     private function templates(): array
     {

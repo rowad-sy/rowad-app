@@ -6,6 +6,7 @@ use App\Models\Admin\Center;
 use App\Models\Admin\Cohort;
 use App\Models\Admin\Project;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,6 +69,18 @@ class Student extends Model
     {
         return $this->belongsToMany(Project::class, 'project_student')
             ->withPivot(['deleted_at']);
+    }
+
+    /*
+     * مطابقة الطلاب المرتبطين بأي مشروع من المعرّفات المحددة
+     * (سواء عبر العمود project_id أو عبر جدول project_student)
+     */
+    public function scopeInProjects(Builder $query, array $projectIds): void
+    {
+        $query->where(function (Builder $q) use ($projectIds) {
+            $q->whereIn('project_id', $projectIds)
+                ->orWhereHas('projects', fn (Builder $p) => $p->whereIn('projects.id', $projectIds));
+        });
     }
 
     public function enrollments(): HasMany
