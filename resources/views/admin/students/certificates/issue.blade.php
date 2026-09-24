@@ -78,6 +78,25 @@
                         </select>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label">مجموعة التوقيعات</label>
+                        <select name="signatory_set_id" class="form-select">
+                            <option value="">تلقائي (حسب المقرر + الفترة + مركز كل طالب)</option>
+                            @foreach ($signatorySets as $set)
+                                <option value="{{ $set->id }}">
+                                    {{ $set->name }}
+                                    @if ($set->course) — {{ $set->course->name_ar }} @endif
+                                    @if ($set->center) — {{ $set->center->name }} @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">
+                            <a href="{{ route('admin.students.certificates.signatory-sets.index') }}" target="_blank">
+                                <i class="bi bi-person-sign me-1"></i> إدارة مجموعات التوقيع والموقعين
+                            </a>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-success btn-lg w-100" onclick="return confirm('سيتم إصدار {{ $students->count() }} شهادة. هل أنت متأكد؟')">
                         <i class="bi bi-file-earmark-check me-1"></i> إصدار {{ $students->count() }} شهادة
                     </button>

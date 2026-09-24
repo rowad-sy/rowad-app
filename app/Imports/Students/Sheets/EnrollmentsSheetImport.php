@@ -41,6 +41,11 @@ class EnrollmentsSheetImport implements ToCollection, WithHeadingRow, WithTitle
                 $period = Period::where('name_ar', $row['period_name_ar'])->first();
             }
 
+            // course_id هو NOT NULL في الجدول — تخطّي الصف بدل الانكسار إذا كان المقرر غير موجود
+            if (!$course) {
+                continue;
+            }
+
             // Skip if enrollment already exists for this student + course + period
             $exists = StudentEnrollment::where('student_id', $this->parent->studentMap[$studentCode])
                 ->where('course_id', $course?->id)
@@ -52,12 +57,55 @@ class EnrollmentsSheetImport implements ToCollection, WithHeadingRow, WithTitle
                     'student_id' => $this->parent->studentMap[$studentCode],
                     'course_id' => $course?->id,
                     'period_id' => $period?->id,
-                    'enrollment_date' => $row['enrollment_date'] ?? null,
+                    'enrollment_date' => $this->resolveDate($row['enrollment_date'] ?? null, $period),
                     'status' => $row['status'] ?? 'enrolled',
                     'grade' => $row['grade'] ?? null,
                     'is_certificate_eligible' => filter_var($row['is_certificate_eligible'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 ]);
             }
+        }
+    }
+
+    /*
+     * enrollment_date عمود NOT NULL — نفضّل قيمة الملف، ثم تاريخ بداية الفترة، ثم اليوم الحالي.
+     */
+    private function resolveDate(mixed $value, ?Period $period): string
+    {
+        $parsed = $this->parseDate($value);
+        if ($parsed) {
+            return $parsed;
+        }
+
+        if ($period?->start_date) {
+            return $period->start_date->format('Y-m-d');
+        }
+
+        return now()->toDateString();
+    }
+
+    private function parseDate(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === 0 || $value === '0') {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_numeric($value)) {
+            $num = (float) $value;
+            if ($num > 30000 && $num < 60000) {
+                return \Carbon\Carbon::create(1899, 12, 30)->addDays(floor($num))->format('Y-m-d');
+            }
+            return null;
+        }
+
+        try {
+            $parsed = \Carbon\Carbon::parse(trim((string) $value));
+            return $parsed->isValid() ? $parsed->format('Y-m-d') : null;
+        } catch (\Exception $e) {
+            return null;
         }
     }
 }

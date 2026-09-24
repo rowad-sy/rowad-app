@@ -114,8 +114,12 @@
                 ['type' => 'student_code', 'icon' => 'bi-upc-scan', 'label' => 'كود الطالب'],
                 ['type' => 'course_name', 'icon' => 'bi-book', 'label' => 'اسم المقرر'],
                 ['type' => 'period_name', 'icon' => 'bi-calendar-range', 'label' => 'الفترة'],
+                ['type' => 'center_name', 'icon' => 'bi-geo-alt', 'label' => 'اسم المركز'],
                 ['type' => 'certificate_number', 'icon' => 'bi-hash', 'label' => 'رقم الشهادة'],
                 ['type' => 'issue_date', 'icon' => 'bi-calendar', 'label' => 'تاريخ الإصدار'],
+                ['type' => 'instructor_name', 'icon' => 'bi-person-video3', 'label' => 'اسم المدرب'],
+                ['type' => 'center_manager_name', 'icon' => 'bi-building', 'label' => 'اسم مدير المركز'],
+                ['type' => 'project_manager_name', 'icon' => 'bi-kanban', 'label' => 'اسم مسؤول المشروع'],
                 ['type' => 'barcode', 'icon' => 'bi-upc-scan', 'label' => 'باركود'],
                 ['type' => 'text', 'icon' => 'bi-font', 'label' => 'نص حر'],
             ] as $ft)
@@ -153,7 +157,19 @@
             <div class="p-2 border-bottom"><strong>التوقيعات</strong></div>
             <div class="mb-2">
                 <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="addSignature()">
-                    <i class="bi bi-plus-lg me-1"></i> إضافة توقيع
+                    <i class="bi bi-plus-lg me-1"></i> توقيع ثابت (صورة)
+                </button>
+            </div>
+            <div class="small text-muted mb-1">ديناميكية (من مجموعة التوقيع):</div>
+            <div class="mb-1">
+                <button type="button" class="btn btn-sm btn-outline-success w-100 mb-1" onclick="addDynamicSignature('instructor')">
+                    <i class="bi bi-person-video3 me-1"></i> توقيع المدرب
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success w-100 mb-1" onclick="addDynamicSignature('center_manager')">
+                    <i class="bi bi-building me-1"></i> توقيع مدير المركز
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success w-100" onclick="addDynamicSignature('project_manager')">
+                    <i class="bi bi-kanban me-1"></i> توقيع مسؤول المشروع
                 </button>
             </div>
             <div id="signaturesList"></div>
@@ -232,6 +248,7 @@ let resizeHandle = null;
 let resizeStartX, resizeStartY, resizeStartW, resizeStartH;
 const CANVAS_W_MM = 297;
 const CANVAS_H_MM = 210;
+const DYNAMIC_SIG_LABELS = { instructor: 'توقيع المدرب', center_manager: 'توقيع مدير المركز', project_manager: 'توقيع مسؤول المشروع' };
 
 /*LOAD*/
 @if (isset($design) && $design->fields_config)
@@ -304,7 +321,7 @@ function renderFields() {
         if (f.type === 'text') { content.textContent = f.label || 'نص'; }
         else if (f.type === 'barcode') { content.innerHTML = '<span style="opacity:0.6;font-size:8pt;">||||||||||||||||</span>'; }
         else {
-            const labels = { student_name: 'اسم الطالب', student_code: 'STU00000', course_name: 'اسم المقرر', period_name: 'اسم الفترة', certificate_number: '2026-00001', issue_date: '2026-01-01' };
+            const labels = { student_name: 'اسم الطالب', student_code: 'STU00000', course_name: 'اسم المقرر', period_name: 'اسم الفترة', center_name: 'اسم المركز', certificate_number: '2026-00001', issue_date: '2026-01-01', instructor_name: 'اسم المدرب', center_manager_name: 'اسم مدير المركز', project_manager_name: 'اسم مسؤول المشروع' };
             content.textContent = labels[f.type] || f.type;
         }
         el.appendChild(content);
@@ -322,7 +339,7 @@ function renderSignatures() {
     const pxX = rect.width / CANVAS_W_MM, pxY = rect.height / CANVAS_H_MM;
     canvas.querySelectorAll('.canvas-sig').forEach(el => el.remove());
     signatures.forEach(s => {
-        const src = s._preview || (s.image_path ? '{{ asset("storage") }}/' + s.image_path : '');
+        const src = s.dynamic ? '' : (s._preview || (s.image_path ? '{{ asset("storage") }}/' + s.image_path : ''));
         if (!src) {
             const ph = document.createElement('div');
             ph.className = 'canvas-sig' + (selectedType === 'sig' && selectedId === s.id ? ' selected' : '');
@@ -336,7 +353,7 @@ function renderSignatures() {
             ph.style.justifyContent = 'center';
             ph.style.background = 'rgba(25,135,84,0.08)';
             ph.style.borderStyle = 'dashed';
-            ph.innerHTML = '<span style="font-size:10px;color:#198754;">توقيع</span>';
+            ph.innerHTML = '<span style="font-size:10px;color:#198754;">' + (s.dynamic ? DYNAMIC_SIG_LABELS[s.dynamic] : 'توقيع') + '</span>';
             addResizeHandles(ph);
             ph.addEventListener('mousedown', function(e) { onItemMouseDown(e, 'sig', s.id); });
             ph.addEventListener('touchstart', function(e) { onItemTouchStart(e, 'sig', s.id); }, {passive: false});
@@ -375,6 +392,13 @@ function addSignature() {
     renderSignatures();
     selectItem('sig', signatures[signatures.length - 1].id);
 }
+function addDynamicSignature(role) {
+    if (signatures.some(s => s.dynamic === role)) { alert('تمت إضافة هذا التوقيع الديناميكي مسبقاً'); return; }
+    signatures.push({ id: nextSigId++, dynamic: role, x_mm: 50, y_mm: 160, width_mm: 40, height_mm: 20 });
+    renderSignaturesList();
+    renderSignatures();
+    selectItem('sig', signatures[signatures.length - 1].id);
+}
 function removeSignature(id) {
     if (!confirm('حذف هذا التوقيع؟')) return;
     signatures = signatures.filter(s => s.id !== id);
@@ -386,6 +410,13 @@ function renderSignaturesList() {
     const list = document.getElementById('signaturesList');
     if (!list) return;
     list.innerHTML = signatures.map((s, i) => {
+        if (s.dynamic) {
+            return '<div class="border rounded p-2 mb-2 bg-light" style="cursor:pointer;" onclick="selectItem(\'sig\',' + s.id + ')">' +
+                '<div class="d-flex justify-content-between align-items-center">' +
+                '<small class="fw-medium text-success">' + DYNAMIC_SIG_LABELS[s.dynamic] + '</small>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="event.stopPropagation();removeSignature(' + s.id + ')"><i class="bi bi-x"></i></button>' +
+                '</div><div class="small text-muted">صورة التوقيع تُجلب تلقائياً من مجموعة التوقيع عند الطباعة</div></div>';
+        }
         const hasImg = s._preview || s.image_path;
         const imgSrc = s._preview || (s.image_path ? '{{ asset("storage") }}/' + s.image_path : '');
         return '<div class="border rounded p-2 mb-2 bg-light" style="cursor:pointer;" onclick="selectItem(\'sig\',' + s.id + ')">' +
@@ -510,23 +541,27 @@ function showProps(type, id) {
     if (type === 'sig') {
         const s = signatures.find(x => x.id === id);
         if (!s) return;
-        const imgSrc = s._preview || (s.image_path ? '{{ asset("storage") }}/' + s.image_path : '');
-        let html = '<div class="prop-group"><label>النوع</label><input value="توقيع" readonly style="background:#f1f5f9;"></div>'
+        const imgSrc = s.dynamic ? '' : (s._preview || (s.image_path ? '{{ asset("storage") }}/' + s.image_path : ''));
+        let html = '<div class="prop-group"><label>النوع</label><input value="' + (s.dynamic ? 'توقيع ديناميكي — ' + DYNAMIC_SIG_LABELS[s.dynamic] : 'توقيع ثابت') + '" readonly style="background:#f1f5f9;"></div>'
             + '<div class="prop-group"><label>الموقع X (مم)</label><input type="number" value="' + s.x_mm + '" step="1" onchange="updateSig(' + id + ',\'x_mm\',parseFloat(this.value)||0)"></div>'
             + '<div class="prop-group"><label>الموقع Y (مم)</label><input type="number" value="' + s.y_mm + '" step="1" onchange="updateSig(' + id + ',\'y_mm\',parseFloat(this.value)||0)"></div>'
             + '<div class="prop-group"><label>العرض (مم)</label><input type="number" value="' + s.width_mm + '" step="1" min="10" onchange="updateSig(' + id + ',\'width_mm\',parseFloat(this.value)||10)"></div>'
             + '<div class="prop-group"><label>الارتفاع (مم)</label><input type="number" value="' + s.height_mm + '" step="1" min="5" onchange="updateSig(' + id + ',\'height_mm\',parseFloat(this.value)||5)"></div>'
-            + '<div class="prop-group"><label>الصورة</label>';
-        if (imgSrc) {
-            html += '<div class="text-center mb-2 p-2 border rounded bg-white"><img src="' + imgSrc + '" style="max-height:60px;max-width:100%;object-fit:contain;"></div>';
+            + '<div class="prop-group"><label>' + (s.dynamic ? 'المصدر' : 'الصورة') + '</label>';
+        if (s.dynamic) {
+            html += '<div class="small text-muted">تُجلب الصورة من مجموعة التوقيعات المرتبطة بالشهادة</div>';
+        } else {
+            if (imgSrc) {
+                html += '<div class="text-center mb-2 p-2 border rounded bg-white"><img src="' + imgSrc + '" style="max-height:60px;max-width:100%;object-fit:contain;"></div>';
+            }
+            html += '<button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="triggerSigFile(' + id + ')"><i class="bi bi-image me-1"></i> ' + (imgSrc ? 'استبدال الصورة' : 'اختر صورة التوقيع') + '</button>';
         }
-        html += '<button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="triggerSigFile(' + id + ')"><i class="bi bi-image me-1"></i> ' + (imgSrc ? 'استبدال الصورة' : 'اختر صورة التوقيع') + '</button>';
         panel.innerHTML = html;
         return;
     }
     const f = fields.find(x => x.id === id);
     if (!f) return;
-    const labels = { student_name: 'اسم الطالب', student_code: 'كود الطالب', course_name: 'المقرر', period_name: 'الفترة', certificate_number: 'رقم الشهادة', issue_date: 'تاريخ الإصدار', barcode: 'باركود', text: 'نص حر' };
+    const labels = { student_name: 'اسم الطالب', student_code: 'كود الطالب', course_name: 'المقرر', period_name: 'الفترة', center_name: 'المركز', certificate_number: 'رقم الشهادة', issue_date: 'تاريخ الإصدار', instructor_name: 'اسم المدرب', center_manager_name: 'اسم مدير المركز', project_manager_name: 'اسم مسؤول المشروع', barcode: 'باركود', text: 'نص حر' };
     let html = '<div class="prop-group"><label>النوع</label><input value="' + (labels[f.type] || f.type) + '" readonly style="background:#f1f5f9;"></div>';
     if (f.type === 'text') html += '<div class="prop-group"><label>النص</label><input value="' + (f.label || '') + '" onchange="updateProp(' + id + ',\'label\',this.value)"></div>';
     html += '<div class="prop-group"><label>الموقع X (مم)</label><input type="number" value="' + f.x_mm + '" step="1" onchange="updateProp(' + id + ',\'x_mm\',parseFloat(this.value)||0)"></div>';

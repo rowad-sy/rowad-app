@@ -92,11 +92,23 @@
                         @case('period_name')
                             {{ $certificate->enrollment?->period?->name_ar ?? '' }}
                             @break
+                        @case('center_name')
+                            {{ $certificate->student?->center?->name ?? $certificate->signatorySet?->center?->name ?? '' }}
+                            @break
                         @case('certificate_number')
                             {{ $certificate->certificate_number }}
                             @break
                         @case('issue_date')
                             {{ $certificate->issue_date?->format('Y-m-d') }}
+                            @break
+                        @case('instructor_name')
+                            {{ $certificate->signatorySet?->instructorSigner?->name_ar ?? '' }}
+                            @break
+                        @case('center_manager_name')
+                            {{ $certificate->signatorySet?->centerManagerSigner?->name_ar ?? '' }}
+                            @break
+                        @case('project_manager_name')
+                            {{ $certificate->signatorySet?->projectManagerSigner?->name_ar ?? '' }}
                             @break
                         @case('barcode')
                             <canvas id="qr-{{ $certificate->id }}-{{ $field['id'] ?? $loop->index }}" style="width:100%;height:100%;"></canvas>
@@ -108,8 +120,16 @@
             @endforeach
             @php $sigs = $certificate->design?->signatures_config ?? []; @endphp
             @foreach ($sigs as $sig)
-                @if (!empty($sig['image_path']))
-                    <img src="{{ asset('storage/' . $sig['image_path']) }}"
+                @php
+                    $sigPath = '';
+                    if (!empty($sig['dynamic'])) {
+                        $sigPath = $certificate->signatorySet?->signerFor($sig['dynamic'])?->signature_path ?? '';
+                    } elseif (!empty($sig['image_path'])) {
+                        $sigPath = $sig['image_path'];
+                    }
+                @endphp
+                @if ($sigPath)
+                    <img src="{{ asset('storage/' . $sigPath) }}"
                          style="position:absolute;
                                 z-index:3;
                                 top: {{ number_format(($sig['y_mm'] ?? 0) / 210 * 100, 4) }}%;

@@ -73,7 +73,21 @@ class StudentExportController extends Controller
         $beforeCount = \App\Models\Admin\Student\Student::count();
 
         try {
-            Excel::import(new StudentFullImport, $request->file('file'));
+            $errors = \App\Imports\Students\ImportPreflight::check($request->file('file')->getRealPath());
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'تعذّر قراءة الملف للتحقق: ' . $e->getMessage());
+        }
+
+        if ($errors) {
+            return redirect()->back()
+                ->with('preflight_errors', $errors)
+                ->with('error', 'الملف يحتاج تجهيزاً قبل الاستيراد — عالج الرسائل التفصيلية أدناه ثم أعد المحاولة.');
+        }
+
+        $import = new StudentFullImport;
+
+        try {
+            Excel::import($import, $request->file('file'));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'خطأ في الاستيراد: ' . $e->getMessage());
         }
@@ -81,17 +95,37 @@ class StudentExportController extends Controller
         $afterCount = \App\Models\Admin\Student\Student::count();
         $imported = $afterCount - $beforeCount;
 
+        $parts = [];
+        if ($import->signersImported) {
+            $parts[] = "موقعون: {$import->signersImported}";
+        }
+        if ($import->setsImported) {
+            $parts[] = "مجموعات توقيع: {$import->setsImported}";
+        }
+        if ($import->certificatesCreated || $import->certificatesUpdated) {
+            $parts[] = "شهادات: جديد {$import->certificatesCreated}، محدّث {$import->certificatesUpdated}";
+        }
+        $summary = $parts ? ' — ' . implode(' | ', $parts) : '';
+
         AuditLogger::recordEvent(
             modelClass: \App\Models\User::class,
             modelId: auth()->id(),
             event: 'imported',
-            description: "استيراد جميع بيانات الطلاب من ملف: {$fileName} — تم استيراد {$imported} طالب",
+            description: "استيراد جميع بيانات الطلاب من ملف: {$fileName} — تم استيراد {$imported} طالب{$summary}",
             oldValues: null,
-            newValues: ['file' => $fileName, 'type' => 'students_full', 'imported_count' => $imported],
+            newValues: [
+                'file' => $fileName,
+                'type' => 'students_full',
+                'imported_count' => $imported,
+                'signers_imported' => $import->signersImported,
+                'sets_imported' => $import->setsImported,
+                'certificates_created' => $import->certificatesCreated,
+                'certificates_updated' => $import->certificatesUpdated,
+            ],
         );
 
-        if ($imported > 0) {
-            return redirect()->back()->with('success', "تم استيراد {$imported} طالب بنجاح من ملف: {$fileName}");
+        if ($imported > 0 || $summary) {
+            return redirect()->back()->with('success', "تم استيراد {$imported} طالب بنجاح{$summary} من ملف: {$fileName}");
         }
 
         return redirect()->back()->with('warning', 'تم قراءة الملف لكن لم يتم استيراد أي طالب. تأكد من أن الملف يحتوي على بيانات صحيحة.');

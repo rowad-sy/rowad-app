@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Student\Certificate;
 use App\Models\Admin\Student\CertificateDesign;
+use App\Models\Admin\Student\CertificateSignatorySet;
 use App\Models\Admin\Student\Course;
 use App\Models\Admin\Student\Period;
 use App\Models\Admin\Student\Student;
@@ -238,9 +239,10 @@ class CertificateController extends Controller
         $designs = CertificateDesign::orderBy('id', 'desc')->get();
         $courses = Course::orderBy('name_ar')->get();
         $periods = Period::orderBy('name_ar')->get();
+        $signatorySets = CertificateSignatorySet::with(['course', 'period', 'center'])->orderBy('name')->get();
 
         return view('admin.students.certificates.issue', compact(
-            'design', 'students', 'studentIds', 'designs', 'courses', 'periods', 'courseId'
+            'design', 'students', 'studentIds', 'designs', 'courses', 'periods', 'courseId', 'signatorySets'
         ));
     }
 
@@ -260,11 +262,16 @@ class CertificateController extends Controller
             'student_ids.*' => 'exists:students,id',
             'course_id' => 'nullable|exists:courses,id',
             'period_id' => 'nullable|exists:periods,id',
+            'signatory_set_id' => 'nullable|exists:certificate_signatory_sets,id',
         ]);
 
         $design = CertificateDesign::findOrFail($validated['design_id']);
         $students = Student::whereIn('id', $validated['student_ids'])->get();
+        $selectedSet = !empty($validated['signatory_set_id'])
+            ? CertificateSignatorySet::find($validated['signatory_set_id'])
+            : null;
         $generated = 0;
+        $unresolvedCount = 0;
 
         $certIds = [];
 
@@ -285,6 +292,16 @@ class CertificateController extends Controller
                         ->first();
                 }
 
+                $set = $selectedSet ?? CertificateSignatorySet::resolve(
+                    $validated['course_id'] ?? null,
+                    $validated['period_id'] ?? $enrollment?->period_id,
+                    $student->center_id,
+                );
+
+                if (!$set) {
+                    $unresolvedCount++;
+                }
+
                 $hash = hash('sha256', $student->id . $certNumber . ($enrollment?->id ?? '') . config('app.key'));
 
                 $cert = Certificate::create([
@@ -292,6 +309,7 @@ class CertificateController extends Controller
                     'design_id' => $design->id,
                     'student_id' => $student->id,
                     'enrollment_id' => $enrollment?->id,
+                    'signatory_set_id' => $set?->id,
                     'barcode_hash' => $hash,
                     'issue_date' => now(),
                 ]);
@@ -306,9 +324,14 @@ class CertificateController extends Controller
             return redirect()->back()->with('error', 'فشل إصدار الشهادات: ' . $e->getMessage());
         }
 
+        $successMessage = "تم إصدار {$generated} شهادة بنجاح";
+        if ($unresolvedCount > 0) {
+            $successMessage .= " — تنبيه: {$unresolvedCount} شهادة بدون مجموعة توقيعات مطابقة";
+        }
+
         return redirect()->route('admin.students.certificates.print-batch', [
             'ids' => implode(',', $certIds),
-        ])->with('success', "تم إصدار {$generated} شهادة بنجاح");
+        ])->with('success', $successMessage);
     }
 
     // ─── Batch Print ───
@@ -318,7 +341,7 @@ class CertificateController extends Controller
         $designId = $request->input('design_id');
         $certificateIds = $request->input('ids');
 
-        $query = Certificate::with(['student', 'design', 'enrollment.course', 'enrollment.period'])
+        $query = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
             ->whereNull('cancelled_at');
 
         if ($designId) {
@@ -344,7 +367,7 @@ class CertificateController extends Controller
 
     public function preview($id)
     {
-        $certificate = Certificate::with(['student', 'design', 'enrollment.course', 'enrollment.period'])->findOrFail($id);
+        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])->findOrFail($id);
 
         return view('admin.students.certificates.preview', compact('certificate'));
     }
@@ -353,7 +376,7 @@ class CertificateController extends Controller
 
     public function verifyCertificate($hash)
     {
-        $certificate = Certificate::with(['student', 'design', 'enrollment.course', 'enrollment.period'])
+        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
             ->where('barcode_hash', $hash)
             ->whereNull('cancelled_at')
             ->first();
@@ -374,7 +397,7 @@ class CertificateController extends Controller
 
     public function publicPreview($hash)
     {
-        $certificate = Certificate::with(['student', 'design', 'enrollment.course', 'enrollment.period'])
+        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
             ->where('barcode_hash', $hash)
             ->whereNull('cancelled_at')
             ->firstOrFail();

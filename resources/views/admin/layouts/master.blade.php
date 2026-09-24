@@ -275,6 +275,11 @@
                     <i class="bi bi-palette"></i> <span>تصاميم الشهادات</span>
                 </a>
                 @endcanPermission
+                @canPermission('App\Models\Admin\Student\Certificate', 'view')
+                <a href="{{ route('admin.students.certificates.signers.index') }}" class="nav-link {{ request()->routeIs('admin.students.certificates.signers.*') || request()->routeIs('admin.students.certificates.signatory-sets.*') ? 'active' : '' }}">
+                    <i class="bi bi-person-sign"></i> <span>موقعو الشهادات</span>
+                </a>
+                @endcanPermission
             </div>
         </div>
         @endif
@@ -613,6 +618,18 @@
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="bi bi-exclamation-circle me-1"></i>
                     {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            @endif
+
+            @if (session('preflight_errors'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong><i class="bi bi-list-check me-1"></i> مشاكل في ملف الاستيراد:</strong>
+                    <ul class="mb-0 mt-1">
+                        @foreach (session('preflight_errors') as $preError)
+                            <li>{{ $preError }}</li>
+                        @endforeach
+                    </ul>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif

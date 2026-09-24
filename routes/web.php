@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\Hr\LeaveRequestController;
 use App\Http\Controllers\Admin\Hr\TimesheetController;
 use App\Http\Controllers\Admin\Student\AttendanceController;
 use App\Http\Controllers\Admin\Student\CertificateController;
+use App\Http\Controllers\Admin\Student\CertificateSignerController;
+use App\Http\Controllers\Admin\Student\CertificateSignatorySetController;
 use App\Http\Controllers\Admin\Student\CourseController;
 use App\Http\Controllers\Admin\Student\AcademicLevelController;
 use App\Http\Controllers\Admin\Student\TrainingPlanController;
@@ -283,6 +285,9 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::get('students/certificates/{id}/preview', [CertificateController::class, 'preview'])->name('students.certificates.preview');
         Route::post('students/certificates/{id}/cancel', [CertificateController::class, 'cancel'])->name('students.certificates.cancel');
         Route::get('students/certificates/print-batch', [CertificateController::class, 'printBatch'])->name('students.certificates.print-batch');
+        // Certificate signers & signatory sets (temporary standalone data until HR tables are active)
+        Route::resource('students/certificates/signers', CertificateSignerController::class)->except(['show'])->parameters(['signers' => 'signer'])->names(['index' => 'students.certificates.signers.index', 'create' => 'students.certificates.signers.create', 'store' => 'students.certificates.signers.store', 'edit' => 'students.certificates.signers.edit', 'update' => 'students.certificates.signers.update', 'destroy' => 'students.certificates.signers.destroy']);
+        Route::resource('students/certificates/signatory-sets', CertificateSignatorySetController::class)->except(['show'])->parameters(['signatory-sets' => 'set'])->names(['index' => 'students.certificates.signatory-sets.index', 'create' => 'students.certificates.signatory-sets.create', 'store' => 'students.certificates.signatory-sets.store', 'edit' => 'students.certificates.signatory-sets.edit', 'update' => 'students.certificates.signatory-sets.update', 'destroy' => 'students.certificates.signatory-sets.destroy']);
         Route::post('students/check-identity', [StudentController::class, 'checkIdentity'])->name('students.check-identity');
         Route::post('students/{student}/add-to-projects', [StudentController::class, 'addToProjects'])->name('students.add-to-projects');
         Route::resource('students', StudentController::class);

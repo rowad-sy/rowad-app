@@ -10,7 +10,7 @@ class Certificate extends Model
     protected $table = 'certificates';
 
     protected $fillable = [
-        'certificate_number', 'design_id', 'student_id', 'enrollment_id',
+        'certificate_number', 'design_id', 'student_id', 'enrollment_id', 'signatory_set_id',
         'barcode_hash', 'issue_date', 'is_verified', 'verified_at', 'cancelled_at',
     ];
 
@@ -37,5 +37,10 @@ class Certificate extends Model
     public function enrollment(): BelongsTo
     {
         return $this->belongsTo(StudentEnrollment::class, 'enrollment_id');
+    }
+
+    public function signatorySet(): BelongsTo
+    {
+        return $this->belongsTo(CertificateSignatorySet::class, 'signatory_set_id');
     }
 }
