@@ -43,7 +43,7 @@ beforeEach(function () {
 
 it('passes preflight on the real third-cycle import file', function () {
     expect(ImportPreflight::check(REAL_FILE))->toBe([]);
-});
+})->skip(!is_file(REAL_FILE), 'real dataset not present in this environment');
 
 it('imports the entire real file end to end with full linkage', function () {
     $import = new StudentFullImport();
@@ -81,4 +81,4 @@ it('imports the entire real file end to end with full linkage', function () {
         ->and($import->setsImported)->toBe(36)
         ->and($import->certificatesCreated)->toBe(572)
         ->and($import->certificatesUpdated)->toBe(0);
-});
+})->skip(!is_file(REAL_FILE), 'real dataset not present in this environment');
