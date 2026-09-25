@@ -279,6 +279,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::post('students/certificates/designs', [CertificateController::class, 'storeDesign'])->name('students.certificates.designs.store');
         Route::get('students/certificates/designs/{id}/edit', [CertificateController::class, 'editDesign'])->name('students.certificates.designer.edit');
         Route::put('students/certificates/designs/{id}', [CertificateController::class, 'updateDesign'])->name('students.certificates.designs.update');
+        Route::post('students/certificates/designs/{id}/duplicate', [CertificateController::class, 'duplicateDesign'])->name('students.certificates.designs.duplicate');
         Route::delete('students/certificates/designs/{id}', [CertificateController::class, 'destroyDesign'])->name('students.certificates.designs.destroy');
         Route::get('students/certificates/issue', [CertificateController::class, 'issue'])->name('students.certificates.issue');
         Route::post('students/certificates/generate', [CertificateController::class, 'generateCertificates'])->name('students.certificates.generate');

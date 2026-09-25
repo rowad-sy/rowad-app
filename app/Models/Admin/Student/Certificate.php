@@ -43,4 +43,28 @@ class Certificate extends Model
     {
         return $this->belongsTo(CertificateSignatorySet::class, 'signatory_set_id');
     }
+
+    /*
+     * اسم المقرر للعرض: تسجيل الشهادة ← مجموعة توقيعها ← مقرر التصميم،
+     * وإن لم يوجد أي سياق والتسجيل الوحيد للطالب معروف نستخدمه.
+     */
+    public function resolvedCourseName(): ?string
+    {
+        $name = $this->enrollment?->course?->name_ar
+            ?? $this->signatorySet?->course?->name_ar
+            ?? $this->design?->course?->name_ar;
+
+        if ($name) {
+            return $name;
+        }
+
+        if (!$this->enrollment_id && !$this->signatory_set_id && !$this->design?->course_id) {
+            $enrollment = $this->student?->enrollments()->get();
+            if ($enrollment->count() === 1) {
+                return $enrollment->first()?->course?->name_ar;
+            }
+        }
+
+        return null;
+    }
 }

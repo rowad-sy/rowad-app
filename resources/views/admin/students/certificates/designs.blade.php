@@ -112,6 +112,11 @@
                                     <a href="{{ route('admin.students.certificates.designer.edit', $design) }}" class="btn btn-sm btn-outline-primary" title="تعديل">
                                         <i class="bi bi-pencil"></i>
                                     </a>
+                                    <form method="POST" action="{{ route('admin.students.certificates.designs.duplicate', $design) }}" class="d-inline"
+                                          title="نسخ التصميم">
+                                        @csrf
+                                        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-files"></i></button>
+                                    </form>
                                     @if ($design->certificates_count > 0)
                                         <a href="{{ route('admin.students.certificates.print-batch', ['design_id' => $design->id]) }}"
                                            class="btn btn-sm btn-outline-success" target="_blank" title="طباعة">
@@ -162,6 +167,10 @@
                         <a href="{{ route('admin.students.certificates.designer.edit', $design) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i> تعديل
                         </a>
+                        <form method="POST" action="{{ route('admin.students.certificates.designs.duplicate', $design) }}" class="d-inline">
+                            @csrf
+                            <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-files"></i> نسخ</button>
+                        </form>
                         @if ($design->certificates_count > 0)
                             <a href="{{ route('admin.students.certificates.print-batch', ['design_id' => $design->id]) }}"
                                class="btn btn-sm btn-outline-success" target="_blank">

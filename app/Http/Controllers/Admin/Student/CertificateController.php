@@ -14,13 +14,14 @@ use App\Models\Admin\Student\StudentEnrollment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class CertificateController extends Controller
 {
     public function __construct()
     {
         $this->middleware('permission:App\Models\Admin\Student\Certificate,view')->only(['index', 'designs', 'show', 'preview', 'printBatch']);
-        $this->middleware('permission:App\Models\Admin\Student\Certificate,create')->only(['createDesign', 'storeDesign', 'editDesign', 'updateDesign', 'issue', 'generateCertificates']);
+        $this->middleware('permission:App\Models\Admin\Student\Certificate,create')->only(['createDesign', 'storeDesign', 'editDesign', 'updateDesign', 'duplicateDesign', 'issue', 'generateCertificates']);
         $this->middleware('permission:App\Models\Admin\Student\Certificate,delete')->only(['destroyDesign']);
     }
 
@@ -208,6 +209,37 @@ class CertificateController extends Controller
         }
     }
 
+    // ─── Duplicate Design ───
+
+    public function duplicateDesign($id)
+    {
+        $design = CertificateDesign::findOrFail($id);
+
+        $new = $design->replicate();
+        $new->name = $design->name . ' (نسخة)';
+
+        if ($design->template_image && Storage::disk('public')->exists($design->template_image)) {
+            $ext = pathinfo($design->template_image, PATHINFO_EXTENSION);
+            $new->template_image = 'certificates/templates/' . Str::uuid() . '.' . $ext;
+            Storage::disk('public')->copy($design->template_image, $new->template_image);
+        }
+
+        $signatures = $design->signatures_config ?? [];
+        foreach ($signatures as $i => $sig) {
+            if (!empty($sig['image_path']) && Storage::disk('public')->exists($sig['image_path'])) {
+                $ext = pathinfo($sig['image_path'], PATHINFO_EXTENSION);
+                $copy = 'certificates/signatures/' . Str::uuid() . '.' . $ext;
+                Storage::disk('public')->copy($sig['image_path'], $copy);
+                $signatures[$i]['image_path'] = $copy;
+            }
+        }
+        $new->signatures_config = $signatures;
+        $new->save();
+
+        return redirect()->route('admin.students.certificates.designer.edit', $new)
+            ->with('success', 'تم نسخ التصميم — عدّله الآن كما تشاء');
+    }
+
     // ─── Delete Design ───
 
     public function destroyDesign($id)
@@ -292,11 +324,24 @@ class CertificateController extends Controller
                         ->first();
                 }
 
-                $set = $selectedSet ?? CertificateSignatorySet::resolve(
-                    $validated['course_id'] ?? null,
-                    $validated['period_id'] ?? $enrollment?->period_id,
-                    $student->center_id,
-                );
+                if (!$enrollment && empty($validated['course_id'])) {
+                    $studentEnrollments = $student->enrollments()->get();
+                    $enrollment = $studentEnrollments->count() === 1 ? $studentEnrollments->first() : null;
+                }
+
+                // تراتبية المجموعة: اختيار يدوي ← توارث من شهادة سابقة للطالب ← حل تلقائي فريد
+                $inheritedSetId = Certificate::where('student_id', $student->id)
+                    ->whereNotNull('signatory_set_id')
+                    ->latest('id')
+                    ->value('signatory_set_id');
+
+                $set = $selectedSet
+                    ?? ($inheritedSetId ? CertificateSignatorySet::find($inheritedSetId) : null)
+                    ?? CertificateSignatorySet::resolve(
+                        $validated['course_id'] ?? null,
+                        $validated['period_id'] ?? $enrollment?->period_id,
+                        $student->center_id,
+                    );
 
                 if (!$set) {
                     $unresolvedCount++;
@@ -341,7 +386,7 @@ class CertificateController extends Controller
         $designId = $request->input('design_id');
         $certificateIds = $request->input('ids');
 
-        $query = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
+        $query = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.course', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
             ->whereNull('cancelled_at');
 
         if ($designId) {
@@ -367,7 +412,7 @@ class CertificateController extends Controller
 
     public function preview($id)
     {
-        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])->findOrFail($id);
+        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.course', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])->findOrFail($id);
 
         return view('admin.students.certificates.preview', compact('certificate'));
     }
@@ -376,7 +421,7 @@ class CertificateController extends Controller
 
     public function verifyCertificate($hash)
     {
-        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
+        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.course', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
             ->where('barcode_hash', $hash)
             ->whereNull('cancelled_at')
             ->first();
@@ -397,7 +442,7 @@ class CertificateController extends Controller
 
     public function publicPreview($hash)
     {
-        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
+        $certificate = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.course', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
             ->where('barcode_hash', $hash)
             ->whereNull('cancelled_at')
             ->firstOrFail();

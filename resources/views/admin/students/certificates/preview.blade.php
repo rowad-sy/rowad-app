@@ -87,7 +87,7 @@
                         {{ $certificate->student->student_code }}
                         @break
                     @case('course_name')
-                        {{ $certificate->enrollment?->course?->name_ar ?? $certificate->design?->course?->name_ar ?? '' }}
+                        {{ $certificate->resolvedCourseName() }}
                         @break
                     @case('period_name')
                         {{ $certificate->enrollment?->period?->name_ar ?? '' }}

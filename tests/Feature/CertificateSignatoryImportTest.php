@@ -200,6 +200,60 @@ it('renders center_name field in certificate preview from the student center', f
     $response->assertSee('مركز الاختبار', false);
 });
 
+it('renders course name from signatory set when the certificate has no enrollment', function () {
+    $courseDesign = CertificateDesign::create([
+        'name' => 'بدون تسجيل',
+        'year' => 2026,
+        'fields_config' => [
+            ['id' => 1, 'type' => 'course_name', 'x_mm' => 88.5, 'y_mm' => 82, 'width_mm' => 120, 'height_mm' => 10, 'font_size' => 15, 'font_weight' => 500, 'color' => '#000', 'align' => 'center'],
+        ],
+    ]);
+    $cert = Certificate::create([
+        'certificate_number' => '2026-90006',
+        'design_id' => $courseDesign->id,
+        'student_id' => $this->student->id,
+        'signatory_set_id' => $this->set->id,
+        'barcode_hash' => hash('sha256', 'seed-2026-90006' . config('app.key')),
+        'issue_date' => '2026-05-01',
+    ]);
+
+    $this->get(route('admin.students.certificates.preview', $cert))
+        ->assertOk()
+        ->assertSee('دورة الاختبار', false);
+});
+
+it('duplicates a design with its images and links straight into the editor', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('certificates/templates/bg.png', 'template-bytes');
+    Storage::disk('public')->put('certificates/signatures/s1.png', 'sig-bytes');
+
+    $original = CertificateDesign::create([
+        'name' => 'أصلي للنسخ',
+        'year' => 2026,
+        'template_image' => 'certificates/templates/bg.png',
+        'fields_config' => [
+            ['id' => 1, 'type' => 'student_name', 'x_mm' => 10, 'y_mm' => 10, 'width_mm' => 50, 'height_mm' => 10, 'font_size' => 18, 'font_weight' => 700, 'color' => '#000', 'align' => 'center'],
+        ],
+        'signatures_config' => [
+            ['id' => 1, 'image_path' => 'certificates/signatures/s1.png', 'x_mm' => 20, 'y_mm' => 150, 'width_mm' => 40, 'height_mm' => 20],
+        ],
+    ]);
+
+    $response = $this->post(route('admin.students.certificates.designs.duplicate', $original));
+    $response->assertSessionHas('success');
+
+    $copy = CertificateDesign::where('name', 'أصلي للنسخ (نسخة)')->first();
+    expect($copy)->not->toBeNull()
+        ->and($copy->id)->not->toBe($original->id)
+        ->and($copy->fields_config)->toBe($original->fields_config)
+        ->and($copy->template_image)->not->toBe($original->template_image)
+        ->and(Storage::disk('public')->exists($copy->template_image))->toBeTrue()
+        ->and($copy->signatures_config[0]['image_path'])->not->toBe('certificates/signatures/s1.png')
+        ->and(Storage::disk('public')->exists($copy->signatures_config[0]['image_path']))->toBeTrue();
+
+    $response->assertRedirect(route('admin.students.certificates.designer.edit', $copy));
+});
+
 it('preflight reports missing courses, centers, designs and unresolvable sets', function () {
     $spreadsheet = new Spreadsheet();
     $spreadsheet->removeSheetByIndex(0);
