@@ -42,7 +42,7 @@
                         </div>
                         <div class="row mb-2">
                             <div class="col-5 text-muted small">اسم الطالب</div>
-                            <div class="col-7 fw-medium">{{ $certificate->student->first_name_ar }} {{ $certificate->student->last_name_ar }}</div>
+                            <div class="col-7 fw-medium">{{ $certificate->student?->first_name_ar }} {{ $certificate->student?->last_name_ar }}</div>
                         </div>
                         @if ($certificate->enrollment?->course || $certificate->design?->course)
                         <div class="row mb-2">

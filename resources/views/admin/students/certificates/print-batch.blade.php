@@ -81,10 +81,10 @@
                 <div class="field" style="{{ $style }}">
                     @switch($field['type'] ?? 'text')
                         @case('student_name')
-                            {{ $certificate->student->first_name_ar }} {{ $certificate->student->last_name_ar }}
+                            {{ $certificate->student?->first_name_ar }} {{ $certificate->student?->last_name_ar }}
                             @break
                         @case('student_code')
-                            {{ $certificate->student->student_code }}
+                            {{ $certificate->student?->student_code }}
                             @break
                         @case('course_name')
                             {{ $certificate->resolvedCourseName() }}

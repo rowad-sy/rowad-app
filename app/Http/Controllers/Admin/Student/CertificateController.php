@@ -35,6 +35,7 @@ class CertificateController extends Controller
 
         $showCancelled = $request->input('show_cancelled');
         $certificates = Certificate::with(['student', 'design'])
+            ->whereHas('student')
             ->when(!$showCancelled, fn($q) => $q->whereNull('cancelled_at'))
             ->when($search, fn($q, $v) => $q->whereHas('student', fn($sq) => $sq->where('first_name_ar', 'like', "%{$v}%")->orWhere('student_code', 'like', "%{$v}%"))
                 ->orWhere('certificate_number', 'like', "%{$v}%"))
@@ -387,6 +388,7 @@ class CertificateController extends Controller
         $certificateIds = $request->input('ids');
 
         $query = Certificate::with(['student.center', 'design', 'enrollment.course', 'enrollment.period', 'signatorySet.course', 'signatorySet.instructorSigner', 'signatorySet.centerManagerSigner', 'signatorySet.projectManagerSigner'])
+            ->has('student')
             ->whereNull('cancelled_at');
 
         if ($designId) {
