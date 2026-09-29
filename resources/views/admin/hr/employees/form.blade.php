@@ -59,6 +59,23 @@
 <x-page-header :title="isset($employee) ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'"
                :breadcrumb="[['label' => 'الموظفين', 'url' => route('admin.hr.employees.index')], ['label' => isset($employee) ? $employee->first_name_ar . ' ' . $employee->last_name_ar : 'جديد']]" />
 
+@php
+    // بعد فشل التحقق تُستعاد الصفوف من المُدخلات القديمة بمفاتيحها (حتى لو حذف المستخدم كل الصفوف)،
+    // ولا تُقرأ من قاعدة البيانات إلا عند فتح الصفحة أول مرة (بلا محاولة إرسال سابقة).
+    $attempted = session()->hasOldInput();
+    $dynRows = function (string $key, $dbRows) use ($attempted) {
+        if ($attempted) {
+            return is_array(old($key)) ? old($key) : [];
+        }
+        return $dbRows;
+    };
+    $eduRows = $dynRows('educations', isset($employee) ? $employee->educations->map(fn ($e) => $e->only(['qualification', 'specialization', 'university', 'grade', 'graduation_year']))->all() : []);
+    $contactRows = $dynRows('contacts', isset($employee) ? $employee->contacts->map(fn ($c) => ['type' => $c->type, 'value' => $c->value, 'is_primary' => (bool) $c->is_primary])->all() : []);
+    $warningRows = $dynRows('warnings', isset($employee) ? $employee->warnings->map(fn ($w) => ['date' => (string) $w->date, 'reason' => $w->reason, 'level' => $w->level, 'is_folded' => (bool) $w->is_folded])->all() : []);
+    $noteRows = $dynRows('notes_list', isset($employee) ? $employee->notesRelation->map(fn ($n) => ['note' => $n->note, 'meta' => trim(($n->user?->name ?? '') . ' - ' . $n->created_at->locale('ar')->diffForHumans(), ' -')])->all() : []);
+    $nextIdx = fn (array $rows) => $rows ? (max(array_map('intval', array_keys($rows))) + 1) : 0;
+@endphp
+
 <form method="POST" action="{{ isset($employee) ? route('admin.hr.employees.update', $employee) : route('admin.hr.employees.store') }}" enctype="multipart/form-data">
     @csrf
     @if (isset($employee))
@@ -294,20 +311,20 @@
                             <tr class="schedule-row">
                                 <td class="fw-medium">{{ $day }}</td>
                                 <td>
-                                    <input type="time" name="work_schedules[{{ $i }}][start_time]"
+                                    <input type="time" name="work_schedules[{{ $i }}][start_time]" aria-label="بداية دوام {{ $day }}"
                                            class="form-control form-control-sm schedule-start"
-                                           value="{{ old("work_schedules.$i.start_time", $schedule?->start_time ?? '') }}">
+                                           value="{{ $attempted ? old("work_schedules.$i.start_time") : ($schedule?->start_time ?? '') }}">
                                 </td>
                                 <td>
-                                    <input type="time" name="work_schedules[{{ $i }}][end_time]"
+                                    <input type="time" name="work_schedules[{{ $i }}][end_time]" aria-label="نهاية دوام {{ $day }}"
                                            class="form-control form-control-sm schedule-end"
-                                           value="{{ old("work_schedules.$i.end_time", $schedule?->end_time ?? '') }}">
+                                           value="{{ $attempted ? old("work_schedules.$i.end_time") : ($schedule?->end_time ?? '') }}">
                                 </td>
                                 <td class="text-center">
                                     <input type="hidden" name="work_schedules[{{ $i }}][day_of_week]" value="{{ $i }}">
-                                    <input type="checkbox" name="work_schedules[{{ $i }}][is_day_off]" value="1"
+                                    <input type="checkbox" name="work_schedules[{{ $i }}][is_day_off]" value="1" aria-label="{{ $day }} إجازة أسبوعية"
                                            class="form-check-input day-off-check"
-                                           {{ old("work_schedules.$i.is_day_off", $schedule?->is_day_off ?? false) ? 'checked' : '' }}>
+                                           {{ ($attempted ? old("work_schedules.$i.is_day_off") : ($schedule?->is_day_off ?? false)) ? 'checked' : '' }}>
                                 </td>
                             </tr>
                         @endforeach
@@ -320,7 +337,7 @@
         <div class="tab-pane fade" id="edu" role="tabpanel">
             <h5 class="fw-bold mb-3">المؤهلات العلمية</h5>
             <div class="table-responsive">
-                <table class="table table-bordered inline-table" id="educations-table">
+                <table class="table table-bordered inline-table" id="educations-table" data-next-index="{{ $nextIdx($eduRows) }}">
                     <thead>
                         <tr>
                             <th>المؤهل</th>
@@ -332,20 +349,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php $eduIndex = 0; @endphp
-                        @if (isset($employee) && $employee->educations->count())
-                            @foreach ($employee->educations as $edu)
-                            <tr>
-                                <td><input type="text" name="educations[{{ $loop->index }}][qualification]" class="form-control form-control-sm" value="{{ $edu->qualification }}"></td>
-                                <td><input type="text" name="educations[{{ $loop->index }}][specialization]" class="form-control form-control-sm" value="{{ $edu->specialization }}"></td>
-                                <td><input type="text" name="educations[{{ $loop->index }}][university]" class="form-control form-control-sm" value="{{ $edu->university }}"></td>
-                                <td><input type="text" name="educations[{{ $loop->index }}][grade]" class="form-control form-control-sm" value="{{ $edu->grade }}"></td>
-                                <td><input type="number" name="educations[{{ $loop->index }}][graduation_year]" class="form-control form-control-sm" value="{{ $edu->graduation_year }}"></td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
-                            </tr>
-                            @php $eduIndex = $loop->index + 1; @endphp
-                            @endforeach
-                        @endif
+                        @foreach ($eduRows as $i => $row)
+                            @include('admin.hr.employees.rows._education', ['idx' => $i, 'row' => $row])
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -357,7 +363,7 @@
 
             <h5 class="fw-bold mb-3">معلومات التواصل</h5>
             <div class="table-responsive">
-                <table class="table table-bordered inline-table" id="contacts-table">
+                <table class="table table-bordered inline-table" id="contacts-table" data-next-index="{{ $nextIdx($contactRows) }}">
                     <thead>
                         <tr>
                             <th>النوع</th>
@@ -367,29 +373,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php $contactIndex = 0; @endphp
-                        @if (isset($employee) && $employee->contacts->count())
-                            @foreach ($employee->contacts as $contact)
-                            <tr>
-                                <td>
-                                    <select name="contacts[{{ $loop->index }}][type]" class="form-select form-select-sm">
-                                        <option value="phone" {{ $contact->type === 'phone' ? 'selected' : '' }}>هاتف</option>
-                                        <option value="mobile" {{ $contact->type === 'mobile' ? 'selected' : '' }}>جوال</option>
-                                        <option value="whatsapp" {{ $contact->type === 'whatsapp' ? 'selected' : '' }}>واتسآب</option>
-                                        <option value="emergency" {{ $contact->type === 'emergency' ? 'selected' : '' }}>طوارئ</option>
-                                        <option value="email" {{ $contact->type === 'email' ? 'selected' : '' }}>بريد إلكتروني</option>
-                                    </select>
-                                </td>
-                                <td><input type="text" name="contacts[{{ $loop->index }}][value]" class="form-control form-control-sm" value="{{ $contact->value }}"></td>
-                                <td class="text-center">
-                                    <input type="checkbox" name="contacts[{{ $loop->index }}][is_primary]" value="1" class="form-check-input"
-                                           {{ $contact->is_primary ? 'checked' : '' }}>
-                                </td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
-                            </tr>
-                            @php $contactIndex = $loop->index + 1; @endphp
-                            @endforeach
-                        @endif
+                        @foreach ($contactRows as $i => $row)
+                            @include('admin.hr.employees.rows._contact', ['idx' => $i, 'row' => $row])
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -529,6 +515,9 @@
         {{-- TAB 5: DOCUMENTS --}}
         <div class="tab-pane fade" id="docs" role="tabpanel">
             <h5 class="fw-bold mb-3">الوثائق والملفات</h5>
+            @if ($attempted)
+                <div class="alert alert-info py-2 small" role="note">المتصفح لا يحتفظ بالملفات المختارة بعد فشل الحفظ؛ أعد اختيار أي ملف تريد رفعه.</div>
+            @endif
             <p class="text-muted small mb-3">حدد أنواع الوثائق الموجودة وارفع الملفات</p>
 
             @php
@@ -587,7 +576,7 @@
         <div class="tab-pane fade" id="warn" role="tabpanel">
             <h5 class="fw-bold mb-3">التنبيهات</h5>
             <div class="table-responsive">
-                <table class="table table-bordered inline-table" id="warnings-table">
+                <table class="table table-bordered inline-table" id="warnings-table" data-next-index="{{ $nextIdx($warningRows) }}">
                     <thead>
                         <tr>
                             <th>التاريخ</th>
@@ -598,31 +587,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php $warnIndex = 0; @endphp
-                        @if (isset($employee) && $employee->warnings->count())
-                            @foreach ($employee->warnings as $warn)
-                            <tr>
-                                <td><input type="date" name="warnings[{{ $loop->index }}][date]" class="form-control form-control-sm" value="{{ $warn->date }}"></td>
-                                <td><input type="text" name="warnings[{{ $loop->index }}][reason]" class="form-control form-control-sm" value="{{ $warn->reason }}"></td>
-                                <td>
-                                    <select name="warnings[{{ $loop->index }}][level]" class="form-select form-select-sm">
-                                        <option value="verbal" {{ $warn->level === 'verbal' ? 'selected' : '' }}>شفهي</option>
-                                        <option value="written" {{ $warn->level === 'written' ? 'selected' : '' }}>كتابي</option>
-                                        <option value="termination" {{ $warn->level === 'termination' ? 'selected' : '' }}>إنذار بالفصل</option>
-                                    </select>
-                                </td>
-                                <td class="text-center">
-                                    @if ($warn->is_folded)
-                                        <span class="badge bg-success">مطوي</span>
-                                    @else
-                                        <span class="badge bg-warning">غير مطوي</span>
-                                    @endif
-                                </td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
-                            </tr>
-                            @php $warnIndex = $loop->index + 1; @endphp
-                            @endforeach
-                        @endif
+                        @foreach ($warningRows as $i => $row)
+                            @include('admin.hr.employees.rows._warning', ['idx' => $i, 'row' => $row])
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -634,7 +601,7 @@
 
             <h5 class="fw-bold mb-3">الملاحظات</h5>
             <div class="table-responsive">
-                <table class="table table-bordered inline-table" id="notes-table">
+                <table class="table table-bordered inline-table" id="notes-table" data-next-index="{{ $nextIdx($noteRows) }}">
                     <thead>
                         <tr>
                             <th>الملاحظة</th>
@@ -642,17 +609,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @if (isset($employee) && $employee->notesRelation->count())
-                            @foreach ($employee->notesRelation as $note)
-                            <tr>
-                                <td>
-                                    <textarea name="notes_list[{{ $loop->index }}][note]" rows="2" class="form-control form-control-sm">{{ $note->note }}</textarea>
-                                    <small class="text-muted">{{ $note->user?->name }} - {{ $note->created_at->locale('ar')->diffForHumans() }}</small>
-                                </td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
-                            </tr>
-                            @endforeach
-                        @endif
+                        @foreach ($noteRows as $i => $row)
+                            @include('admin.hr.employees.rows._note', ['idx' => $i, 'row' => $row])
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -669,6 +628,12 @@
         <a href="{{ route('admin.hr.employees.index') }}" class="btn btn-outline-secondary px-4">إلغاء</a>
     </div>
 </form>
+
+{{-- قوالب الصفوف الجديدة: نفس الأجزاء المستخدمة لصفوف الخادم، فتحمل التسميات وaria من لحظة الإنشاء --}}
+<template id="tpl-educations">@include('admin.hr.employees.rows._education', ['idx' => '__IDX__', 'row' => []])</template>
+<template id="tpl-contacts">@include('admin.hr.employees.rows._contact', ['idx' => '__IDX__', 'row' => []])</template>
+<template id="tpl-warnings">@include('admin.hr.employees.rows._warning', ['idx' => '__IDX__', 'row' => []])</template>
+<template id="tpl-notes">@include('admin.hr.employees.rows._note', ['idx' => '__IDX__', 'row' => []])</template>
 @endsection
 
 @push('scripts')
@@ -688,105 +653,30 @@ document.addEventListener('DOMContentLoaded', function () {
         if (cb.checked) cb.dispatchEvent(new Event('change'));
     });
 
-    // Add row helper
-    function addRow(tableId, prefix, fields) {
-        var tbody = document.querySelector('#' + tableId + ' tbody');
-        var rowCount = tbody.querySelectorAll('tr').length;
-        var html = '<tr>';
-        fields.forEach(function (f) {
-            html += '<td>' + f + '</td>';
-        });
-        html += '<td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>';
-        html += '</tr>';
-        // Replace index placeholder
-        html = html.replace(/INDEX/g, rowCount);
-        tbody.insertAdjacentHTML('beforeend', html);
-    }
-
-    // Remove row
+    // حذف صف (حتى الأخير): بعد فشل التحقق لا تعود الصفوف المحذوفة من قاعدة البيانات
     document.addEventListener('click', function (e) {
-        if (e.target.closest('.remove-row')) {
-            if (e.target.closest('tbody').querySelectorAll('tr').length > 1) {
-                e.target.closest('tr').remove();
-            } else {
-                e.target.closest('tr').querySelectorAll('input, textarea').forEach(function (el) {
-                    if (el.type !== 'button') el.value = '';
-                });
-            }
-        }
+        var btn = e.target.closest('.remove-row');
+        if (!btn) return;
+        var row = btn.closest('tr');
+        var next = row.nextElementSibling || row.previousElementSibling;
+        row.remove();
+        if (next) { var f = next.querySelector('input, select, textarea, button'); if (f) f.focus(); }
     });
 
-    // Add education
-    document.getElementById('add-education')?.addEventListener('click', function () {
-        var tbody = document.querySelector('#educations-table tbody');
-        var idx = tbody.querySelectorAll('tr').length;
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr>
-                <td><input type="text" name="educations[` + idx + `][qualification]" class="form-control form-control-sm" placeholder="المؤهل"></td>
-                <td><input type="text" name="educations[` + idx + `][specialization]" class="form-control form-control-sm" placeholder="الاختصاص"></td>
-                <td><input type="text" name="educations[` + idx + `][university]" class="form-control form-control-sm" placeholder="الجامعة"></td>
-                <td><input type="text" name="educations[` + idx + `][grade]" class="form-control form-control-sm" placeholder="التقدير"></td>
-                <td><input type="number" name="educations[` + idx + `][graduation_year]" class="form-control form-control-sm" placeholder="السنة"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
-            </tr>
-        `);
-    });
-
-    // Add contact
-    document.getElementById('add-contact')?.addEventListener('click', function () {
-        var tbody = document.querySelector('#contacts-table tbody');
-        var idx = tbody.querySelectorAll('tr').length;
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr>
-                <td>
-                    <select name="contacts[` + idx + `][type]" class="form-select form-select-sm">
-                        <option value="phone">هاتف</option>
-                        <option value="mobile">جوال</option>
-                        <option value="whatsapp">واتسآب</option>
-                        <option value="emergency">طوارئ</option>
-                        <option value="email">بريد إلكتروني</option>
-                    </select>
-                </td>
-                <td><input type="text" name="contacts[` + idx + `][value]" class="form-control form-control-sm" placeholder="القيمة"></td>
-                <td class="text-center"><input type="checkbox" name="contacts[` + idx + `][is_primary]" value="1" class="form-check-input"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
-            </tr>
-        `);
-    });
-
-    // Add warning
-    document.getElementById('add-warning')?.addEventListener('click', function () {
-        var tbody = document.querySelector('#warnings-table tbody');
-        var idx = tbody.querySelectorAll('tr').length;
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr>
-                <td><input type="date" name="warnings[` + idx + `][date]" class="form-control form-control-sm"></td>
-                <td><input type="text" name="warnings[` + idx + `][reason]" class="form-control form-control-sm" placeholder="السبب"></td>
-                <td>
-                    <select name="warnings[` + idx + `][level]" class="form-select form-select-sm">
-                        <option value="verbal">شفهي</option>
-                        <option value="written">كتابي</option>
-                        <option value="termination">إنذار بالفصل</option>
-                    </select>
-                </td>
-                <td class="text-center">—</td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
-            </tr>
-        `);
-    });
-
-    // Add note
-    document.getElementById('add-note')?.addEventListener('click', function () {
-        var tbody = document.querySelector('#notes-table tbody');
-        var idx = tbody.querySelectorAll('tr').length;
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr>
-                <td>
-                    <textarea name="notes_list[` + idx + `][note]" rows="2" class="form-control form-control-sm" placeholder="ملاحظة"></textarea>
-                </td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
-            </tr>
-        `);
+    // إضافة صف من قالب الخادم بمفتاح جديد لا يصطدم بالمفاتيح الموجودة (data-next-index)
+    function addDynamicRow(tableId, templateId) {
+        var table = document.getElementById(tableId);
+        var tbody = table.querySelector('tbody');
+        var idx = parseInt(table.dataset.nextIndex || '0', 10);
+        table.dataset.nextIndex = idx + 1;
+        var html = document.getElementById(templateId).innerHTML.split('__IDX__').join(idx);
+        tbody.insertAdjacentHTML('beforeend', html);
+        var first = tbody.lastElementChild.querySelector('input:not([type=checkbox]), select, textarea');
+        if (first) first.focus();
+    }
+    [['add-education', 'educations-table', 'tpl-educations'], ['add-contact', 'contacts-table', 'tpl-contacts'],
+     ['add-warning', 'warnings-table', 'tpl-warnings'], ['add-note', 'notes-table', 'tpl-notes']].forEach(function (c) {
+        document.getElementById(c[0])?.addEventListener('click', function () { addDynamicRow(c[1], c[2]); });
     });
 
     // ---- User search ----

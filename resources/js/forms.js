@@ -117,6 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
     tabSemantics();
     linkLabels(root);
     markRequired(root);
+    // الحقول التي تُضاف لاحقًا (صفوف ديناميكية) تُربط بتسمياتها لحظة إنشائها، لا عند التحميل فقط
+    new MutationObserver((records) => {
+        records.forEach((r) => r.addedNodes.forEach((n) => { if (n.nodeType === 1) { linkLabels(n); markRequired(n); } }));
+    }).observe(root, { childList: true, subtree: true });
     const invalid = linkErrors(root);
     if (invalid.length) {
         flagTabs(invalid);

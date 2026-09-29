@@ -154,7 +154,52 @@ const q = (p) => new URL(p.url()).searchParams;
   await p.fill('[name=first_name_ar]', 'موظف-معدّل');
   await Promise.all([p.waitForNavigation(), p.click('form[action*="/admin/hr/employees/"] button[type=submit]:has-text("حفظ")')]);
   ok('تعديل الموظف يُحفظ', !p.url().includes('/edit'), p.url());
-  // فتح التبويب المخفي عند وجود خطأ فيه (نحقن is-invalid في حقل تبويب "العقد والراتب" عبر اعتراض الاستجابة)
+  // صفوف المؤهلات/التواصل الديناميكية بعد فشل التحقق (نموذج الموظف)
+  await p.goto(BASE + '/admin/hr/employees/create');
+  await p.evaluate(() => { document.querySelector('form[action$="/admin/hr/employees"]').noValidate = true; });
+  await p.fill('[name=employee_code]', 'E2E-R' + stamp);
+  await p.fill('[name=first_name_ar]', 'صفوف');
+  await p.selectOption('[name=gender]', 'female');
+  await p.click('#edu-tab');
+  await p.click('#add-education'); await p.click('#add-education');
+  await p.fill('[name="educations[0][qualification]"]', 'بكالوريوس');
+  await p.fill('[name="educations[1][qualification]"]', 'ماجستير');
+  await p.click('#add-contact'); await p.click('#add-contact');
+  await p.fill('[name="contacts[0][value]"]', '0999000111');
+  await p.check('[name="contacts[0][is_primary]"]');
+  await p.fill('[name="contacts[1][value]"]', 'x@y.test');   // بلا «رئيسي»
+  ok('الصفوف المضافة ديناميكيًا لها تسميات متاحة عند إنشائها', (await p.getAttribute('[name="educations[1][qualification]"]', 'aria-label')) === 'المؤهل — مؤهل جديد');
+  await p.click('#educations-table tbody tr:nth-of-type(1) .remove-row');       // حذف الصف 0 → يبقى المفتاح 1
+  await Promise.all([p.waitForNavigation(), p.click('form[action$="/admin/hr/employees"] button[type=submit]:has-text("حفظ")')]);
+  const dyn = await p.evaluate(() => ({
+    edu: [...document.querySelectorAll('#educations-table [name$="[qualification]"]')].map((i) => `${i.name}=${i.value}`),
+    c0: document.querySelector('[name="contacts[0][is_primary]"]')?.checked, c1: document.querySelector('[name="contacts[1][is_primary]"]')?.checked,
+    v1: document.querySelector('[name="contacts[1][value]"]')?.value, next: document.getElementById('educations-table').dataset.nextIndex,
+  }));
+  ok('الموظف بعد فشل التحقق: مفاتيح الصفوف وقيمها محفوظة والصف المحذوف لا يعود', dyn.edu.length === 1 && dyn.edu[0] === 'educations[1][qualification]=ماجستير', JSON.stringify(dyn));
+  ok('الموظف بعد فشل التحقق: «رئيسي» المحدد يبقى محددًا وغير المحدد يبقى غير محدد', dyn.c0 === true && dyn.c1 === false && dyn.v1 === 'x@y.test', JSON.stringify(dyn));
+  await p.click('#edu-tab'); await p.click('#add-education');
+  const keys = await p.$$eval('#educations-table [name$="[qualification]"]', (i) => i.map((x) => x.name));
+  ok('إضافة صف بعد العودة من الخطأ: مفتاح جديد بلا تكرار', new Set(keys).size === keys.length && keys.includes('educations[2][qualification]'), keys.join(','));
+  // إنشاء فعلي ثم فتح التعديل: صفوف القاعدة تظهر أول مرة، وبعد حذفها كلها وفشل التحقق لا تعود
+  await p.click('#basic-tab');
+  await p.fill('[name=last_name_ar]', 'اختبار');
+  await Promise.all([p.waitForNavigation(), p.click('form[action$="/admin/hr/employees"] button[type=submit]:has-text("حفظ")')]);
+  await p.goto(BASE + '/admin/hr/employees?search=E2E-R' + stamp);
+  await p.click('a[aria-label^="تعديل"]'); await p.waitForLoadState('load');
+  await p.click('#edu-tab');
+  ok('تعديل الموظف أول مرة: صفوف قاعدة البيانات تظهر', (await p.$$eval('#educations-table [name$="[qualification]"]', (i) => i.length)) >= 1);
+  while (await p.$('#educations-table .remove-row')) await p.click('#educations-table .remove-row');
+  await p.evaluate(() => { document.querySelector('form[action*="/admin/hr/employees/"]').noValidate = true; });
+  await p.click('#basic-tab');
+  await p.fill('[name=last_name_ar]', '');
+  await Promise.all([p.waitForNavigation(), p.click('form[action*="/admin/hr/employees/"] button[type=submit]:has-text("حفظ")')]);
+  await p.click('#edu-tab');
+  ok('حذف كل صفوف المؤهلات ثم فشل التحقق: لا تُستعاد صفوف قاعدة البيانات', (await p.$$eval('#educations-table [name$="[qualification]"]', (i) => i.length)) === 0);
+
+  // اختبار لسلوك JavaScript فقط (وليس للتحقق من الخادم): قواعد الخادم الحالية تتحقق من حقول التبويب الأول فقط،
+  // لذا لا يمكن إنتاج خطأ خادم حقيقي في تبويب غير نشط دون اختراع قاعدة جديدة؛ نحقن is-invalid في حقل تبويب «العقد والراتب»
+  // عبر اعتراض الاستجابة لنتحقق من أن forms.js يفتح التبويب المخفي وينقل التركيز إليه.
   await p.route('**/admin/hr/employees/create', async (route) => {
     const resp = await route.fetch();
     let html = await resp.text();
@@ -167,7 +212,7 @@ const q = (p) => new URL(p.url()).searchParams;
   await p.goto(BASE + '/admin/hr/employees/create');
   await p.waitForTimeout(700);
   const hidden = await p.evaluate(() => ({ active: document.querySelector('.tab-pane.active')?.id, focusIn: document.activeElement.closest('.tab-pane')?.id, flag: !!document.querySelector('#contract-tab .tab-error-flag'), described: document.activeElement.getAttribute('aria-describedby') }));
-  ok('خطأ داخل تبويب مخفي: يُفتح التبويب ثم ينتقل التركيز ويوسم التبويب', hidden.active === 'contract' && hidden.focusIn === 'contract' && hidden.flag && !!hidden.described, JSON.stringify(hidden));
+  ok('[سلوك JS بحقن is-invalid] خطأ داخل تبويب مخفي: يُفتح التبويب ثم ينتقل التركيز ويوسم التبويب', hidden.active === 'contract' && hidden.focusIn === 'contract' && hidden.flag && !!hidden.described, JSON.stringify(hidden));
   await p.unroute('**/admin/hr/employees/create');
   await ctx.close();
 }
@@ -200,10 +245,34 @@ const q = (p) => new URL(p.url()).searchParams;
   ok('قائمة الحالة عريضة بما يكفي لقراءة «حاضر»', widths.every((w) => w >= 100), `min=${Math.min(...widths)}`);
   await p.goto(BASE + '/admin/hr/timesheets');
   ok('التايم شيت بلا فلتر: رسالة توجيه', (await p.textContent('body')).includes('اختر مركزًا أو مشروعًا'));
-  await p.goto(BASE + '/admin/hr/timesheets?search=' + encodeURIComponent('موظف'));
-  const fr = await p.$('iframe[title^="التايم شيت"]');
-  ok('التايم شيت بفلتر: يُعرض الجدول الفعلي (iframe لصفحة الطباعة الحالية)', !!fr);
-  if (fr) { const frame = await fr.contentFrame(); await frame.waitForLoadState('load'); ok('التايم شيت يحتوي رموز الحالة النصية', /✔|✘|—|ع/.test(await frame.textContent('body'))); }
+  const q3 = '?month=2026-03&search=EMP-00';
+  await p.goto(BASE + '/admin/hr/timesheets' + q3);
+  ok('التايم شيت: جدول HTML داخل القالب (لا iframe)', !!(await p.$('table.ts-table')) && !(await p.$('iframe')));
+  const fontOk = await p.evaluate(async () => { await document.fonts.ready; return [...document.fonts].some((f) => f.family.includes('Tajawal') && f.status === 'loaded') && getComputedStyle(document.querySelector('.ts-table')).fontFamily.includes('Tajawal'); });
+  ok('التايم شيت يستخدم Tajawal المحمّل فعليًا', fontOk);
+  const sheet = await p.evaluate(() => {
+    const row = (code) => [...document.querySelectorAll('.ts-table tbody tr')].find((r) => r.querySelector('th')?.textContent.includes(code));
+    const read = (code) => { const r = row(code); if (!r) return null; const cells = [...r.querySelectorAll('td.ts-cell')].map((c) => c.getAttribute('title').replace(/^\d+ \S+ \d+: /, '')); return { cells, p: r.querySelector('td.ts-present.ts-total')?.textContent.trim(), a: r.querySelector('td.ts-absent.ts-total')?.textContent.trim(), e: r.querySelector('td.ts-excused.ts-total')?.textContent.trim(), details: r.querySelector('.ts-details')?.textContent.trim() }; };
+    return { r2: read('EMP-002'), r3: read('EMP-003') };
+  });
+  ok('التايم شيت EMP-002: 31 خانة، الغياب يوم 2 والعذر يوم 3 والعطلة الأحد، وإجماليات 20/1/1', sheet.r2 && sheet.r2.cells.length === 31 && sheet.r2.cells[1].startsWith('غائب') && sheet.r2.cells[2].startsWith('غياب بعذر') && sheet.r2.cells[0] === 'عطلة' && [sheet.r2.p, sheet.r2.a, sheet.r2.e].join('/') === '20/1/1' && sheet.r2.details.includes('إجازة سنوية: 1'), JSON.stringify(sheet.r2 && { p: sheet.r2.p, a: sheet.r2.a, e: sheet.r2.e, d: sheet.r2.details }));
+  ok('التايم شيت EMP-003: الغياب يوم 31 وإجماليات 21/1/0', sheet.r3 && sheet.r3.cells[30].startsWith('غائب') && [sheet.r3.p, sheet.r3.a, sheet.r3.e].join('/') === '21/1/0', JSON.stringify(sheet.r3 && { p: sheet.r3.p, a: sheet.r3.a, e: sheet.r3.e }));
+  // مطابقة صفحة الطباعة لنفس الفلاتر (نفس الجلسة المصادَق عليها)
+  const printHtml = await (await p.request.get(BASE + '/admin/hr/timesheets/print' + q3)).text();
+  const pr = (code) => { const m = printHtml.match(new RegExp('\\(' + code + '\\).*?<td class="present summary">(\\d+)</td>\\s*<td class="absent summary">(\\d+)</td>\\s*<td class="excused summary">(\\d+)</td>', 's')); return m ? m.slice(1, 4).join('/') : null; };
+  ok('التايم شيت: الإجماليات مطابقة لصفحة الطباعة لنفس الفلاتر', pr('EMP-002') === '20/1/1' && pr('EMP-003') === '21/1/0', `${pr('EMP-002')} ${pr('EMP-003')}`);
+  await p.goto(BASE + '/admin/hr/timesheets?month=2026-03&search=' + encodeURIComponent('لا-يوجد-أحد'));
+  ok('التايم شيت: فلتر بلا نتائج ⇒ حالة فارغة واضحة', (await p.textContent('body')).includes('لا يوجد موظفون نشطون يطابقون الفلاتر'));
+  for (const [vn, w, h] of [['mobile', 390, 844], ['tablet', 768, 1024], ['desktop', 1440, 900]]) {
+    await p.setViewportSize({ width: w, height: h });
+    for (const t of ['light', 'dark']) {
+      await p.goto(BASE + '/admin/hr/timesheets' + q3); await theme(p, t);
+      const m = await p.evaluate(() => { const w = document.querySelector('.table-responsive'); const c = document.querySelector('.ts-cell'); return { page: document.documentElement.scrollWidth - document.documentElement.clientWidth, local: w.scrollWidth - w.clientWidth, fs: parseFloat(getComputedStyle(c).fontSize), bg: getComputedStyle(document.body).backgroundColor }; });
+      ok(`التايم شيت ${vn}/${t}: لا تمرير أفقي للصفحة، الخط ≥ 13px${vn === 'mobile' ? '، وتمرير محلي للجدول' : ''}`, m.page === 0 && m.fs >= 13 && (vn !== 'mobile' || m.local > 0) && (t === 'light' || m.bg !== 'rgb(255, 255, 255)'), JSON.stringify(m));
+      if (t === 'light' || vn === 'desktop') await p.screenshot({ path: `${OUT}/hr_timesheets-${vn}-${t}.jpg`, fullPage: true, type: 'jpeg', quality: 55 });
+    }
+  }
+  await p.setViewportSize({ width: 1440, height: 900 });
   await p.goto(BASE + '/admin/hr/leave-approvals');
   ok('الموافقات: عنوان الطلبات المستحقة للمراجعة ورابط سجل الطلبات', (await p.textContent('body')).includes('المستحقة لمراجعتك') && !!(await p.$('a:has-text("سجل الطلبات")')));
   await p.goto(BASE + '/admin/hr/leave-requests');

@@ -9,7 +9,6 @@ use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Hr\EmployeeAttendance;
 use App\Models\Admin\Hr\JobPosition;
 use App\Models\Admin\Hr\LeaveType;
-use App\Models\Admin\Hr\WorkSchedule;
 use App\Models\Admin\Project;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -33,13 +32,26 @@ class TimesheetController extends Controller
         $projects = Project::orderBy('name')->get();
         $departments = Department::where('is_active', true)->orderBy('name_ar')->get();
 
+        // نفس شرط العرض السابق: لا يُحسب التايم شيت قبل اختيار فلتر واحد على الأقل (تجنبًا لتحميل كل الموظفين)
+        $hasFilter = $search || $centerId || $projectId || $departmentId;
+        $sheet = $hasFilter ? $this->buildTimesheets($request) : null;
+
         return view('admin.hr.timesheets.index', compact(
             'month', 'centerId', 'projectId', 'departmentId', 'search',
-            'centers', 'projects', 'departments'
+            'centers', 'projects', 'departments', 'hasFilter', 'sheet'
         ));
     }
 
     public function print(Request $request)
+    {
+        return view('admin.hr.timesheets.print', $this->buildTimesheets($request));
+    }
+
+    /**
+     * تجهيز بيانات التايم شيت (مشترك بين عرض الشاشة والطباعة حتى تتطابق النتائج).
+     * نفس المنطق السابق تمامًا؛ الفرق الوحيد أن جداول الدوام والحضور والمناصب تُجلب دفعة واحدة بدل استعلام لكل موظف.
+     */
+    private function buildTimesheets(Request $request): array
     {
         $month = $request->input('month', now()->format('Y-m'));
         $centerId = $request->input('center_id');
@@ -48,7 +60,7 @@ class TimesheetController extends Controller
         $search = $request->input('search');
         $employeeIds = $request->input('employee_ids');
 
-        $employees = Employee::with(['center', 'department', 'project'])
+        $employees = Employee::with(['center', 'department', 'project', 'workSchedules'])
             ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
@@ -69,16 +81,18 @@ class TimesheetController extends Controller
         $monthNum = $parsed->month;
         $daysInMonth = $parsed->daysInMonth;
 
-        // Build daily data for each employee
         $timesheets = [];
         $leaveTypes = LeaveType::where('is_active', true)->pluck('name_ar', 'id');
+        $positions = JobPosition::whereIn('id', $employees->pluck('job_position_id')->filter()->unique())->pluck('title_ar', 'id');
+        $attendancesByEmployee = EmployeeAttendance::whereIn('employee_id', $employees->pluck('id'))
+            ->whereYear('date', $year)
+            ->whereMonth('date', $monthNum)
+            ->get()
+            ->groupBy('employee_id');
 
         foreach ($employees as $employee) {
             $schedules = $employee->workSchedules->keyBy('day_of_week');
-            $attendances = EmployeeAttendance::where('employee_id', $employee->id)
-                ->whereYear('date', $year)
-                ->whereMonth('date', $monthNum)
-                ->get()
+            $attendances = ($attendancesByEmployee->get($employee->id) ?? collect())
                 ->keyBy(function ($item) {
                     return $item->date->format('Y-m-d');
                 });
@@ -119,10 +133,11 @@ class TimesheetController extends Controller
                     'hours' => $scheduledHours,
                     'status' => $status,
                     'leave_type_id' => $leaveTypeId,
+                    // يُحتسب اليوم غير المسجَّل حاضرًا افتراضيًا (المعنى الحالي)؛ هذا المفتاح يتيح للشاشة إظهار ذلك
+                    'recorded' => $attendance !== null,
                 ];
             }
 
-            $position = JobPosition::find($employee->job_position_id);
             $leaveDetails = [];
             foreach ($leaveCounts as $ltId => $count) {
                 $leaveDetails[] = ($leaveTypes[$ltId] ?? 'إجازة') . ": $count";
@@ -130,7 +145,7 @@ class TimesheetController extends Controller
 
             $timesheets[] = [
                 'employee' => $employee,
-                'position' => $position?->title_ar ?? '',
+                'position' => $positions[$employee->job_position_id] ?? '',
                 'daily' => $daily,
                 'total_present' => $totalPresent,
                 'total_absent' => $totalAbsent,
@@ -141,9 +156,6 @@ class TimesheetController extends Controller
 
         $arabicMonth = $parsed->locale('ar')->translatedFormat('F Y');
 
-        return view('admin.hr.timesheets.print', compact(
-            'timesheets', 'month', 'year', 'monthNum', 'daysInMonth',
-            'arabicMonth'
-        ));
+        return compact('timesheets', 'month', 'year', 'monthNum', 'daysInMonth', 'arabicMonth');
     }
 }
