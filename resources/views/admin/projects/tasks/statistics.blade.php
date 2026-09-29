@@ -33,7 +33,7 @@
                 <div class="d-flex flex-column align-items-center flex-fill">
                     <div class="small fw-bold">{{ $cnt }}</div>
                     <div style="height:{{ $h }}px; width:100%; background:var(--bs-primary); border-radius:4px 4px 0 0; min-height:{{ $cnt > 0 ? '4' : '0' }}px;"></div>
-                    <div class="small mt-1">{{ now()->month($m)->locale('ar')->translatedFormat('M') }}</div>
+                    <div class="small mt-1">{{ \Carbon\Carbon::create(2000, $m, 1)->locale('ar')->translatedFormat('M') }}</div>
                 </div>
             @endforeach
         </div>

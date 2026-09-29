@@ -78,7 +78,7 @@
                 @forelse ($assets ?? [] as $asset)
                     <tr>
                         <td><code>{{ $asset->asset_code }}</code></td>
-                        <td class="fw-medium">{{ $asset->name }}</td>
+                        <td class="fw-medium"><a href="{{ route('admin.logistics.assets.show', $asset) }}" class="text-decoration-none">{{ $asset->name }}</a></td>
                         <td>{{ $asset->type }}</td>
                         <td>{{ $asset->center?->name ?? '—' }}</td>
                         <td>{{ $asset->project?->name ?? '—' }}</td>

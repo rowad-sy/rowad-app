@@ -13,7 +13,7 @@ class AssetController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\Logistics\Asset,view')->only(['index']);
+        $this->middleware('permission:App\Models\Admin\Logistics\Asset,view')->only(['index', 'show']);
         $this->middleware('permission:App\Models\Admin\Logistics\Asset,create')->only(['create', 'store']);
         $this->middleware('permission:App\Models\Admin\Logistics\Asset,edit')->only(['edit', 'update']);
         $this->middleware('permission:App\Models\Admin\Logistics\Asset,delete')->only(['destroy']);
@@ -49,6 +49,14 @@ class AssetController extends Controller
         $projects = Project::orderBy('name')->get();
 
         return view('admin.logistics.assets.index', compact('assets', 'types', 'statuses', 'centers', 'projects'));
+    }
+
+    /** عرض قراءة فقط لبيانات الأصل نفسها (لا وظيفة جديدة): نفس صلاحية العرض التي تحكم القائمة. */
+    public function show(Asset $asset)
+    {
+        $asset->load(['center', 'project', 'recipient']);
+
+        return view('admin.logistics.assets.show', compact('asset'));
     }
 
     public function create()
