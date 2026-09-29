@@ -14,19 +14,17 @@
     $typeLabels = ['fields' => 'حقول', 'paragraph' => 'فقرة', 'table' => 'جدول', 'list' => 'قائمة'];
 @endphp
 
-<div class="page-header">
-    <h4>{{ $report->title ?: $report->template->title_ar }}</h4>
-    <p>
-        <a href="{{ route('admin.monthly-reports.index') }}" class="text-decoration-none">التقارير الشهرية</a>
-        / عرض <span class="badge bg-{{ $badge }} ms-2">{{ $report::STATUSES[$report->status] }}</span>
-    </p>
-</div>
+@php $tone = ['success' => 'success', 'warning' => 'warning', 'danger' => 'danger', 'info' => 'info', 'primary' => 'brand'][$badge] ?? 'neutral'; @endphp
+<x-page-header :title="$report->title ?: $report->template->title_ar"
+               :breadcrumb="[['label' => 'التقارير الشهرية', 'url' => route('admin.monthly-reports.index')], ['label' => 'عرض']]">
+    <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ $report::STATUSES[$report->status] }}</x-status-badge></div></x-slot:meta>
+</x-page-header>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <span class="text-muted small">من قالب:</span>
         <strong>{{ $report->template->title_ar }}</strong>
-        <span class="badge bg-secondary">V{{ $report->template_version }}</span>
+        <x-status-badge>V{{ $report->template_version }}</x-status-badge>
     </div>
     <div class="d-flex gap-2">
         @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'view')
@@ -66,7 +64,7 @@
         <form method="POST" action="{{ route('admin.monthly-reports.destroy', $report) }}"
               onsubmit="return confirm('حذف التقرير نهائياً؟')">
             @csrf @method('DELETE')
-            <button class="btn btn-outline-danger"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
         </form>
         @endif
         @endcanPermission
@@ -102,7 +100,7 @@
                     <span>
                         <span class="badge bg-light text-dark border">{{ $typeLabels[$section['type']] ?? $section['type'] }}</span>
                         @if (!empty($section['assignee_role']))
-                            <span class="badge bg-info text-dark">يُعبأ بواسطة: {{ $section['assignee_role'] }}</span>
+                            <x-status-badge tone="info">يُعبأ بواسطة: {{ $section['assignee_role'] }}</x-status-badge>
                         @endif
                         @if ($filled)
                             <span class="badge bg-success-subtle text-success">معبأ</span>
@@ -110,7 +108,7 @@
                             <span class="badge bg-danger-subtle text-danger">ناقص</span>
                         @endif
                         @if ($block?->locked)
-                            <span class="badge bg-warning text-dark"><i class="bi bi-lock"></i> مقفول</span>
+                            <x-status-badge tone="warning"><i class="bi bi-lock"></i> مقفول</x-status-badge>
                         @endif
                     </span>
                 </div>

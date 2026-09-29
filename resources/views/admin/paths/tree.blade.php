@@ -3,11 +3,8 @@
 @section('title', 'شجرة المسارات والمشاريع')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h4><i class="bi bi-diagram-2 me-2 text-danger"></i>شجرة المسارات والمشاريع</h4>
-        <p>المسارات وما يتبعها من مشاريع مع حالة كل مشروع</p>
-    </div>
+<x-page-header :title="'شجرة المسارات والمشاريع'" :description="'المسارات وما يتبعها من مشاريع مع حالة كل مشروع'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'شجرة المسارات والمشاريع']]">
     <div class="d-flex flex-wrap gap-2">
         <button class="btn btn-outline-secondary btn-sm" onclick="toggleAll(true)"><i class="bi bi-arrows-angle-expand me-1"></i> توسيع الكل</button>
         <button class="btn btn-outline-secondary btn-sm" onclick="toggleAll(false)"><i class="bi bi-arrows-angle-collapse me-1"></i> طيّ الكل</button>
@@ -18,7 +15,7 @@
             <i class="bi bi-file-earmark-pdf me-1"></i> PDF
         </a>
     </div>
-</div>
+</x-page-header>
 
 <div class="d-flex flex-wrap gap-2 mb-3">
     @foreach ($statuses as $key => $label)

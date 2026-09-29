@@ -3,13 +3,8 @@
 @section('title', isset($equipment) ? 'تعديل معدة' : 'إضافة معدة')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($equipment) ? 'تعديل المعدة' : 'إضافة معدة' }}</h4>
-    <p>
-        <a href="{{ route('admin.tech.equipment.index') }}" class="text-decoration-none">المعدات التقنية</a>
-        / {{ isset($equipment) ? $equipment->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($equipment) ? 'تعديل المعدة' : 'إضافة معدة'"
+               :breadcrumb="[['label' => 'المعدات التقنية', 'url' => route('admin.tech.equipment.index')], ['label' => isset($equipment) ? $equipment->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

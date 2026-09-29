@@ -45,7 +45,9 @@
                             <a href="{{ route('admin.logistics.warehouses.items.index', $warehouse) }}" class="btn btn-sm btn-outline-info">
                                 <i class="bi bi-box-seam me-1"></i> عرض المحتويات
                             </a>
+                            @canPermission('App\Models\Admin\Logistics\Warehouse', 'edit')
                             <a href="{{ route('admin.logistics.warehouses.edit', $warehouse) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                            @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Logistics\Warehouse'" :model-id="$warehouse->id" />
                             @canPermission('App\Models\Admin\Logistics\Warehouse', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.warehouses.destroy', $warehouse) }}" class="d-inline"

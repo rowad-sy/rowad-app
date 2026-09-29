@@ -3,12 +3,8 @@
 @section('title', isset($activity) ? 'تعديل نشاط' : 'نشاط جديد')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($activity) ? 'تعديل النشاط' : 'تسجيل نشاط جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.project-activities.index') }}" class="text-decoration-none">الأنشطة</a> / {{ isset($activity) ? 'تعديل' : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($activity) ? 'تعديل النشاط' : 'تسجيل نشاط جديد'"
+               :breadcrumb="[['label' => 'الأنشطة', 'url' => route('admin.project-activities.index')], ['label' => isset($activity) ? 'تعديل' : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

@@ -3,27 +3,21 @@
 @section('title', 'صفحة مشروع: ' . $project->name)
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <div class="text-muted small fw-bold mb-1"><i class="bi bi-briefcase me-1"></i> صفحة مشروع</div>
-        <h4 class="mb-1">{{ $project->name }}</h4>
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="status-pill {{ $project->statusBadgeClass() }}">{{ $project->statusLabel() }}</span>
-            @if ($project->code)
-                <span class="badge text-bg-light border">الكود: {{ $project->code }}</span>
-            @endif
-            @if ($project->path)
-                <span class="badge text-bg-light border"><i class="bi bi-signpost-split me-1"></i>{{ $project->path->name }}</span>
-            @endif
+@php $tone = (function ($c) { foreach (['success' => 'success', 'danger' => 'danger', 'warning' => 'warning', 'info' => 'info', 'primary' => 'brand'] as $k => $t) { if (str_contains((string) $c, $k)) return $t; } return 'neutral'; })($project->statusBadgeClass()); @endphp
+<x-page-header :title="$project->name" description="صفحة مشروع"
+               :breadcrumb="[['label' => 'المشاريع', 'url' => route('admin.projects.index')], ['label' => $project->name]]">
+    <x-slot:meta>
+        <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+            <x-status-badge :tone="$tone">{{ $project->statusLabel() }}</x-status-badge>
+            @if ($project->code)<x-status-badge>الكود: <span dir="ltr">{{ $project->code }}</span></x-status-badge>@endif
+            @if ($project->path)<x-status-badge><i class="bi bi-signpost-split me-1"></i>{{ $project->path->name }}</x-status-badge>@endif
         </div>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{{ route('admin.paths.tree') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-diagram-2 me-1"></i> الشجرة</a>
-        @canPermission('App\Models\Admin\Project', 'edit')
-            <a href="{{ route('admin.projects.edit', $project) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i> تعديل</a>
-        @endcanPermission
-    </div>
-</div>
+    </x-slot:meta>
+    <a href="{{ route('admin.paths.tree') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-diagram-2 me-1"></i> الشجرة</a>
+    @canPermission('App\Models\Admin\Project', 'edit')
+        <a href="{{ route('admin.projects.edit', $project) }}" class="btn btn-primary btn-sm"><i class="bi bi-pencil me-1"></i> تعديل</a>
+    @endcanPermission
+</x-page-header>
 
 @if ($project->description)
     <div class="alert" style="background: var(--color-badge-bg); color: var(--color-text-main); border: 1px solid var(--color-border);">
@@ -33,7 +27,7 @@
 
 <p class="text-muted small">
     <i class="bi bi-funnel me-1"></i> كل الأزرار أدناه تفتح الصفحات المقابلة مفلترة على هذا المشروع.
-    الفلتر الزمني الافتراضي: <strong>{{ \Illuminate\Support\Carbon::create($year, $month)->translatedFormat('F Y') }}</strong> (يمكن تغييره داخل كل صفحة).
+    الفلتر الزمني الافتراضي: <strong>{{ \Illuminate\Support\Carbon::create($year, $month)->locale('ar')->translatedFormat('F Y') }}</strong> (يمكن تغييره داخل كل صفحة).
 </p>
 
 <div class="row g-3">

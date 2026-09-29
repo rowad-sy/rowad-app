@@ -4,7 +4,9 @@
 
 @section('logistics-content')
 <x-page-header :title="$warehouse->name" :breadcrumb="[['label' => 'المخازن', 'url' => route('admin.logistics.warehouses.index')], ['label' => $warehouse->name]]">
+    @canPermission('App\Models\Admin\Logistics\WarehouseItem', 'create')
     <a href="{{ route('admin.logistics.warehouses.items.create', $warehouse) }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> إضافة مادة</a>
+    @endcanPermission
     <a href="{{ route('admin.logistics.warehouses.items.deleted', $warehouse) }}" class="btn btn-outline-warning"><i class="bi bi-trash me-1"></i> المواد المحذوفة</a>
 </x-page-header>
 
@@ -40,7 +42,10 @@
                             @endif
                         </td>
                         <td>
+                            @canPermission('App\Models\Admin\Logistics\WarehouseItem', 'edit')
                             <a href="{{ route('admin.logistics.warehouses.items.edit', [$warehouse, $item]) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                            @endcanPermission
+                            @canPermission('App\Models\Admin\Logistics\WarehouseItem', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.warehouses.items.destroy', [$warehouse, $item]) }}" class="d-inline"
                                   onsubmit="return confirmDelete(event, this)">
                                 @csrf
@@ -65,6 +70,7 @@
                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </form>
+                            @endcanPermission
                         </td>
                     </tr>
                 @empty

@@ -52,7 +52,7 @@ class UiE2EPhase3Seeder extends Seeder
         $models = [
             'App\Models\Admin\Project', 'App\Models\Admin\ProjectPath', 'App\Models\Admin\ProjectTask', 'App\Models\Admin\ProjectActivity',
             'App\Models\Admin\MediaPlan', 'App\Models\Admin\MovementPlan', 'App\Models\Admin\EventCard', 'App\Models\Admin\Center',
-            'App\Models\Admin\Logistics\PurchaseRequest', 'App\Models\Admin\Logistics\Warehouse', 'App\Models\Admin\Logistics\Asset',
+            'App\Models\Admin\Logistics\PurchaseRequest', 'App\Models\Admin\Logistics\Warehouse', 'App\Models\Admin\Logistics\WarehouseItem', 'App\Models\Admin\Logistics\Asset',
             'App\Models\Admin\Logistics\ApprovalRule', 'App\Models\Admin\Logistics\LogisticsSetting',
             'App\Models\Admin\Tech\TechIssue', 'App\Models\Admin\Tech\TechEquipment', 'App\Models\User',
             'App\Models\Admin\Physiotherapy\PhysioPatient', 'App\Models\Admin\Physiotherapy\PhysioRoom',
@@ -91,7 +91,7 @@ class UiE2EPhase3Seeder extends Seeder
         // ---- اللوجستيات ----
         $wh = Warehouse::firstOrCreate(['name' => 'مخزن المركز الرئيسي'], ['center_id' => $c1->id, 'notes' => 'مخزن تجريبي']);
         Warehouse::firstOrCreate(['name' => 'مخزن مركز ب'], ['center_id' => $c2->id]);
-        WarehouseItem::firstOrCreate(['warehouse_id' => $wh->id, 'name' => 'ورق A4'], ['quantity' => 120, 'unit' => 'رزمة', 'status' => 'available', 'description' => 'مادة اختبارية']);
+        WarehouseItem::firstOrCreate(['warehouse_id' => $wh->id, 'name' => 'ورق A4'], ['quantity' => 120, 'unit' => 'رزمة', 'status' => 'active', 'description' => 'مادة اختبارية']);
         Asset::firstOrCreate(['asset_code' => 'AST-001'], ['name' => 'حاسوب محمول', 'type' => 'أجهزة', 'center_id' => $c1->id, 'status' => 'جيد', 'room_number' => '12']);
         Asset::firstOrCreate(['asset_code' => 'AST-002'], ['name' => 'طاولة اجتماعات', 'type' => 'أثاث', 'center_id' => $c2->id, 'status' => 'صيانة']);
         foreach ([['PR-P3-1', 'pending', $c1, 1250.75], ['PR-P3-2', 'priced', $c1, 480.0], ['PR-P3-3', 'approved', $c2, 9800.5]] as [$no, $st, $c, $total]) {

@@ -9,14 +9,10 @@
     $typeLabels = ['fields' => 'حقول', 'paragraph' => 'فقرة', 'table' => 'جدول', 'list' => 'قائمة'];
 @endphp
 
-<div class="page-header">
-    <h4>تعبئة الوثيقة: {{ $document->title ?: $document->template->title_ar }}</h4>
-    <p>
-        <a href="{{ route('admin.project-docs.documents.index') }}" class="text-decoration-none">الوثائق</a> /
-        <a href="{{ route('admin.project-docs.documents.show', $document) }}" class="text-decoration-none">عرض</a> / تعبئة
-        <span class="badge bg-secondary ms-2">{{ $pageCount }} {{ Str::plural('صفحة', $pageCount) }}</span>
-    </p>
-</div>
+<x-page-header :title="'تعبئة الوثيقة: ' . ($document->title ?: $document->template->title_ar)"
+               :breadcrumb="[['label' => 'الوثائق', 'url' => route('admin.project-docs.documents.index')], ['label' => 'عرض', 'url' => route('admin.project-docs.documents.show', $document)], ['label' => 'تعبئة']]">
+    <x-slot:meta><div class="mt-2"><x-status-badge>{{ $pageCount }} {{ Str::plural('صفحة', $pageCount) }}</x-status-badge></div></x-slot:meta>
+</x-page-header>
 
 @if ($document->status === 'under_review')
 <div class="alert alert-warning"><i class="bi bi-clock-history"></i> الوثيقة <strong>قيد المراجعة</strong> — أقسامها مقفلة، ويمكن فقط رفضها/إعادة فتحها من صفحة العرض.</div>
@@ -81,7 +77,7 @@
                                 <span class="fw-bold">{{ $section['title'] ?? $section['key'] }}</span>
                                 <span class="badge bg-light text-dark border">{{ $typeLabels[$section['type']] ?? $section['type'] }}</span>
                                 @if (!empty($section['assignee_role']))
-                                    <span class="badge bg-info text-dark">قسم يُعبأ بواسطة: {{ $section['assignee_role'] }}</span>
+                                    <x-status-badge tone="info">قسم يُعبأ بواسطة: {{ $section['assignee_role'] }}</x-status-badge>
                                 @endif
                             </div>
                             <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -91,7 +87,7 @@
                                     <span class="badge bg-danger-subtle text-danger">ناقص</span>
                                 @endif
                                 @if ($block?->locked)
-                                    <span class="badge bg-warning text-dark"><i class="bi bi-lock"></i> مقفول</span>
+                                    <x-status-badge tone="warning"><i class="bi bi-lock"></i> مقفول</x-status-badge>
                                 @endif
                                 @if ($pageCount > 1 && $editable && $document->status === 'draft')
                                     <select name="lock[{{ $section['key'] }}_page]" class="form-select form-select-sm" style="width: 100px;">

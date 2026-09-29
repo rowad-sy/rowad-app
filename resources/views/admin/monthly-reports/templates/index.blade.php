@@ -3,28 +3,27 @@
 @section('title', 'قوالب التقارير الشهرية')
 
 @section('content')
-<div class="page-header">
-    <h4>قوالب التقارير الشهرية</h4>
-    <p>
-        <a href="{{ route('admin.home') }}" class="text-decoration-none">التطبيقات</a> / التقارير الشهرية / القوالب
-    </p>
-</div>
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <form method="GET" class="d-flex gap-2" style="max-width: 400px;">
-        <input type="text" name="search" value="{{ $search ?? '' }}" class="form-control" placeholder="بحث بالاسم أو المفتاح...">
-        <button class="btn btn-outline-primary">بحث</button>
-    </form>
+<x-page-header :title="'قوالب التقارير الشهرية'"
+               :breadcrumb="[['label' => 'التقارير الشهرية'], ['label' => 'القوالب']]">
     @canPermission('App\Models\Admin\MonthlyReports\MonthlyReportTemplate', 'create')
-    <a href="{{ route('admin.monthly-reports.templates.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> قالب جديد
-    </a>
-    @endcanPermission
+        <a href="{{ route('admin.monthly-reports.templates.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> قالب جديد
+        </a>
+        @endcanPermission
+</x-page-header>
+
+<div class="table-container mb-3">
+    <x-filter-bar>
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-search">بحث</label>
+            <input id="f-search" type="text" name="search" value="{{ $search ?? '' }}" class="form-control" placeholder="بحث بالاسم أو المفتاح...">
+        </div>
+    </x-filter-bar>
 </div>
 
-<div class="card">
-    <div class="card-body table-responsive">
-        <table class="table table-hover align-middle">
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
                     <th>القالب</th>
@@ -41,33 +40,31 @@
                 <tr>
                     <td>{{ $template->title_ar }}</td>
                     <td><code>{{ $template->key }}</code></td>
-                    <td><span class="badge bg-secondary">V{{ $template->version }}</span></td>
+                    <td><x-status-badge>V{{ $template->version }}</x-status-badge></td>
                     <td>{{ $template->sections()->count() }}</td>
                     <td>{{ $template->reports_count }}</td>
                     <td>
                         @if ($template->is_active)
-                            <span class="badge bg-success">مفعّل</span>
+                            <x-status-badge tone="success">مفعّل</x-status-badge>
                         @else
-                            <span class="badge bg-secondary">موقوف</span>
+                            <x-status-badge>موقوف</x-status-badge>
                         @endif
                     </td>
                     <td class="text-nowrap">
                         @canPermission('App\Models\Admin\MonthlyReports\MonthlyReportTemplate', 'edit')
-                        <a href="{{ route('admin.monthly-reports.templates.edit', $template) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i>
-                        </a>
+                        <a href="{{ route('admin.monthly-reports.templates.edit', $template) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                         @endcanPermission
                         @canPermission('App\Models\Admin\MonthlyReports\MonthlyReportTemplate', 'delete')
                         <form action="{{ route('admin.monthly-reports.templates.destroy', $template) }}" method="POST" class="d-inline"
                               onsubmit="return confirm('حذف القالب؟ (يمنع إن وُجدت تقارير منه)')">
                             @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </form>
                         @endcanPermission
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">لا توجد قوالب بعد</td></tr>
+                <x-empty-row colspan="7" title="لا توجد قوالب بعد" />
                 @endforelse
             </tbody>
         </table>

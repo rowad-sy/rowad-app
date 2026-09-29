@@ -3,8 +3,10 @@
 @section('title', isset($card) ? 'تعديل بطاقة فعالية' : 'بطاقة فعالية جديدة')
 
 @php
-    $rows = function ($key) use ($card) {
-        $old = old($key, $card?->{$key} ?? []);
+    $attempted = session()->hasOldInput();
+    $rows = function ($key) use ($card, $attempted) {
+        // بعد محاولة حفظ فاشلة تُستعاد الصفوف المُدخلة فقط (حتى لو حُذفت كلها)؛ وعند أول فتح تُقرأ من السجل
+        $old = $attempted ? old($key, []) : ($card?->{$key} ?? []);
         return collect(is_array($old) ? $old : [])->map(fn ($r) => (array) $r)->all();
     };
     $seed = [
@@ -18,10 +20,8 @@
 @endphp
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($card) ? 'تعديل بطاقة فعالية' : 'بطاقة فعالية جديدة' }}</h4>
-    <p><a href="{{ route('admin.event-cards.index') }}" class="text-decoration-none">بطاقات الفعاليات</a> / {{ isset($card) ? $card->name : 'جديد' }}</p>
-</div>
+<x-page-header :title="isset($card) ? 'تعديل بطاقة فعالية' : 'بطاقة فعالية جديدة'"
+               :breadcrumb="[['label' => 'بطاقات الفعاليات', 'url' => route('admin.event-cards.index')], ['label' => isset($card) ? $card->name : 'جديد']]" />
 
 <form method="POST" action="{{ isset($card) ? route('admin.event-cards.update', $card) : route('admin.event-cards.store') }}">
     @csrf
@@ -124,7 +124,7 @@
                 <td><input type="text" class="form-control form-control-sm" name="content_items[__I__][content]" value="__content__"></td>
                 <td><input type="text" class="form-control form-control-sm" name="content_items[__I__][responsible]" value="__responsible__"></td>
                 <td><input type="text" class="form-control form-control-sm" name="content_items[__I__][duration]" value="__duration__"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger del-row"><i class="bi bi-x-lg"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger del-row" aria-label="حذف الصف" title="حذف الصف"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>
             </tr>
         </template>
     </div>
@@ -141,7 +141,7 @@
             <tr>
                 <td><input type="text" class="form-control form-control-sm" name="logistics_items[__I__][item]" value="__item__"></td>
                 <td><input type="text" class="form-control form-control-sm" name="logistics_items[__I__][responsible]" value="__responsible__"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger del-row"><i class="bi bi-x-lg"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger del-row" aria-label="حذف الصف" title="حذف الصف"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>
             </tr>
         </template>
     </div>
@@ -158,7 +158,7 @@
             <tr>
                 <td><input type="text" class="form-control form-control-sm" name="purchases_items[__I__][item]" value="__item__"></td>
                 <td><input type="text" class="form-control form-control-sm" name="purchases_items[__I__][responsible]" value="__responsible__"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger del-row"><i class="bi bi-x-lg"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger del-row" aria-label="حذف الصف" title="حذف الصف"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>
             </tr>
         </template>
     </div>
@@ -175,7 +175,7 @@
             <tr>
                 <td><input type="text" class="form-control form-control-sm" name="media_items[__I__][coverage]" value="__coverage__"></td>
                 <td><input type="text" class="form-control form-control-sm" name="media_items[__I__][responsible]" value="__responsible__"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger del-row"><i class="bi bi-x-lg"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger del-row" aria-label="حذف الصف" title="حذف الصف"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>
             </tr>
         </template>
     </div>
@@ -199,7 +199,7 @@
                         <td><input type="text" class="form-control form-control-sm" name="transport_items[__I__][request]" value="__request__"></td>
                         <td><input type="text" class="form-control form-control-sm" name="transport_items[__I__][type]" value="__type__"></td>
                         <td><input type="text" class="form-control form-control-sm" name="transport_items[__I__][responsible]" value="__responsible__"></td>
-                        <td><button type="button" class="btn btn-sm btn-outline-danger del-row"><i class="bi bi-x-lg"></i></button></td>
+                        <td><button type="button" class="btn btn-sm btn-outline-danger del-row" aria-label="حذف الصف" title="حذف الصف"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>
                     </tr>
                 </template>
             </div>
@@ -226,7 +226,7 @@
                 <td><input type="text" class="form-control form-control-sm" name="budget_items[__I__][item]" value="__item__"></td>
                 <td><input type="text" class="form-control form-control-sm" name="budget_items[__I__][description]" value="__description__"></td>
                 <td><input type="number" step="0.01" min="0" class="form-control form-control-sm cost-input" name="budget_items[__I__][cost]" value="__cost__"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger del-row"><i class="bi bi-x-lg"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger del-row" aria-label="حذف الصف" title="حذف الصف"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>
             </tr>
         </template>
     </div>
@@ -274,11 +274,19 @@
         const tpl = table.closest('.form-card').querySelector('.row-template');
         let html = tpl.innerHTML.replace(/__I__/g, idx);
         for (const key in data) {
-            html = html.replaceAll('__' + key + '__', String(data[key]).replace(/"/g, '&quot;'));
+            html = html.replaceAll('__' + key + '__', String(data[key]).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
         }
         html = html.replace(/__\w+__/g, '');
         const tbody = table.querySelector('tbody');
         tbody.insertAdjacentHTML('beforeend', html);
+        // تسمية الحقول المُنشأة ديناميكيًا من رأس العمود ورقم الصف
+        const heads = Array.from(table.querySelectorAll('thead th')).map(function (th) { return th.textContent.trim(); });
+        const tr = tbody.lastElementChild, n = tbody.children.length;
+        Array.from(tr.children).forEach(function (td, i) {
+            td.querySelectorAll('input:not([type=hidden]), select, textarea').forEach(function (el) {
+                if (!el.getAttribute('aria-label') && heads[i]) el.setAttribute('aria-label', heads[i] + ' — صف ' + n);
+            });
+        });
         idx++;
         recomputeTotal();
     }

@@ -3,15 +3,12 @@
 @section('title', 'معلومات ونصائح — الخطة الإعلامية')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4><i class="bi bi-question-circle ms-1"></i> معلومات ونصائح — الخطة الإعلامية</h4>
-        <p>دليل شامل لدورة حياة الخطة الإعلامية الشهرية وفعاليات التغطية.</p>
-    </div>
+<x-page-header :title="'معلومات ونصائح — الخطة الإعلامية'" :description="'دليل شامل لدورة حياة الخطة الإعلامية الشهرية وفعاليات التغطية.'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'معلومات ونصائح — الخطة الإعلامية']]">
     <a href="{{ route('admin.media-plans.index') }}" class="btn btn-outline-primary">
         <i class="bi bi-arrow-right me-1"></i> العودة للخطة الإعلامية
     </a>
-</div>
+</x-page-header>
 
 <div class="row g-3">
 
@@ -38,7 +35,7 @@
                     <li class="mb-1"><strong>موافقة المدير المباشر:</strong> يوافق فيُقفل كل شي («موافقة وإحالة لمدير المشاريع») أو يرفض مع السبب.</li>
                     <li class="mb-1"><strong>موافقة مدير المشاريع:</strong> يوافق ويحيل لمدير الإعلام.</li>
                     <li class="mb-1"><strong>موافقة مدير الإعلام:</strong> يوافق ويحيل للمسؤول الإعلامي في مركز الخطة.</li>
-                    <li class="mb-1"><strong>تنفيذ الفعاليات:</strong> المسؤول الإعلامي يضغط على كل فعالية ويحدد <span class="badge bg-success">نُفِّذت</span> أو <span class="badge bg-danger">لم تُنفَّذ</span> مع ملاحظة.</li>
+                    <li class="mb-1"><strong>تنفيذ الفعاليات:</strong> المسؤول الإعلامي يضغط على كل فعالية ويحدد <x-status-badge tone="success">نُفِّذت</x-status-badge> أو <x-status-badge tone="danger">لم تُنفَّذ</x-status-badge> مع ملاحظة.</li>
                     <li class="mb-0"><strong>إغلاق الخطة:</strong> بعد وضع علامات كل الفعاليات ← «إغلاق الخطة كمنجزة».</li>
                 </ol>
             </div>
@@ -48,29 +45,29 @@
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-arrow-repeat me-1"></i> حالات الخطة وسير العمل</h5></div>
             <div class="p-3">
                 <div class="row text-center small g-1 mb-3">
-                    <div class="col"><span class="badge bg-warning text-dark w-100 py-2">بانتظار موافقة المدير المباشر</span></div>
+                    <div class="col"><x-status-badge tone="warning">بانتظار موافقة المدير المباشر</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-secondary w-100 py-2">وافق المدير المباشر</span></div>
+                    <div class="col"><x-status-badge>وافق المدير المباشر</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-secondary w-100 py-2">وافق مدير المشاريع</span></div>
+                    <div class="col"><x-status-badge>وافق مدير المشاريع</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-secondary w-100 py-2">وافق مدير الإعلام</span></div>
+                    <div class="col"><x-status-badge>وافق مدير الإعلام</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-primary w-100 py-2">قيد التنفيذ</span></div>
+                    <div class="col"><x-status-badge tone="brand">قيد التنفيذ</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-success w-100 py-2">منجزة</span></div>
+                    <div class="col"><x-status-badge tone="success">منجزة</x-status-badge></div>
                 </div>
                 <div class="table-responsive small">
                     <table class="table table-sm table-bordered align-middle mb-0">
                         <thead><tr><th>الحالة</th><th>ماذا تعني؟</th><th>مَن يتصرف؟</th></tr></thead>
                         <tbody>
-                            <tr><td><span class="badge bg-warning text-dark">بانتظار موافقة المدير المباشر</span></td><td>أُنشئت الخطة وأُحيلت للموافقة الأولى</td><td>المدير المباشر</td></tr>
-                            <tr><td><span class="badge bg-secondary">وافق المدير المباشر</span></td><td>الموافقة الأولى — <strong>أُقفلت الخطة نهائياً عن التعديل</strong></td><td>مدير المشاريع</td></tr>
-                            <tr><td><span class="badge bg-secondary">وافق مدير المشاريع</span></td><td>الموافقة الثانية</td><td>مدير الإعلام</td></tr>
-                            <tr><td><span class="badge bg-secondary">وافق مدير الإعلام</span></td><td>الموافقة الثالثة — جاهزة للتنفيذ</td><td>المسؤول الإعلامي (وضع علامات الفعاليات)</td></tr>
-                            <tr><td><span class="badge bg-primary">قيد التنفيذ</span></td><td>بُدئ بوضع علامات التنفيذ</td><td>المسؤول الإعلامي</td></tr>
-                            <tr><td><span class="badge bg-success">منجزة</span></td><td>أُغلقت الخطة بعد التنفيذ</td><td>— (رؤية فقط)</td></tr>
-                            <tr><td><span class="badge bg-danger">مرفوضة</span></td><td>رُفضت من أي مرحلة مع السبب</td><td>— (رؤية فقط)</td></tr>
+                            <tr><td><x-status-badge tone="warning">بانتظار موافقة المدير المباشر</x-status-badge></td><td>أُنشئت الخطة وأُحيلت للموافقة الأولى</td><td>المدير المباشر</td></tr>
+                            <tr><td><x-status-badge>وافق المدير المباشر</x-status-badge></td><td>الموافقة الأولى — <strong>أُقفلت الخطة نهائياً عن التعديل</strong></td><td>مدير المشاريع</td></tr>
+                            <tr><td><x-status-badge>وافق مدير المشاريع</x-status-badge></td><td>الموافقة الثانية</td><td>مدير الإعلام</td></tr>
+                            <tr><td><x-status-badge>وافق مدير الإعلام</x-status-badge></td><td>الموافقة الثالثة — جاهزة للتنفيذ</td><td>المسؤول الإعلامي (وضع علامات الفعاليات)</td></tr>
+                            <tr><td><x-status-badge tone="brand">قيد التنفيذ</x-status-badge></td><td>بُدئ بوضع علامات التنفيذ</td><td>المسؤول الإعلامي</td></tr>
+                            <tr><td><x-status-badge tone="success">منجزة</x-status-badge></td><td>أُغلقت الخطة بعد التنفيذ</td><td>— (رؤية فقط)</td></tr>
+                            <tr><td><x-status-badge tone="danger">مرفوضة</x-status-badge></td><td>رُفضت من أي مرحلة مع السبب</td><td>— (رؤية فقط)</td></tr>
                         </tbody>
                     </table>
                 </div>

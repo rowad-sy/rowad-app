@@ -3,13 +3,8 @@
 @section('title', isset($project) ? 'تعديل مشروع' : 'إضافة مشروع')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($project) ? 'تعديل المشروع' : 'إضافة مشروع' }}</h4>
-    <p>
-        <a href="{{ route('admin.projects.index') }}" class="text-decoration-none">المشاريع</a>
-        / {{ isset($project) ? $project->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($project) ? 'تعديل المشروع' : 'إضافة مشروع'"
+               :breadcrumb="[['label' => 'المشاريع', 'url' => route('admin.projects.index')], ['label' => isset($project) ? $project->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

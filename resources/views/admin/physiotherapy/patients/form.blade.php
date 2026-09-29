@@ -3,12 +3,8 @@
 @section('title', isset($patient) ? 'تعديل مريض' : 'تسجيل مريض')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($patient) ? 'تعديل بيانات المريض' : 'تسجيل مريض جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.physiotherapy.patients.index') }}" class="text-decoration-none">المرضى</a> / {{ isset($patient) ? 'تعديل' : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($patient) ? 'تعديل بيانات المريض' : 'تسجيل مريض جديد'"
+               :breadcrumb="[['label' => 'المرضى', 'url' => route('admin.physiotherapy.patients.index')], ['label' => isset($patient) ? 'تعديل' : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

@@ -14,26 +14,19 @@
     $isCurrentHolder = $plan->isCurrentRecipient($uid);
 @endphp
 
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>خطة الحركة <code>{{ $plan->request_number }}</code></h4>
-        <p>
-            <a href="{{ route('admin.movement-plans.index') }}" class="text-decoration-none">خطة الحركة</a>
-            / {{ $plan->request_number }}
-            <span class="badge ms-2 {{ $colors[$plan->status] ?? 'bg-secondary' }}">{{ \App\Models\Admin\MovementPlan::STATUSES[$plan->status] ?? $plan->status }}</span>
-        </p>
-    </div>
-    <div class="d-flex gap-2 align-items-center">
-        <x-audit-history :model="'App\Models\Admin\MovementPlan'" :model-id="$plan->id" />
-        @canPermission('App\Models\Admin\MovementPlan', 'delete')
-        <form method="POST" action="{{ route('admin.movement-plans.destroy', $plan) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد؟')">
-            @csrf @method('DELETE')
-            <button class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i> حذف</button>
-        </form>
-        @endcanPermission
-        <a href="{{ route('admin.movement-plans.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
-    </div>
-</div>
+@php $tone = (function ($c) { foreach (['success' => 'success', 'danger' => 'danger', 'warning' => 'warning', 'info' => 'info', 'primary' => 'brand'] as $k => $t) { if (str_contains((string) $c, $k)) return $t; } return 'neutral'; })($colors[$plan->status] ?? ''); @endphp
+<x-page-header :title="'خطة الحركة ' . $plan->request_number"
+               :breadcrumb="[['label' => 'خطة الحركة', 'url' => route('admin.movement-plans.index')], ['label' => $plan->request_number]]">
+    <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ \App\Models\Admin\MovementPlan::STATUSES[$plan->status] ?? $plan->status }}</x-status-badge></div></x-slot:meta>
+    <x-audit-history :model="'App\Models\Admin\MovementPlan'" :model-id="$plan->id" />
+    @canPermission('App\Models\Admin\MovementPlan', 'delete')
+    <form method="POST" action="{{ route('admin.movement-plans.destroy', $plan) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد؟')">
+        @csrf @method('DELETE')
+        <button class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i> حذف</button>
+    </form>
+    @endcanPermission
+    <a href="{{ route('admin.movement-plans.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
+</x-page-header>
 
 <div class="row g-3">
 
@@ -64,7 +57,7 @@
             <div class="p-3 border-bottom"><h5 class="mb-0">جهات المتابعة ({{ $plan->recipients->count() }})</h5></div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 small">
-                    <thead class="table-light">
+                    <thead>
                         <tr><th>المتابِع</th><th>الدور</th></tr>
                     </thead>
                     <tbody>
@@ -74,7 +67,7 @@
                                 <td><span class="badge bg-light text-dark border">{{ $r->role_label ?? 'متابعة' }}</span></td>
                             </tr>
                         @empty
-                            <tr><td colspan="2" class="text-center py-3 text-muted">لم تُحدَّد جهات المتابعة بعد</td></tr>
+                            <x-empty-row colspan="2" title="لم تُحدَّد جهات المتابعة بعد" />
                         @endforelse
                     </tbody>
                 </table>
@@ -85,7 +78,7 @@
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-clock-history me-1"></i> سجل الحركة</h5></div>
             <div class="table-responsive">
                 <table class="table align-middle mb-0 small">
-                    <thead class="table-light">
+                    <thead>
                         <tr><th>من</th><th>إلى</th><th>الإجراء</th><th>ملاحظة</th><th>الوقت</th></tr>
                     </thead>
                     <tbody>

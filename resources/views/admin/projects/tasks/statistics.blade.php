@@ -3,72 +3,25 @@
 @section('title', 'إحصائيات المشاريع')
 
 @section('content')
-<div class="page-header">
-    <h4>إحصائيات المهام</h4>
-    <p>مؤشرات أداء المهام والمشاريع</p>
+<x-page-header title="إحصائيات المهام" description="مؤشرات أداء المهام والمشاريع"
+               :breadcrumb="[['label' => 'المهام', 'url' => route('admin.projects.tasks.index')], ['label' => 'الإحصائيات']]" />
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><x-kpi label="إجمالي المهام" :value="$total" tone="brand" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="منفذة" :value="$completed" tone="success" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="قيد الانتظار" :value="$pendingCount" tone="warning" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="متأخرة" :value="$delayed" tone="danger" /></div>
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="stat-card bg-primary text-white p-3 rounded-3">
-            <div class="fs-3 fw-bold">{{ $total }}</div>
-            <div class="small">إجمالي المهام</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card bg-success text-white p-3 rounded-3">
-            <div class="fs-3 fw-bold">{{ $completed }}</div>
-            <div class="small">منفذة</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card bg-warning text-dark p-3 rounded-3">
-            <div class="fs-3 fw-bold">{{ $pendingCount }}</div>
-            <div class="small">قيد الانتظار</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card bg-danger text-white p-3 rounded-3">
-            <div class="fs-3 fw-bold">{{ $delayed }}</div>
-            <div class="small">متأخرة</div>
-        </div>
-    </div>
+    <div class="col-6 col-md-4"><x-kpi label="قيد التنفيذ" :value="$inProgress" tone="info" /></div>
+    <div class="col-6 col-md-4"><x-kpi label="تم تنفيذها" :value="$executed" tone="success" /></div>
+    <div class="col-6 col-md-4"><x-kpi label="لم تنفذ" :value="$notExecuted" tone="danger" /></div>
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="stat-card bg-info text-white p-3 rounded-3">
-            <div class="fs-3 fw-bold">{{ $inProgress }}</div>
-            <div class="small">قيد التنفيذ</div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="stat-card p-3 rounded-3 border">
-            <div class="fs-3 fw-bold text-success">{{ $executed }}</div>
-            <div class="small text-muted">تم تنفيذها</div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="stat-card p-3 rounded-3 border">
-            <div class="fs-3 fw-bold text-danger">{{ $notExecuted }}</div>
-            <div class="small text-muted">لم تنفذ</div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-md-6">
-        <div class="stat-card p-3 rounded-3 border">
-            <div class="fs-3 fw-bold text-warning">{{ $withDelay }}</div>
-            <div class="small text-muted">فيها تأخير</div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="stat-card p-3 rounded-3 border">
-            <div class="fs-3 fw-bold text-primary">{{ $mediaDone }}</div>
-            <div class="small text-muted">تمت التغطية الإعلامية</div>
-        </div>
-    </div>
+    <div class="col-6 col-md-6"><x-kpi label="فيها تأخير" :value="$withDelay" tone="warning" /></div>
+    <div class="col-6 col-md-6"><x-kpi label="تمت التغطية الإعلامية" :value="$mediaDone" tone="brand" /></div>
 </div>
 
 <div class="table-container">

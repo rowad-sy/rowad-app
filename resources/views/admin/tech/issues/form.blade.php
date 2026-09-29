@@ -3,13 +3,8 @@
 @section('title', isset($issue) ? 'تعديل تذكرة' : 'إضافة تذكرة')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($issue) ? 'تعديل التذكرة' : 'إضافة تذكرة' }}</h4>
-    <p>
-        <a href="{{ route('admin.tech.issues.index') }}" class="text-decoration-none">التذاكر الفنية</a>
-        / {{ isset($issue) ? $issue->title : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($issue) ? 'تعديل التذكرة' : 'إضافة تذكرة'"
+               :breadcrumb="[['label' => 'التذاكر الفنية', 'url' => route('admin.tech.issues.index')], ['label' => isset($issue) ? $issue->title : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

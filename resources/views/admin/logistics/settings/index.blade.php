@@ -3,10 +3,7 @@
 @section('title', 'إعدادات اللوجستيك')
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>إعدادات اللوجستيك</h4>
-    <p>تخصيص إعدادات وحدة اللوجستيك</p>
-</div>
+<x-page-header title="إعدادات اللوجستيك" description="تخصيص إعدادات وحدة اللوجستيك" :breadcrumb="[['label' => 'اللوجستيك'], ['label' => 'الإعدادات']]" />
 
 <div class="row">
     <div class="col-md-6">

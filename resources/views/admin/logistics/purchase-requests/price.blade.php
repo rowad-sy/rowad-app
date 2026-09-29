@@ -5,21 +5,15 @@
 @push('styles')
 <style>
     .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
-    .info-item { padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 6px; }
-    .info-item .label { font-size: 0.75rem; color: #6c757d; display: block; }
+    .info-item { padding: 0.5rem 0.75rem; background: var(--color-surface-muted); border: 1px solid var(--color-border); color: var(--color-text-main); border-radius: 6px; }
+    .info-item .label { font-size: 0.75rem; color: var(--color-text-muted); display: block; }
     .info-item .value { font-size: 0.9rem; font-weight: 500; }
 </style>
 @endpush
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>تسعير طلب شراء #{{ $purchaseRequest->id }}</h4>
-    <p>
-        <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="text-decoration-none">طلبات الشراء</a>
-        / <a href="{{ route('admin.logistics.purchase-requests.show', $purchaseRequest) }}" class="text-decoration-none">#{{ $purchaseRequest->id }}</a>
-        / تسعير
-    </p>
-</div>
+<x-page-header :title="'تسعير طلب شراء #' . $purchaseRequest->id"
+               :breadcrumb="[['label' => 'طلبات الشراء', 'url' => route('admin.logistics.purchase-requests.index')], ['label' => '#' . $purchaseRequest->id, 'url' => route('admin.logistics.purchase-requests.show', $purchaseRequest)], ['label' => 'تسعير']]" />
 
 <div class="row">
     <div class="col-lg-8">
@@ -39,7 +33,7 @@
                     <label class="form-label fw-bold">تسعير البنود <span class="text-danger">*</span></label>
                     <div class="table-responsive">
                         <table class="table table-bordered mb-0">
-                            <thead class="table-light">
+                            <thead>
                                 <tr>
                                     <th>#</th>
                                     <th>الوصف</th>

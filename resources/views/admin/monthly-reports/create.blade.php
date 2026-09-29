@@ -3,12 +3,8 @@
 @section('title', 'تقرير جديد')
 
 @section('content')
-<div class="page-header">
-    <h4>إضافة تقرير شهري من قالب</h4>
-    <p>
-        <a href="{{ route('admin.monthly-reports.index') }}" class="text-decoration-none">التقارير الشهرية</a> / جديد
-    </p>
-</div>
+<x-page-header :title="'إضافة تقرير شهري من قالب'"
+               :breadcrumb="[['label' => 'التقارير الشهرية', 'url' => route('admin.monthly-reports.index')], ['label' => 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

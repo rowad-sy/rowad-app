@@ -3,14 +3,8 @@
 @section('title', 'خطة حركة جديدة')
 
 @section('content')
-<div class="page-header">
-    <h4>خطة حركة جديدة</h4>
-    <p>
-        <a href="{{ route('admin.movement-plans.index') }}" class="text-decoration-none">خطة الحركة</a>
-        / جديد
-    </p>
-    <small class="text-muted">تُنشأ عادةً من مدير المشروع ثم تُمرَّر إلى إدارة المشاريع فمسؤول الحركة.</small>
-</div>
+<x-page-header title="خطة حركة جديدة" description="تُنشأ عادةً من مدير المشروع ثم تُمرَّر إلى إدارة المشاريع فمسؤول الحركة."
+               :breadcrumb="[['label' => 'خطة الحركة', 'url' => route('admin.movement-plans.index')], ['label' => 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

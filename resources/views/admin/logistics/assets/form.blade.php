@@ -3,13 +3,8 @@
 @section('title', isset($asset) ? 'تعديل أصل' : 'إضافة أصل')
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>{{ isset($asset) ? 'تعديل الأصل' : 'إضافة أصل' }}</h4>
-    <p>
-        <a href="{{ route('admin.logistics.assets.index') }}" class="text-decoration-none">الأصول</a>
-        / {{ isset($asset) ? $asset->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($asset) ? 'تعديل الأصل' : 'إضافة أصل'"
+               :breadcrumb="[['label' => 'الأصول', 'url' => route('admin.logistics.assets.index')], ['label' => isset($asset) ? $asset->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

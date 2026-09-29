@@ -3,14 +3,10 @@
 @section('title', 'البريد الرسمي')
 
 @section('content')
-<div class="page-header">
-    <h4>البريد الرسمي</h4>
-    <p>عناوين البريد الإلكتروني الرسمي للمستخدمين</p>
-</div>
+<x-page-header title="البريد الرسمي" description="عناوين البريد الإلكتروني الرسمي للمستخدمين" :breadcrumb="[['label' => 'التقنية'], ['label' => 'البريد الرسمي']]" />
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2">
+    <x-filter-bar>
             <div class="col-md-4">
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالاسم أو البريد..." value="{{ $search }}">
@@ -19,12 +15,11 @@
                     </button>
                 </div>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>الاسم</th>
@@ -41,10 +36,10 @@
                         <td class="fw-medium">{{ $user->name }}</td>
                         <td>
                             @switch($user->type)
-                                @case('employee') <span class="badge bg-primary">موظف</span> @break
-                                @case('student') <span class="badge bg-info">طالب</span> @break
-                                @case('beneficiary') <span class="badge bg-success">مستفيد</span> @break
-                                @default <span class="badge bg-secondary">—</span>
+                                @case('employee') <x-status-badge tone="brand">موظف</x-status-badge> @break
+                                @case('student') <x-status-badge tone="info">طالب</x-status-badge> @break
+                                @case('beneficiary') <x-status-badge tone="success">مستفيد</x-status-badge> @break
+                                @default <x-status-badge>—</x-status-badge>
                             @endswitch
                         </td>
                         <td>
@@ -59,19 +54,14 @@
                         </td>
                         <td>
                             @if ($user->is_active)
-                                <span class="badge bg-success">نشط</span>
+                                <x-status-badge tone="success">نشط</x-status-badge>
                             @else
-                                <span class="badge bg-secondary">غير نشط</span>
+                                <x-status-badge>غير نشط</x-status-badge>
                             @endif
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا يوجد مستخدمون
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="6" icon="bi-inbox" title="لا يوجد مستخدمون" />
                 @endforelse
             </tbody>
         </table>

@@ -3,25 +3,17 @@
 @section('title', $task->title)
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>{{ $task->title }}</h4>
-        <p>
-            <a href="{{ route('admin.projects.tasks.index') }}" class="text-decoration-none">المهام</a>
-            / {{ $task->title }}
-        </p>
-    </div>
-    <div class="d-flex gap-2 align-items-center">
-        <x-audit-history :model="'App\Models\Admin\ProjectTask'" :model-id="$task->id" />
-        <a href="{{ route('admin.projects.tasks.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
-    </div>
-</div>
+<x-page-header :title="$task->title" :breadcrumb="[['label' => 'المهام', 'url' => route('admin.projects.tasks.index')], ['label' => $task->title]]">
+    <x-audit-history :model="'App\Models\Admin\ProjectTask'" :model-id="$task->id" />
+    <a href="{{ route('admin.projects.tasks.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
+</x-page-header>
 
 <div class="row g-3">
     <div class="col-lg-8">
         <div class="table-container">
             <div class="p-3 border-bottom"><h5 class="mb-0">تفاصيل المهمة</h5></div>
             <div class="p-3">
+                <div class="table-responsive">
                 <table class="table table-bordered mb-0">
                     <tr><th style="width:200px">اسم المهمة</th><td>{{ $task->title }}</td></tr>
                     <tr><th>الغاية</th><td>{{ $task->purpose ?? '—' }}</td></tr>
@@ -36,6 +28,7 @@
                         </td>
                     </tr>
                 </table>
+                </div>
             </div>
         </div>
 

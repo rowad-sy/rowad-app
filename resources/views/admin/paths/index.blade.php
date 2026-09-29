@@ -3,35 +3,33 @@
 @section('title', 'المسارات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h4>المسارات</h4>
-        <p>كل مسار يجمع عدداً من المشاريع — الإضافة والتعديل من اختصاص إدارة المشاريع</p>
-    </div>
+<x-page-header :title="'المسارات'" :description="'كل مسار يجمع عدداً من المشاريع — الإضافة والتعديل من اختصاص إدارة المشاريع'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'المسارات']]">
     <div class="d-flex gap-2">
         <a href="{{ route('admin.paths.tree') }}" class="btn btn-outline-brand">
             <i class="bi bi-diagram-2 me-1"></i> عرض الشجرة
         </a>
+        @canPermission('App\Models\Admin\ProjectPath', 'create')
         <a href="{{ route('admin.paths.create') }}" class="btn btn-brand">
             <i class="bi bi-plus-lg me-1"></i> إضافة مسار
         </a>
+        @endcanPermission
     </div>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2">
+    <x-filter-bar>
             <div class="col-md-4">
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث عن مسار..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 </div>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
-    <table class="table table-hover align-middle">
-        <thead class="table-light">
+    <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
             <tr>
                 <th>#</th>
                 <th>اسم المسار</th>
@@ -54,26 +52,26 @@
                         <span class="tree-count-badge">{{ $path->projects_count }}</span>
                     </td>
                     <td>
-                        <a href="{{ route('admin.paths.edit', $path) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                        @canPermission('App\Models\Admin\ProjectPath', 'edit')
+                        <a href="{{ route('admin.paths.edit', $path) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                        @endcanPermission
                         <x-audit-history :model="'App\Models\Admin\ProjectPath'" :model-id="$path->id" />
+                        @canPermission('App\Models\Admin\ProjectPath', 'delete')
                         <form method="POST" action="{{ route('admin.paths.destroy', $path) }}" class="d-inline"
                               onsubmit="return confirm('هل أنت متأكد من حذف هذا المسار؟ لن تُحذف مشاريعه، فقط سيُفصل ارتباطها به.')">
                             @csrf
                             @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </form>
+                        @endcanPermission
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="6" class="text-center py-4 text-muted">
-                        <i class="bi bi-signpost-split fs-3 d-block mb-2"></i>
-                        لا توجد مسارات بعد
-                    </td>
-                </tr>
+                <x-empty-row colspan="6" icon="bi-signpost-split" title="لا توجد مسارات بعد" />
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <div class="p-3">{{ $paths->links() }}</div>
 </div>

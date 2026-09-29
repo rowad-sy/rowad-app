@@ -5,14 +5,14 @@
 @push('styles')
 <style>
     .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
-    .info-item { padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 6px; }
-    .info-item .label { font-size: 0.75rem; color: #6c757d; display: block; }
+    .info-item { padding: 0.5rem 0.75rem; background: var(--color-surface-muted); border: 1px solid var(--color-border); color: var(--color-text-main); border-radius: 6px; }
+    .info-item .label { font-size: 0.75rem; color: var(--color-text-muted); display: block; }
     .info-item .value { font-size: 0.9rem; font-weight: 500; }
     .timeline-item { position: relative; padding-right: 1.5rem; padding-bottom: 1.25rem; }
-    .timeline-item::before { content: ''; position: absolute; right: 4px; top: 8px; bottom: 0; width: 2px; background: #dee2e6; }
+    .timeline-item::before { content: ''; position: absolute; right: 4px; top: 8px; bottom: 0; width: 2px; background: var(--color-border); }
     .timeline-item:last-child::before { display: none; }
     .timeline-item .dot { position: absolute; right: 0; top: 4px; width: 10px; height: 10px; border-radius: 50%; }
-    .signature-img { max-height: 100px; border: 1px solid #dee2e6; border-radius: 6px; padding: 4px; }
+    .signature-img { max-height: 100px; border: 1px solid var(--color-border); border-radius: 6px; padding: 4px; }
 </style>
 @endpush
 
@@ -45,24 +45,12 @@
     ];
 @endphp
 
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>طلب شراء #{{ $purchaseRequest->id }}</h4>
-        <p>
-            <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="text-decoration-none">طلبات الشراء</a>
-            / #{{ $purchaseRequest->id }}
-        </p>
-    </div>
-    <div class="d-flex gap-2">
-        <span class="badge bg-{{ $statusColors[$purchaseRequest->status] ?? 'secondary' }} fs-6 align-self-center">
-            {{ $statusLabel }}
-        </span>
-        <x-audit-history model="App\Models\Admin\Logistics\PurchaseRequest" :modelId="$purchaseRequest->id" />
-        <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-right me-1"></i> عودة
-        </a>
-    </div>
-</div>
+@php $tone = (function ($c) { foreach (['success' => 'success', 'danger' => 'danger', 'warning' => 'warning', 'info' => 'info', 'primary' => 'brand'] as $k => $t) { if (str_contains((string) $c, $k)) return $t; } return 'neutral'; })($statusColors[$purchaseRequest->status] ?? ''); @endphp
+<x-page-header :title="'طلب شراء #' . $purchaseRequest->id" :breadcrumb="[['label' => 'طلبات الشراء', 'url' => route('admin.logistics.purchase-requests.index')], ['label' => '#' . $purchaseRequest->id]]">
+    <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ $statusLabel }}</x-status-badge></div></x-slot:meta>
+    <x-audit-history :model="'App\Models\Admin\Logistics\PurchaseRequest'" :model-id="$purchaseRequest->id" />
+    <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
+</x-page-header>
 
 <div class="row g-3">
     {{-- Main Info Card --}}
@@ -112,7 +100,7 @@
                 @endif
 
                 @if ($purchaseRequest->notes)
-                    <div class="mt-2 p-2" style="background:#fff3cd;border-radius:6px;">
+                    <div class="mt-2 p-2" style="background:var(--status-warning-bg);color:var(--color-text-main);border-radius:6px;">
                         <small class="text-muted d-block">ملاحظات</small>
                         <span>{{ $purchaseRequest->notes }}</span>
                     </div>
@@ -122,7 +110,7 @@
                     <h6 class="mb-2">البنود</h6>
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm mb-0">
-                            <thead class="table-light">
+                            <thead>
                                 <tr>
                                     <th>#</th>
                                     <th>الوصف</th>

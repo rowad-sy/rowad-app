@@ -4,10 +4,7 @@
 
 @section('content')
 <x-page-header :title="'درجات المواد'"
-               :breadcrumb="[['label' => 'الطلاب', 'url' => route('admin.students.index')], ['label' => '<a href="' . (route('admin.students.show', $enrollment->student)) . '" class="text-decoration-none">
-            ' . ($enrollment->student->first_name_ar) . ' ' . ($enrollment->student->last_name_ar) . '
-        </a>
-        / درجات المواد']]" />
+               :breadcrumb="[['label' => 'الطلاب', 'url' => route('admin.students.index')], ['label' => $enrollment->student->first_name_ar . ' ' . $enrollment->student->last_name_ar, 'url' => route('admin.students.show', $enrollment->student)], ['label' => 'درجات المواد']]" />
 
 @if ($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">

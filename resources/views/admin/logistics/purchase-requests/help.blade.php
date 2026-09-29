@@ -3,15 +3,12 @@
 @section('title', 'معلومات ونصائح — طلبات الشراء')
 
 @section('logistics-content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4><i class="bi bi-question-circle ms-1"></i> معلومات ونصائح — طلبات الشراء</h4>
-        <p>دليل شامل لدورة حياة طلب الشراء: الإنشاء، التسعير، الموافقات، والتنفيذ.</p>
-    </div>
+<x-page-header :title="'معلومات ونصائح — طلبات الشراء'" :description="'دليل شامل لدورة حياة طلب الشراء: الإنشاء، التسعير، الموافقات، والتنفيذ.'"
+               :breadcrumb="[['label' => 'اللوجستي'], ['label' => 'معلومات ونصائح — طلبات الشراء']]">
     <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="btn btn-outline-primary">
         <i class="bi bi-arrow-right me-1"></i> العودة لطلبات الشراء
     </a>
-</div>
+</x-page-header>
 
 <div class="row g-3">
 
@@ -42,8 +39,8 @@
                     <li class="mb-1"><strong>موافقة المدير المباشر:</strong> موافقة ← <strong>يُقفل الطلب نهائياً</strong> ويُحال لمدير المشاريع. أو رفض.</li>
                     <li class="mb-1"><strong>موافقة مدير المشاريع:</strong> يحيل للمسؤول المالي.</li>
                     <li class="mb-1"><strong>موافقة المسؤول المالي:</strong> يحيل للمدير التنفيذي.</li>
-                    <li class="mb-1"><strong>الاعتماد النهائي (المدير التنفيذي):</strong> اعتماد ← الطلب <span class="badge bg-success">معتمد</span>.</li>
-                    <li class="mb-0"><strong>التنفيذ (اللوجستي):</strong> بعد الاعتماد يضغط اللوجستي «تنفيذ الطلب» ← <span class="badge bg-dark">منفَّذ</span>.</li>
+                    <li class="mb-1"><strong>الاعتماد النهائي (المدير التنفيذي):</strong> اعتماد ← الطلب <x-status-badge tone="success">معتمد</x-status-badge>.</li>
+                    <li class="mb-0"><strong>التنفيذ (اللوجستي):</strong> بعد الاعتماد يضغط اللوجستي «تنفيذ الطلب» ← <x-status-badge>منفَّذ</x-status-badge>.</li>
                 </ol>
             </div>
         </div>
@@ -55,14 +52,14 @@
                     <table class="table table-sm table-bordered align-middle mb-0">
                         <thead><tr><th>الحالة</th><th>ماذا تعني؟</th><th>مَن يتصرف؟</th></tr></thead>
                         <tbody>
-                            <tr><td><span class="badge bg-warning text-dark">بانتظار التسعير</span></td><td>أُنشئ الطلب ومعه البنود والسعر التقديري</td><td>اللوجستي (تسعير + رقم الميزانية)</td></tr>
-                            <tr><td><span class="badge bg-info">مُسعَّر</span></td><td>حُددت الأسعار النهائية وجاهز للتوقيع</td><td>المدير المباشر (موافقة/رفض)</td></tr>
-                            <tr><td><span class="badge bg-secondary">وافق مدير المشروع</span></td><td>الموافقة الأولى — <strong>أُقفل الطلب عن التعديل والحذف</strong></td><td>مدير المشاريع</td></tr>
-                            <tr><td><span class="badge bg-secondary">وافق مدير المشاريع</span></td><td>الموافقة الثانية</td><td>المسؤول المالي</td></tr>
-                            <tr><td><span class="badge bg-secondary">وافق المسؤول المالي</span></td><td>الموافقة المالية</td><td>المدير التنفيذي</td></tr>
-                            <tr><td><span class="badge bg-success">معتمد</span></td><td>الاعتماد النهائي — جاهز للتنفيذ</td><td>اللوجستي (تنفيذ)</td></tr>
-                            <tr><td><span class="badge bg-dark">منفَّذ</span></td><td>اكتمل تنفيذ الطلب</td><td>— (رؤية فقط)</td></tr>
-                            <tr><td><span class="badge bg-danger">مرفوض</span></td><td>رُفض في أي مرحلة (يظهر سبب الرفض)</td><td>— (رؤية فقط)</td></tr>
+                            <tr><td><x-status-badge tone="warning">بانتظار التسعير</x-status-badge></td><td>أُنشئ الطلب ومعه البنود والسعر التقديري</td><td>اللوجستي (تسعير + رقم الميزانية)</td></tr>
+                            <tr><td><x-status-badge tone="info">مُسعَّر</x-status-badge></td><td>حُددت الأسعار النهائية وجاهز للتوقيع</td><td>المدير المباشر (موافقة/رفض)</td></tr>
+                            <tr><td><x-status-badge>وافق مدير المشروع</x-status-badge></td><td>الموافقة الأولى — <strong>أُقفل الطلب عن التعديل والحذف</strong></td><td>مدير المشاريع</td></tr>
+                            <tr><td><x-status-badge>وافق مدير المشاريع</x-status-badge></td><td>الموافقة الثانية</td><td>المسؤول المالي</td></tr>
+                            <tr><td><x-status-badge>وافق المسؤول المالي</x-status-badge></td><td>الموافقة المالية</td><td>المدير التنفيذي</td></tr>
+                            <tr><td><x-status-badge tone="success">معتمد</x-status-badge></td><td>الاعتماد النهائي — جاهز للتنفيذ</td><td>اللوجستي (تنفيذ)</td></tr>
+                            <tr><td><x-status-badge>منفَّذ</x-status-badge></td><td>اكتمل تنفيذ الطلب</td><td>— (رؤية فقط)</td></tr>
+                            <tr><td><x-status-badge tone="danger">مرفوض</x-status-badge></td><td>رُفض في أي مرحلة (يظهر سبب الرفض)</td><td>— (رؤية فقط)</td></tr>
                         </tbody>
                     </table>
                 </div>

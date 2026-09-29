@@ -3,15 +3,12 @@
 @section('title', 'معلومات ونصائح — خطة الحركة')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4><i class="bi bi-question-circle ms-1"></i> معلومات ونصائح — خطة الحركة</h4>
-        <p>دليل شامل لدورة حياة خطة الحركة: الإنشاء، المراجعة، التوزيع، والمتابعة.</p>
-    </div>
+<x-page-header :title="'معلومات ونصائح — خطة الحركة'" :description="'دليل شامل لدورة حياة خطة الحركة: الإنشاء، المراجعة، التوزيع، والمتابعة.'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'معلومات ونصائح — خطة الحركة']]">
     <a href="{{ route('admin.movement-plans.index') }}" class="btn btn-outline-primary">
         <i class="bi bi-arrow-right me-1"></i> العودة لخطة الحركة
     </a>
-</div>
+</x-page-header>
 
 <div class="row g-3">
 
@@ -37,9 +34,9 @@
                 <ol class="small mb-0 ps-3">
                     <li class="mb-1"><strong>إنشاء:</strong> زر «خطة حركة جديدة» ← التاريخ، وقت الانطلاق والعودة، المسار (من/إلى)، الغاية وملاحظات. تُحال الخطة تلقائياً لإدارة المشاريع.</li>
                     <li class="mb-1"><strong>مراجعة إدارة المشاريع:</strong> تفتح صفحة الخطة وتراجعها، ثم «اعتماد» مع اختيار <strong>مسؤول الحركة</strong>، أو «رفض» مع كتابة السبب.</li>
-                    <li class="mb-1"><strong>توزيع مسؤول الحركة:</strong> يحدد «المتابِعون» (فريق التنفيذ) ووظيفة كل واحد، فتغدو الخطة <span class="badge bg-primary">قيد المتابعة</span>.</li>
-                    <li class="mb-1"><strong>المتابعة:</strong> يتابع المتابِعون الخطة من بريد كل منهم (<span class="badge bg-info text-dark">خطة حركة</span>), ويمكنهم إعادة إحالتها لمسؤول الحركة إن لزم.</li>
-                    <li class="mb-1"><strong>الإنجاز:</strong> بعد اكتمال المهمة يضغط مسؤول الحركة «إنجاز الخطة» فتغدو <span class="badge bg-success">منجزة</span>.</li>
+                    <li class="mb-1"><strong>توزيع مسؤول الحركة:</strong> يحدد «المتابِعون» (فريق التنفيذ) ووظيفة كل واحد، فتغدو الخطة <x-status-badge tone="brand">قيد المتابعة</x-status-badge>.</li>
+                    <li class="mb-1"><strong>المتابعة:</strong> يتابع المتابِعون الخطة من بريد كل منهم (<x-status-badge tone="info">خطة حركة</x-status-badge>), ويمكنهم إعادة إحالتها لمسؤول الحركة إن لزم.</li>
+                    <li class="mb-1"><strong>الإنجاز:</strong> بعد اكتمال المهمة يضغط مسؤول الحركة «إنجاز الخطة» فتغدو <x-status-badge tone="success">منجزة</x-status-badge>.</li>
                 </ol>
             </div>
         </div>
@@ -48,23 +45,23 @@
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-arrow-repeat me-1"></i> حالات الخطة وسير العمل</h5></div>
             <div class="p-3">
                 <div class="row text-center small g-1 mb-3">
-                    <div class="col"><span class="badge bg-warning text-dark w-100 py-2">بانتظار مراجعة إدارة المشاريع</span></div>
+                    <div class="col"><x-status-badge tone="warning">بانتظار مراجعة إدارة المشاريع</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-info w-100 py-2">أُحيلت لمسؤول الحركة</span></div>
+                    <div class="col"><x-status-badge tone="info">أُحيلت لمسؤول الحركة</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-primary w-100 py-2">قيد المتابعة</span></div>
+                    <div class="col"><x-status-badge tone="brand">قيد المتابعة</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-success w-100 py-2">منجزة</span></div>
+                    <div class="col"><x-status-badge tone="success">منجزة</x-status-badge></div>
                 </div>
                 <div class="table-responsive small">
                     <table class="table table-sm table-bordered align-middle mb-0">
                         <thead><tr><th>الحالة</th><th>ماذا تعني؟</th><th>مَن يتصرف؟</th></tr></thead>
                         <tbody>
-                            <tr><td><span class="badge bg-warning text-dark">بانتظار مراجعة إدارة المشاريع</span></td><td>أُنشئت الخطة وأُحيلت للمراجعة</td><td>إدارة المشاريع (اعتماد/رفض)</td></tr>
-                            <tr><td><span class="badge bg-info">أُحيلت لمسؤول الحركة</span></td><td>اعتُمدت وحدد فيها مسؤول الحركة</td><td>مسؤول الحركة (توزيع على المتابِعين)</td></tr>
-                            <tr><td><span class="badge bg-primary">قيد المتابعة</span></td><td>وُزِّعت على المتابِعين وجارٍ التنفيذ</td><td>مسؤول الحركة (إنجاز)، المتابِعون (متابعة)</td></tr>
-                            <tr><td><span class="badge bg-success">منجزة</span></td><td>اكتمل تنفيذ الحركة</td><td>— (رؤية فقط)</td></tr>
-                            <tr><td><span class="badge bg-danger">مرفوضة</span></td><td>رُفضت مع تسجيل السبب</td><td>— (رؤية فقط)</td></tr>
+                            <tr><td><x-status-badge tone="warning">بانتظار مراجعة إدارة المشاريع</x-status-badge></td><td>أُنشئت الخطة وأُحيلت للمراجعة</td><td>إدارة المشاريع (اعتماد/رفض)</td></tr>
+                            <tr><td><x-status-badge tone="info">أُحيلت لمسؤول الحركة</x-status-badge></td><td>اعتُمدت وحدد فيها مسؤول الحركة</td><td>مسؤول الحركة (توزيع على المتابِعين)</td></tr>
+                            <tr><td><x-status-badge tone="brand">قيد المتابعة</x-status-badge></td><td>وُزِّعت على المتابِعين وجارٍ التنفيذ</td><td>مسؤول الحركة (إنجاز)، المتابِعون (متابعة)</td></tr>
+                            <tr><td><x-status-badge tone="success">منجزة</x-status-badge></td><td>اكتمل تنفيذ الحركة</td><td>— (رؤية فقط)</td></tr>
+                            <tr><td><x-status-badge tone="danger">مرفوضة</x-status-badge></td><td>رُفضت مع تسجيل السبب</td><td>— (رؤية فقط)</td></tr>
                         </tbody>
                     </table>
                 </div>

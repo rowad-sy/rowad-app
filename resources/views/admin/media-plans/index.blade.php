@@ -3,11 +3,8 @@
 @section('title', 'الخطة الإعلامية')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>الخطة الإعلامية</h4>
-        <p>خطط الإعلام الشهرية وفعاليات التغطية</p>
-    </div>
+<x-page-header :title="'الخطة الإعلامية'" :description="'خطط الإعلام الشهرية وفعاليات التغطية'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'الخطة الإعلامية']]">
     <div class="d-flex gap-2">
         <a href="{{ route('admin.media-plans.help') }}" class="btn btn-outline-info">
             <i class="bi bi-question-circle me-1"></i> معلومات ونصائح
@@ -18,17 +15,16 @@
         </a>
         @endcanPermission
     </div>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             @if (request('project_id'))
                 <input type="hidden" name="project_id" value="{{ request('project_id') }}">
             @endif
             <div class="col-md-3">
-                <label class="form-label small mb-1">الشهر</label>
-                <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الشهر</label>
+                <select name="month" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach (range(1, 12) as $m)
                         <option value="{{ $m }}" {{ (int)request('month') === $m ? 'selected' : '' }}>{{ now()->month($m)->locale('ar')->translatedFormat('F') }}</option>
@@ -36,8 +32,8 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">السنة</label>
-                <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">السنة</label>
+                <select name="year" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach (range(now()->year - 1, now()->year + 1) as $y)
                         <option value="{{ $y }}" {{ (int)request('year') === $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -45,20 +41,19 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المركز</label>
+                <select name="center_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($centers as $center)
                         <option value="{{ $center->id }}" {{ (int)request('center_id') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
                     @endforeach
                 </select>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>الشهر</th>
@@ -85,21 +80,21 @@
                         <td>{{ $plan->creator?->name ?? '—' }}</td>
                         <td>{{ $plan->created_at->format('Y-m-d') }}</td>
                         <td>
-                            <a href="{{ route('admin.media-plans.show', $plan) }}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                            <a href="{{ route('admin.media-plans.show', $plan) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
                             @canPermission('App\Models\Admin\MediaPlan', 'edit')
-                            <a href="{{ route('admin.media-plans.edit', $plan) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                            <a href="{{ route('admin.media-plans.edit', $plan) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\MediaPlan'" :model-id="$plan->id" />
                             @canPermission('App\Models\Admin\MediaPlan', 'delete')
                             <form method="POST" action="{{ route('admin.media-plans.destroy', $plan) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد؟')">
                                 @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-2"></i>لا توجد خطط إعلامية</td></tr>
+                    <x-empty-row colspan="8" icon="bi-inbox" title="لا توجد خطط إعلامية" />
                 @endforelse
             </tbody>
         </table>

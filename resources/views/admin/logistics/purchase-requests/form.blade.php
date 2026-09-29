@@ -12,13 +12,8 @@
 @endpush
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>{{ isset($purchaseRequest) ? 'تعديل طلب شراء' : 'إضافة طلب شراء' }}</h4>
-    <p>
-        <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="text-decoration-none">طلبات الشراء</a>
-        / {{ isset($purchaseRequest) ? '#' . $purchaseRequest->id : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($purchaseRequest) ? 'تعديل طلب شراء' : 'إضافة طلب شراء'"
+               :breadcrumb="[['label' => 'طلبات الشراء', 'url' => route('admin.logistics.purchase-requests.index')], ['label' => isset($purchaseRequest) ? '#' . $purchaseRequest->id : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-12">
@@ -39,7 +34,7 @@
                     @error('items') <div class="text-danger small mb-2">{{ $message }}</div> @enderror
                     <div class="table-responsive">
                         <table class="table table-bordered mb-0" id="itemsTable">
-                            <thead class="table-light">
+                            <thead>
                                 <tr>
                                     <th style="width:35%">الوصف</th>
                                     <th style="width:10%">الكمية</th>
@@ -77,9 +72,7 @@
                                         <input type="text" class="form-control item-notes" placeholder="اختياري">
                                     </td>
                                     <td>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)" aria-label="حذف البند" title="حذف البند"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                                     </td>
                                 </tr>
                             </template>
@@ -205,6 +198,8 @@
 @push('scripts')
 <script>
     var itemIndex = 0;
+    // بعد محاولة حفظ فاشلة تُستعاد البنود المُدخلة كما هي (وإن لم يبقَ أي بند يُضاف صف فارغ واحد)
+    var oldItems = @json(collect(old('items', []))->filter(fn ($r) => is_array($r))->values());
 
     function addItem(data) {
         var template = document.getElementById('itemTemplate');
@@ -217,6 +212,12 @@
         row.querySelector('.item-budget').setAttribute('name', 'items[' + itemIndex + '][budget_line]');
         row.querySelector('.item-price').setAttribute('name', 'items[' + itemIndex + '][unit_price]');
         row.querySelector('.item-notes').setAttribute('name', 'items[' + itemIndex + '][notes]');
+
+        var n = itemIndex + 1;
+        [['.item-desc', 'وصف البند'], ['.item-qty', 'الكمية'], ['.item-unit', 'الوحدة'], ['.item-budget', 'خط الميزانية'], ['.item-price', 'سعر الوحدة'], ['.item-total', 'الإجمالي'], ['.item-notes', 'ملاحظات']].forEach(function (f) {
+            var el = row.querySelector(f[0]);
+            if (el) el.setAttribute('aria-label', f[1] + ' — بند ' + n);
+        });
 
         if (data) {
             row.querySelector('.item-desc').value = data.description || '';
@@ -261,7 +262,7 @@
 
     // Add first row on load
     document.addEventListener('DOMContentLoaded', function () {
-        addItem();
+        if (oldItems.length) { oldItems.forEach(function (it) { addItem(it); }); } else { addItem(); }
 
         // Signature canvas
         var canvas = document.getElementById('signatureCanvas');

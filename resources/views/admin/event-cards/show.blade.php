@@ -9,22 +9,15 @@
 @endphp
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h4><i class="bi bi-calendar-event me-2 text-danger"></i>{{ $eventCard->name }}</h4>
-        <p>
-            <a href="{{ route('admin.event-cards.index') }}" class="text-decoration-none">بطاقات الفعاليات</a>
-            / <span class="badge {{ $eventCard->statusBadgeClass() }}">{{ $eventCard->statusLabel() }}</span>
-        </p>
-    </div>
-    <div class="d-flex gap-2">
-        @if (! $eventCard->isLocked())
-            @canPermission('App\Models\Admin\EventCard', 'edit')
-                <a href="{{ route('admin.event-cards.edit', $eventCard) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>تعديل</a>
-            @endcanPermission
-        @endif
-    </div>
-</div>
+@php $tone = (function ($c) { foreach (['success' => 'success', 'danger' => 'danger', 'warning' => 'warning', 'info' => 'info', 'primary' => 'brand'] as $k => $t) { if (str_contains((string) $c, $k)) return $t; } return 'neutral'; })($eventCard->statusBadgeClass()); @endphp
+<x-page-header :title="$eventCard->name" :breadcrumb="[['label' => 'بطاقات الفعاليات', 'url' => route('admin.event-cards.index')], ['label' => $eventCard->name]]">
+    <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ $eventCard->statusLabel() }}</x-status-badge></div></x-slot:meta>
+    @if (! $eventCard->isLocked())
+        @canPermission('App\Models\Admin\EventCard', 'edit')
+            <a href="{{ route('admin.event-cards.edit', $eventCard) }}" class="btn btn-primary btn-sm"><i class="bi bi-pencil me-1"></i>تعديل</a>
+        @endcanPermission
+    @endif
+</x-page-header>
 
 @if ($eventCard->status === 'rejected' && $eventCard->reason)
     <div class="alert alert-danger"><i class="bi bi-x-circle me-1"></i> سبب الرفض: {{ $eventCard->reason }}</div>
@@ -68,10 +61,12 @@
         @if (count($eventCard->content_items ?? []))
             <div class="form-card mb-3">
                 <h6 class="fw-bold mb-2"><i class="bi bi-card-list text-danger me-1"></i> المحتوى والفقرات</h6>
+                <div class="table-responsive">
                 <table class="table table-sm">
                     <thead><tr><th>الفقرة</th><th>المحتوى</th><th>المسؤول</th><th>المدة</th></tr></thead>
                     <tbody>@foreach ($eventCard->content_items as $r)<tr><td>{{ $r['item'] ?? '' }}</td><td>{{ $r['content'] ?? '' }}</td><td>{{ $r['responsible'] ?? '' }}</td><td>{{ $r['duration'] ?? '' }}</td></tr>@endforeach</tbody>
                 </table>
+                </div>
             </div>
         @endif
 
