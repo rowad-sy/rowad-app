@@ -3,16 +3,11 @@
 @section('title', 'درجات مواد - ' . $enrollment->course->name_ar)
 
 @section('content')
-<div class="page-header">
-    <h4>درجات المواد</h4>
-    <p>
-        <a href="{{ route('admin.students.index') }}" class="text-decoration-none">الطلاب</a>
-        / <a href="{{ route('admin.students.show', $enrollment->student) }}" class="text-decoration-none">
-            {{ $enrollment->student->first_name_ar }} {{ $enrollment->student->last_name_ar }}
+<x-page-header :title="'درجات المواد'"
+               :breadcrumb="[['label' => 'الطلاب', 'url' => route('admin.students.index')], ['label' => '<a href="' . (route('admin.students.show', $enrollment->student)) . '" class="text-decoration-none">
+            ' . ($enrollment->student->first_name_ar) . ' ' . ($enrollment->student->last_name_ar) . '
         </a>
-        / درجات المواد
-    </p>
-</div>
+        / درجات المواد']]" />
 
 @if ($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -62,6 +57,7 @@
                 <h6 class="mb-0">مواد المقرر {{ $enrollment->course->name_ar }}</h6>
             </div>
             <div class="card-body">
+                <div class="table-responsive">
                 <table class="table table-bordered align-middle">
                     <thead>
                         <tr>
@@ -90,6 +86,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
                 <p class="text-muted small mb-0">تُحسب الدرجة الكلية كمتوسط موزون حسب وزن كل مادة. اترك الحقل فارغاً لإزالة الدرجة.</p>
             </div>
         </div>

@@ -39,6 +39,8 @@ class EmployeeStatisticsController extends Controller
 
     private function computeStats(array $filters): array
     {
+        $hasFilters = collect($filters)->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
+
         $base = Employee::query()
             ->when(!empty($filters['center_id']), fn ($q) => $q->where('center_id', $filters['center_id']))
             ->when(!empty($filters['project_id']), fn ($q) => $q->where('project_id', $filters['project_id']))
@@ -72,7 +74,7 @@ class EmployeeStatisticsController extends Controller
         $maritalData = [];
         foreach ($maritalMap as $key => $label) {
             $count = (int) ($maritalStats[$key] ?? 0);
-            if ($count > 0 || !$hasFilters ?? false) {
+            if ($count > 0 || ! $hasFilters) {
                 $maritalLabels[] = $label;
                 $maritalData[] = $count;
             }

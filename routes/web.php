@@ -299,8 +299,9 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::post('students/import-full', [StudentExportController::class, 'importFull'])->name('students.import-full');
 
         Route::prefix('hr')->name('hr.')->group(function () {
-            Route::resource('employees', EmployeeController::class);
+            // ثابت قبل المورد حتى لا يلتقطه employees/{employee} (كان يعطي 404)
             Route::get('employees/statistics', [EmployeeStatisticsController::class, 'index'])->name('employees.statistics');
+            Route::resource('employees', EmployeeController::class);
             Route::resource('job-positions', JobPositionController::class)->except(['show']);
             Route::post('employees/export', [ExportController::class, 'employees'])->name('employees.export');
             Route::post('employees/export-full', [ExportController::class, 'employeesFullExport'])->name('employees.export-full');

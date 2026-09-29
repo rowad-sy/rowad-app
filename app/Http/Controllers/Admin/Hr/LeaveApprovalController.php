@@ -30,7 +30,7 @@ class LeaveApprovalController extends Controller
             ->whereIn('leave_type_id', $leaveTypeIds)
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(20)->withQueryString();
 
         return view('admin.hr.leave-approvals.index', compact('requests'));
     }

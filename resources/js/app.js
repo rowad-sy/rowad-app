@@ -5,6 +5,7 @@ import Chart from 'chart.js/auto';
 window.Chart = Chart;
 import QRCode from 'qrcode';
 window.QRCode = QRCode;
+import './forms';
 
 (function () {
     const KEY = 'rowad-…heme';

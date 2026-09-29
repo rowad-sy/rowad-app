@@ -70,7 +70,7 @@ test('users list keeps active filters when switching tabs and after pagination',
 
     expect($html)->toContain('center_id='.$center->id)
         ->and($html)->toContain('type=employee&amp;search=abc')
-        ->and($html)->toContain('مسح (2)');
+        ->and($html)->toContain('مسح الفلاتر (2)');
 });
 
 test('sidebar sections are semantic toggle buttons and the sidebar is a labelled navigation', function () {

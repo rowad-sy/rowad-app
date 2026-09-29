@@ -3,11 +3,8 @@
 @section('title', 'إدارة المقررات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4><i class="bi bi-journal-bookmark ms-1"></i> إدارة المقررات</h4>
-        <p>كل المقررات وملحقاتها (مواد، امتحانات، مستويات، عروض) في مكان واحد لكل مشروع.</p>
-    </div>
+<x-page-header :title="'إدارة المقررات'" :description="'كل المقررات وملحقاتها (مواد، امتحانات، مستويات، عروض) في مكان واحد لكل مشروع.'"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'إدارة المقررات']]">
     <div class="d-flex gap-2">
         <a href="{{ route('admin.students.courses.help') }}" class="btn btn-outline-info">
             <i class="bi bi-question-circle me-1"></i> معلومات ونصائح
@@ -18,13 +15,12 @@
         </a>
         @endcanPermission
     </div>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-4">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالاسم..." value="{{ $search ?? '' }}">
                     <button class="btn btn-outline-secondary" type="submit">
@@ -33,16 +29,15 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">المشروع</label>
-                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المشروع</label>
+                <select name="project_id" class="form-select form-select-sm">
                     <option value="">كل المشاريع</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
                     @endforeach
                 </select>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     @forelse ($courses as $course)
         <div class="card border-0 border-bottom rounded-0">
@@ -93,9 +88,7 @@
                             </a>
                             @endcanPermission
                             @canPermission('App\Models\Admin\Student\Course', 'edit')
-                            <a href="{{ route('admin.students.courses.edit', $course) }}" class="btn btn-sm btn-outline-primary" title="تعديل">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            <a href="{{ route('admin.students.courses.edit', $course) }}" class="btn btn-sm btn-outline-primary" title="تعديل" aria-label="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Student\Course'" :model-id="$course->id" />
                             @canPermission('App\Models\Admin\Student\Course', 'delete')
@@ -103,9 +96,7 @@
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا المقرر؟ سيُحذف معه مواده وامتحاناته وعروضه.')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger" title="حذف">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <button class="btn btn-sm btn-outline-danger" title="حذف" aria-label="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </div>

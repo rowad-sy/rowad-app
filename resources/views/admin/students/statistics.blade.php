@@ -17,11 +17,8 @@
 @endpush
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>إحصائيات الطلاب</h4>
-        <p>نظرة شاملة على بيانات الطلاب والتسجيلات والحضور</p>
-    </div>
+<x-page-header :title="'إحصائيات الطلاب'" :description="'نظرة شاملة على بيانات الطلاب والتسجيلات والحضور'"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'إحصائيات الطلاب']]">
     @if (array_filter($filters))
     <div>
         <a href="{{ route('admin.students.statistics') }}" class="btn btn-outline-secondary btn-sm">
@@ -29,7 +26,7 @@
         </a>
     </div>
     @endif
-</div>
+</x-page-header>
 
 {{-- ─── Filter Form ─── --}}
 <form method="GET" action="{{ route('admin.students.statistics') }}" class="mb-4">
@@ -200,7 +197,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light">
+                    <thead>
                         <tr><th>المركز</th><th>العدد</th><th>النسبة</th></tr>
                     </thead>
                     <tbody>
@@ -233,7 +230,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light">
+                    <thead>
                         <tr><th>المشروع</th><th>العدد</th><th>النسبة</th></tr>
                     </thead>
                     <tbody>
@@ -299,7 +296,7 @@
             <div class="p-3 border-bottom"><h6 class="mb-0"><i class="bi bi-book me-1"></i> المقررات الأكثر تسجيلاً</h6></div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light"><tr><th>المقرر</th><th>عدد التسجيلات</th></tr></thead>
+                    <thead><tr><th>المقرر</th><th>عدد التسجيلات</th></tr></thead>
                     <tbody>
                         @foreach ($courseStats as $cs)
                             <tr>
@@ -317,7 +314,7 @@
             <div class="p-3 border-bottom"><h6 class="mb-0"><i class="bi bi-calendar-range me-1"></i> الفترات الأكثر تسجيلاً</h6></div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light"><tr><th>الفترة</th><th>عدد التسجيلات</th></tr></thead>
+                    <thead><tr><th>الفترة</th><th>عدد التسجيلات</th></tr></thead>
                     <tbody>
                         @foreach ($periodStats as $ps)
                             <tr>

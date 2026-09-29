@@ -3,13 +3,8 @@
 @section('title', isset($center) ? 'تعديل مركز' : 'إضافة مركز')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($center) ? 'تعديل المركز' : 'إضافة مركز' }}</h4>
-    <p>
-        <a href="{{ route('admin.centers.index') }}" class="text-decoration-none">المراكز</a>
-        / {{ isset($center) ? $center->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($center) ? 'تعديل المركز' : 'إضافة مركز'"
+               :breadcrumb="[['label' => 'المراكز', 'url' => route('admin.centers.index')], ['label' => isset($center) ? $center->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-6">
@@ -45,9 +40,9 @@
                     @error('phone') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
-                <div class="d-flex gap-2">
+                <div class="d-grid d-sm-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg me-1"></i> حفظ
+                        <i class="bi bi-check-lg me-1" aria-hidden="true"></i> حفظ
                     </button>
                     <a href="{{ route('admin.centers.index') }}" class="btn btn-outline-secondary">إلغاء</a>
                 </div>

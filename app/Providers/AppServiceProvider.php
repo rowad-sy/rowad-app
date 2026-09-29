@@ -35,6 +35,22 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->registerAuditListeners();
+        $this->registerArabicAdminValidation();
+    }
+
+    /**
+     * رسائل التحقق بالعربية لطلبات لوحة الإدارة فقط (/admin/*) دون تغيير لغة التطبيق العامة
+     * (لغة التواريخ وصفحات الدخول وغيرها تبقى كما هي).
+     */
+    protected function registerArabicAdminValidation(): void
+    {
+        \Illuminate\Support\Facades\Validator::resolver(function ($translator, $data, $rules, $messages, $attributes) {
+            if (request()->is('admin', 'admin/*')) {
+                $translator = new \Illuminate\Translation\Translator($translator->getLoader(), 'ar');
+            }
+
+            return new \Illuminate\Validation\Validator($translator, $data, $rules, $messages, $attributes);
+        });
     }
 
     protected function registerAuditListeners(): void

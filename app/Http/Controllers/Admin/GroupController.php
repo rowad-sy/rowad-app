@@ -24,7 +24,7 @@ class GroupController extends Controller
         $groups = Group::withCount('users')
             ->when($search, function ($q, $search) {
                 return $q->where('name', 'like', "%{$search}%");
-            })->orderBy('name')->paginate(10);
+            })->orderBy('name')->paginate(10)->withQueryString();
 
         return view('admin.groups.index', compact('groups', 'search'));
     }

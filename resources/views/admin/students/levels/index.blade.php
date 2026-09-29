@@ -3,39 +3,34 @@
 @section('title', 'المستويات والصفوف')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>المستويات والصفوف</h4>
-        <p>المستويات التعليمية والصفوف (الطفولة، الصفوف، مستويات التدريب) ومواد كل مستوى</p>
-    </div>
+<x-page-header :title="'المستويات والصفوف'" :description="'المستويات التعليمية والصفوف (الطفولة، الصفوف، مستويات التدريب) ومواد كل مستوى'"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'المستويات والصفوف']]">
     <div>
         <a href="{{ route('admin.students.levels.create') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> إضافة مستوى/صف
         </a>
     </div>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-4">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالاسم..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 </div>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">المشروع</label>
-                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المشروع</label>
+                <select name="project_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
                     @endforeach
                 </select>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     @forelse ($levels as $projectId => $projectLevels)
         @php $project = $projectLevels->first()->project; @endphp

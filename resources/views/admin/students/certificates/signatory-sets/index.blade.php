@@ -3,17 +3,14 @@
 @section('title', 'مجموعات التوقيع')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>مجموعات التوقيع</h4>
-        <p>كل مجموعة تربط (مقرر + فترة + مركز) بثلاثة موقعين: المدرب ومدير المركز ومسؤول المشروع</p>
-    </div>
+<x-page-header :title="'مجموعات التوقيع'" :description="'كل مجموعة تربط (مقرر + فترة + مركز) بثلاثة موقعين: المدرب ومدير المركز ومسؤول المشروع'"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'مجموعات التوقيع']]">
     @canPermission('App\Models\Admin\Student\Certificate', 'create')
     <a href="{{ route('admin.students.certificates.signatory-sets.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة مجموعة
     </a>
     @endcanPermission
-</div>
+</x-page-header>
 
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item">
@@ -29,25 +26,23 @@
 </ul>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-3">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث باسم المجموعة..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$sets->perPage()" />
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$sets->perPage()" />
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>اسم المجموعة</th>
@@ -90,27 +85,20 @@
                         <td><span class="badge bg-secondary">{{ $set->certificates_count }}</span></td>
                         <td>
                             @canPermission('App\Models\Admin\Student\Certificate', 'create')
-                            <a href="{{ route('admin.students.certificates.signatory-sets.edit', $set) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            <a href="{{ route('admin.students.certificates.signatory-sets.edit', $set) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             @endcanPermission
                             @canPermission('App\Models\Admin\Student\Certificate', 'delete')
                             <form method="POST" action="{{ route('admin.students.certificates.signatory-sets.destroy', $set) }}" class="d-inline"
                                   onsubmit="return confirm('حذف هذه المجموعة؟ الشهادات المرتبطة بها ستفقد أسماء الموقعين وتواقيعها.')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="10" class="text-center py-4 text-muted">
-                            <i class="bi bi-card-checklist fs-3 d-block mb-2"></i>
-                            لا توجد مجموعات توقيعات
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="10" icon="bi-card-checklist" title="لا توجد مجموعات توقيعات" />
                 @endforelse
             </tbody>
         </table>

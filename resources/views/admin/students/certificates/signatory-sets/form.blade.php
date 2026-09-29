@@ -3,13 +3,8 @@
 @section('title', isset($set) ? 'تعديل مجموعة توقيعات' : 'إضافة مجموعة توقيعات')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($set) ? 'تعديل المجموعة: ' . $set->name : 'إضافة مجموعة توقيعات جديدة' }}</h4>
-    <p>
-        <a href="{{ route('admin.students.certificates.signatory-sets.index') }}" class="text-decoration-none">مجموعات التوقيع</a>
-        / {{ isset($set) ? $set->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($set) ? 'تعديل المجموعة: ' . $set->name : 'إضافة مجموعة توقيعات جديدة'"
+               :breadcrumb="[['label' => 'مجموعات التوقيع', 'url' => route('admin.students.certificates.signatory-sets.index')], ['label' => isset($set) ? $set->name : 'جديد']]" />
 
 <form method="POST"
       action="{{ isset($set) ? route('admin.students.certificates.signatory-sets.update', $set) : route('admin.students.certificates.signatory-sets.store') }}">

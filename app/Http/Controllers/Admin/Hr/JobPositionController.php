@@ -22,7 +22,7 @@ class JobPositionController extends Controller
         $positions = JobPosition::when($search, function ($q, $search) {
             return $q->where('title_ar', 'like', "%{$search}%")
                 ->orWhere('title_en', 'like', "%{$search}%");
-        })->orderBy('title_ar')->paginate(10);
+        })->orderBy('title_ar')->paginate(10)->withQueryString();
 
         return view('admin.hr.job-positions.index', compact('positions', 'search'));
     }

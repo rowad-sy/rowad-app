@@ -3,26 +3,22 @@
 @section('title', 'الشهادات المصدرة')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>الشهادات المصدرة</h4>
-        <p>جميع الشهادات التي تم إصدارها</p>
-    </div>
+<x-page-header :title="'الشهادات المصدرة'" :description="'جميع الشهادات التي تم إصدارها'"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'الشهادات المصدرة']]">
 </div>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-3">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="رقم الشهادة أو اسم الطالب..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">التصميم</label>
-                <select name="design_id" class="form-select" onchange="this.form.submit()">
+                <label class="form-label">التصميم</label>
+                <select name="design_id" class="form-select">
                     <option value="">الكل</option>
                     @foreach ($designs as $d)
                         <option value="{{ $d->id }}" {{ $designId == $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
@@ -30,8 +26,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$perPage ?? 10" />
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$perPage ?? 10" />
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <a href="{{ route('admin.students.certificates.print-batch', ['design_id' => $designId]) }}"
@@ -40,12 +36,11 @@
                     <i class="bi bi-printer me-1"></i> طباعة الكل
                 </a>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>رقم الشهادة</th>
@@ -80,9 +75,7 @@
                         </td>
                         <td>
                             @if(!$cert->cancelled_at)
-                                <a href="{{ route('admin.students.certificates.preview', $cert) }}" class="btn btn-sm btn-outline-info" target="_blank">
-                                    <i class="bi bi-eye"></i>
-                                </a>
+                                <a href="{{ route('admin.students.certificates.preview', $cert) }}" class="btn btn-sm btn-outline-info" target="_blank" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
                                 <form method="POST" action="{{ route('admin.students.certificates.cancel', $cert) }}" class="d-inline"
                                       onsubmit="return confirm('هل أنت متأكد من إلغاء هذه الشهادة؟ سيتم تحرير رقم الشهادة لإعادة استخدامه.')">
                                     @csrf
@@ -95,12 +88,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">
-                            <i class="bi bi-file-earmark-x fs-3 d-block mb-2"></i>
-                            لا يوجد شهادات مصدرة
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="7" icon="bi-file-earmark-x" title="لا يوجد شهادات مصدرة" />
                 @endforelse
             </tbody>
         </table>
@@ -110,5 +98,5 @@
         <div class="text-muted small">إجمالي: {{ $certificates->total() }} شهادة</div>
         <div>{{ $certificates->links() }}</div>
     </div>
-</div>
+</x-page-header>
 @endsection

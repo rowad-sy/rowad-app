@@ -17,8 +17,8 @@
         z-index: 1000;
         max-height: 220px;
         overflow-y: auto;
-        background: #fff;
-        border: 1px solid #dee2e6;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
         border-top: none;
         border-radius: 0 0 6px 6px;
         box-shadow: 0 4px 16px rgba(0,0,0,.12);
@@ -33,8 +33,8 @@
     }
     .user-search-item:last-child { border-bottom: none; }
     .user-search-item:hover,
-    .user-search-item.highlighted { background: #f0f7ff; }
-    .user-search-item.selected { background: #e9ecef; font-weight: 500; }
+    .user-search-item.highlighted { background: var(--color-hover); }
+    .user-search-item.selected { background: var(--color-surface-muted); font-weight: 500; }
     .user-search-item small { color: #6c757d; }
     .user-search-clear {
         position: absolute;
@@ -56,13 +56,8 @@
 @endpush
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($employee) ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.hr.employees.index') }}" class="text-decoration-none">الموظفين</a>
-        / {{ isset($employee) ? $employee->first_name_ar . ' ' . $employee->last_name_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($employee) ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'"
+               :breadcrumb="[['label' => 'الموظفين', 'url' => route('admin.hr.employees.index')], ['label' => isset($employee) ? $employee->first_name_ar . ' ' . $employee->last_name_ar : 'جديد']]" />
 
 <form method="POST" action="{{ isset($employee) ? route('admin.hr.employees.update', $employee) : route('admin.hr.employees.store') }}" enctype="multipart/form-data">
     @csrf
@@ -70,8 +65,10 @@
         @method('PUT')
     @endif
 
+    <p class="text-muted small mb-2">الحقول المميّزة بعلامة <span class="text-danger" aria-hidden="true">*</span> مطلوبة. التبويبات لا تفرض تسلسلًا: يمكن الحفظ من أي تبويب.</p>
+
     {{-- Tabs --}}
-    <ul class="nav nav-tabs" id="employeeTabs" role="tablist">
+    <ul class="nav nav-tabs tabs-scroll" id="employeeTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button">المعلومات الأساسية</button>
         </li>
@@ -137,35 +134,31 @@
                 </div>
 
                 {{-- Name AR --}}
-                <div class="col-md-6">
-                    <label class="form-label">الاسم AR <span class="text-danger">*</span></label>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <input type="text" name="first_name_ar" class="form-control @error('first_name_ar') is-invalid @enderror"
+                <div class="col-md-3">
+                    <label class="form-label" for="f-first_name_ar">الاسم بالعربية <span class="text-danger" aria-hidden="true">*</span><span class="visually-hidden">(مطلوب)</span></label>
+                    <input id="f-first_name_ar" type="text" name="first_name_ar" class="form-control @error('first_name_ar') is-invalid @enderror"
                                    value="{{ old('first_name_ar', $employee->first_name_ar ?? '') }}" placeholder="الاسم" required>
-                        </div>
-                        <div class="col-6">
-                            <input type="text" name="last_name_ar" class="form-control @error('last_name_ar') is-invalid @enderror"
+                    @error('first_name_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="f-last_name_ar">اللقب بالعربية <span class="text-danger" aria-hidden="true">*</span><span class="visually-hidden">(مطلوب)</span></label>
+                    <input id="f-last_name_ar" type="text" name="last_name_ar" class="form-control @error('last_name_ar') is-invalid @enderror"
                                    value="{{ old('last_name_ar', $employee->last_name_ar ?? '') }}" placeholder="اللقب" required>
-                        </div>
-                    </div>
-                    @error('first_name_ar') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    @error('last_name_ar') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    @error('last_name_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                 </div>
 
                 {{-- Name EN --}}
-                <div class="col-md-6">
-                    <label class="form-label">الاسم EN</label>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <input type="text" name="first_name_en" class="form-control @error('first_name_en') is-invalid @enderror"
+                <div class="col-md-3">
+                    <label class="form-label" for="f-first_name_en">الاسم بالإنجليزية</label>
+                    <input id="f-first_name_en" type="text" name="first_name_en" class="form-control @error('first_name_en') is-invalid @enderror"
                                    value="{{ old('first_name_en', $employee->first_name_en ?? '') }}" placeholder="First Name" dir="ltr">
-                        </div>
-                        <div class="col-6">
-                            <input type="text" name="last_name_en" class="form-control @error('last_name_en') is-invalid @enderror"
+                    @error('first_name_en') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="f-last_name_en">اللقب بالإنجليزية</label>
+                    <input id="f-last_name_en" type="text" name="last_name_en" class="form-control @error('last_name_en') is-invalid @enderror"
                                    value="{{ old('last_name_en', $employee->last_name_en ?? '') }}" placeholder="Last Name" dir="ltr">
-                        </div>
-                    </div>
+                    @error('last_name_en') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                 </div>
 
                 {{-- Parents --}}
@@ -287,7 +280,7 @@
 
             <div class="table-responsive">
                 <table class="table table-bordered inline-table">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>اليوم</th>
                             <th>بداية الدوام</th>
@@ -328,7 +321,7 @@
             <h5 class="fw-bold mb-3">المؤهلات العلمية</h5>
             <div class="table-responsive">
                 <table class="table table-bordered inline-table" id="educations-table">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>المؤهل</th>
                             <th>الاختصاص</th>
@@ -348,7 +341,7 @@
                                 <td><input type="text" name="educations[{{ $loop->index }}][university]" class="form-control form-control-sm" value="{{ $edu->university }}"></td>
                                 <td><input type="text" name="educations[{{ $loop->index }}][grade]" class="form-control form-control-sm" value="{{ $edu->grade }}"></td>
                                 <td><input type="number" name="educations[{{ $loop->index }}][graduation_year]" class="form-control form-control-sm" value="{{ $edu->graduation_year }}"></td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
                             </tr>
                             @php $eduIndex = $loop->index + 1; @endphp
                             @endforeach
@@ -365,7 +358,7 @@
             <h5 class="fw-bold mb-3">معلومات التواصل</h5>
             <div class="table-responsive">
                 <table class="table table-bordered inline-table" id="contacts-table">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>النوع</th>
                             <th>القيمة</th>
@@ -392,7 +385,7 @@
                                     <input type="checkbox" name="contacts[{{ $loop->index }}][is_primary]" value="1" class="form-check-input"
                                            {{ $contact->is_primary ? 'checked' : '' }}>
                                 </td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
                             </tr>
                             @php $contactIndex = $loop->index + 1; @endphp
                             @endforeach
@@ -595,7 +588,7 @@
             <h5 class="fw-bold mb-3">التنبيهات</h5>
             <div class="table-responsive">
                 <table class="table table-bordered inline-table" id="warnings-table">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>التاريخ</th>
                             <th>السبب</th>
@@ -625,7 +618,7 @@
                                         <span class="badge bg-warning">غير مطوي</span>
                                     @endif
                                 </td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
                             </tr>
                             @php $warnIndex = $loop->index + 1; @endphp
                             @endforeach
@@ -642,7 +635,7 @@
             <h5 class="fw-bold mb-3">الملاحظات</h5>
             <div class="table-responsive">
                 <table class="table table-bordered inline-table" id="notes-table">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>الملاحظة</th>
                             <th></th>
@@ -656,7 +649,7 @@
                                     <textarea name="notes_list[{{ $loop->index }}][note]" rows="2" class="form-control form-control-sm">{{ $note->note }}</textarea>
                                     <small class="text-muted">{{ $note->user?->name }} - {{ $note->created_at->locale('ar')->diffForHumans() }}</small>
                                 </td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
                             </tr>
                             @endforeach
                         @endif
@@ -669,11 +662,11 @@
         </div>
     </div>
 
-    <div class="d-flex gap-2 mt-4">
-        <button type="submit" class="btn btn-primary btn-lg">
-            <i class="bi bi-check-lg me-1"></i> حفظ
+    <div class="d-grid d-sm-flex gap-2 mt-4 mb-4">
+        <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check-lg me-1" aria-hidden="true"></i> حفظ
         </button>
-        <a href="{{ route('admin.hr.employees.index') }}" class="btn btn-outline-secondary btn-lg">إلغاء</a>
+        <a href="{{ route('admin.hr.employees.index') }}" class="btn btn-outline-secondary px-4">إلغاء</a>
     </div>
 </form>
 @endsection
@@ -703,7 +696,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fields.forEach(function (f) {
             html += '<td>' + f + '</td>';
         });
-        html += '<td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>';
+        html += '<td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>';
         html += '</tr>';
         // Replace index placeholder
         html = html.replace(/INDEX/g, rowCount);
@@ -734,7 +727,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <td><input type="text" name="educations[` + idx + `][university]" class="form-control form-control-sm" placeholder="الجامعة"></td>
                 <td><input type="text" name="educations[` + idx + `][grade]" class="form-control form-control-sm" placeholder="التقدير"></td>
                 <td><input type="number" name="educations[` + idx + `][graduation_year]" class="form-control form-control-sm" placeholder="السنة"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
             </tr>
         `);
     });
@@ -756,7 +749,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </td>
                 <td><input type="text" name="contacts[` + idx + `][value]" class="form-control form-control-sm" placeholder="القيمة"></td>
                 <td class="text-center"><input type="checkbox" name="contacts[` + idx + `][is_primary]" value="1" class="form-check-input"></td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
             </tr>
         `);
     });
@@ -777,7 +770,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </select>
                 </td>
                 <td class="text-center">—</td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
             </tr>
         `);
     });
@@ -791,7 +784,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <td>
                     <textarea name="notes_list[` + idx + `][note]" rows="2" class="form-control form-control-sm" placeholder="ملاحظة"></textarea>
                 </td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-x"></i></button></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="إزالة" title="إزالة"><i class="bi bi-x" aria-hidden="true"></i></button></td>
             </tr>
         `);
     });

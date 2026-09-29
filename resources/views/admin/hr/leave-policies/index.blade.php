@@ -3,21 +3,19 @@
 @section('title', 'سياسات الإجازات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>سياسات الإجازات</h4>
-        <p>إدارة أنواع الإجازات وعدد أيامها السنوية</p>
-    </div>
+<x-page-header :title="'سياسات الإجازات'" :description="'إدارة أنواع الإجازات وعدد أيامها السنوية'"
+               :breadcrumb="[['label' => 'الموارد البشرية'], ['label' => 'سياسات الإجازات']]">
     @canPermission('App\Models\Admin\Hr\LeaveType', 'create')
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
         <i class="bi bi-plus-lg me-1"></i> إضافة نوع إجازة
     </button>
     @endcanPermission
-</div>
+</x-page-header>
 
 <div class="table-container">
+    <div class="table-responsive">
     <table class="table table-hover align-middle">
-        <thead class="table-light">
+        <thead>
             <tr>
                 <th>#</th>
                 <th>الاسم</th>
@@ -74,9 +72,7 @@
                         <form action="{{ route('admin.hr.leave-policies.destroy', $type) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
                             @csrf
                             @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger" title="حذف">
-                                <i class="bi bi-trash"></i>
-                            </button>
+                            <button class="btn btn-sm btn-outline-danger" title="حذف" aria-label="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </form>
                         @endcanPermission
                     </td>
@@ -88,6 +84,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 {{-- Create Modal --}}

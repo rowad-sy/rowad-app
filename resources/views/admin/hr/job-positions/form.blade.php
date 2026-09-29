@@ -3,13 +3,8 @@
 @section('title', isset($jobPosition) ? 'تعديل منصب وظيفي' : 'إضافة منصب وظيفي')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($jobPosition) ? 'تعديل المنصب الوظيفي' : 'إضافة منصب وظيفي' }}</h4>
-    <p>
-        <a href="{{ route('admin.hr.job-positions.index') }}" class="text-decoration-none">المناصب الوظيفية</a>
-        / {{ isset($jobPosition) ? $jobPosition->title_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($jobPosition) ? 'تعديل المنصب الوظيفي' : 'إضافة منصب وظيفي'"
+               :breadcrumb="[['label' => 'المناصب الوظيفية', 'url' => route('admin.hr.job-positions.index')], ['label' => isset($jobPosition) ? $jobPosition->title_ar : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-6">

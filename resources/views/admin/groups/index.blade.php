@@ -3,74 +3,62 @@
 @section('title', 'مجموعات المستخدمين')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>مجموعات المستخدمين</h4>
-        <p>إدارة مجموعات المستخدمين والصلاحيات</p>
-    </div>
+<x-page-header title="مجموعات المستخدمين" description="إدارة مجموعات المستخدمين والصلاحيات"
+               :breadcrumb="[['label' => 'الإدارة'], ['label' => 'المجموعات']]">
     <a href="{{ route('admin.groups.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> إضافة مجموعة
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> إضافة مجموعة
     </a>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2">
-            <div class="col-md-4">
-                <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="بحث عن مجموعة..." value="{{ $search }}">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
+    <x-filter-bar>
+        <div class="col-12 col-md-4 filter-field">
+            <label class="form-label" for="f-search">بحث</label>
+            <input type="search" id="f-search" name="search" class="form-control" placeholder="اسم المجموعة..." value="{{ $search }}">
+        </div>
+    </x-filter-bar>
 
-    <table class="table table-hover align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>#</th>
-                <th>اسم المجموعة</th>
-                <th>الوصف</th>
-                <th>عدد الأعضاء</th>
-                <th>الإجراءات</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($groups as $group)
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
                 <tr>
-                    <td>{{ $group->id }}</td>
-                    <td class="fw-medium">{{ $group->name }}</td>
-                    <td class="text-muted">{{ $group->description ?? '—' }}</td>
-                    <td>
-                        <span class="badge bg-info text-white">{{ $group->users_count }}</span>
-                    </td>
-                    <td>
-                        <a href="{{ route('admin.groups.edit', $group) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <x-audit-history :model="'App\Models\Admin\Group'" :model-id="$group->id" />
-                        <form method="POST" action="{{ route('admin.groups.destroy', $group) }}" class="d-inline"
-                              onsubmit="return confirm('هل أنت متأكد من حذف هذه المجموعة؟')">
-                            @csrf
-                            @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    </td>
+                    <th>#</th>
+                    <th>اسم المجموعة</th>
+                    <th>الوصف</th>
+                    <th>عدد الأعضاء</th>
+                    <th>الإجراءات</th>
                 </tr>
-            @empty
-                <tr>
-                    <td colspan="5" class="text-center py-4 text-muted">
-                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                        لا توجد مجموعات
-                    </td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @forelse ($groups as $group)
+                    <tr>
+                        <td class="num">{{ $group->id }}</td>
+                        <td class="fw-medium">{{ $group->name }}</td>
+                        <td class="text-muted">{{ $group->description ?? '—' }}</td>
+                        <td class="num"><x-status-badge tone="info">{{ $group->users_count }}</x-status-badge></td>
+                        <td class="text-nowrap">
+                            <div class="row-actions">
+                                <a href="{{ route('admin.groups.edit', $group) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل {{ $group->name }}" title="تعديل">
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                </a>
+                                <x-audit-history :model="'App\Models\Admin\Group'" :model-id="$group->id" />
+                                <form method="POST" action="{{ route('admin.groups.destroy', $group) }}"
+                                      onsubmit="return confirm('هل أنت متأكد من حذف هذه المجموعة؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="btn btn-sm btn-outline-danger" aria-label="حذف {{ $group->name }}" title="حذف">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <x-empty-row colspan="5" title="لا توجد مجموعات بعد" />
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 
     <div class="p-3">
         {{ $groups->links() }}

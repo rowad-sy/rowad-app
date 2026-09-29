@@ -3,15 +3,12 @@
 @section('title', 'معلومات ونصائح — إدارة المقررات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4><i class="bi bi-question-circle ms-1"></i> معلومات ونصائح — إدارة المقررات</h4>
-        <p>دليل شامل لطريقة العمل بصفحة إدارة المقررات: كيف تُضاف المقررات بكل ملحقاتها.</p>
-    </div>
+<x-page-header title="معلومات ونصائح — إدارة المقررات" description="دليل شامل لطريقة العمل بصفحة إدارة المقررات: كيف تُضاف المقررات بكل ملحقاتها."
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'إدارة المقررات', 'url' => route('admin.students.courses.index')], ['label' => 'معلومات ونصائح']]">
     <a href="{{ route('admin.students.courses.index') }}" class="btn btn-outline-primary">
-        <i class="bi bi-arrow-right me-1"></i> العودة لإدارة المقررات
+        <i class="bi bi-arrow-right me-1" aria-hidden="true"></i> العودة لإدارة المقررات
     </a>
-</div>
+</x-page-header>
 
 <div class="row g-3">
 

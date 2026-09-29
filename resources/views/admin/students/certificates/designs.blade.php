@@ -3,15 +3,12 @@
 @section('title', 'تصاميم الشهادات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>تصاميم الشهادات</h4>
-        <p>إدارة تصاميم الشهادات</p>
-    </div>
+<x-page-header title="تصاميم الشهادات" description="إدارة تصاميم الشهادات"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'الشهادات', 'url' => route('admin.students.certificates.index')], ['label' => 'التصاميم']]">
     <a href="{{ route('admin.students.certificates.designer.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> تصميم جديد
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> تصميم جديد
     </a>
-</div>
+</x-page-header>
 
 <div class="table-container mb-4">
     <form method="GET" action="{{ route('admin.students.certificates.designs') }}">

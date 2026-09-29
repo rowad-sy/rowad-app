@@ -4,7 +4,7 @@
 
 @push('styles')
 <style>
-    .export-bar { background: #f8f9fa; border-bottom: 1px solid #dee2e6; padding: 0.75rem 1rem; }
+    .export-bar { background: var(--color-surface-muted); border-bottom: 1px solid var(--color-border); padding: 0.75rem 1rem; }
     .export-bar .btn { font-size: 0.85rem; }
     .import-btn { position: relative; overflow: hidden; }
     .import-btn input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
@@ -12,32 +12,29 @@
 @endpush
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>الطلاب</h4>
-        <p>إدارة بيانات الطلاب</p>
-    </div>
-    <div class="d-flex gap-2">
-        <button type="button" class="btn btn-success" id="issueCertBtn" style="display:none;" onclick="issueCertificates()">
+<x-page-header :title="'الطلاب'" :description="'إدارة بيانات الطلاب'"
+               :breadcrumb="[['label' => 'الطلاب']]">
+    <button type="button" class="btn btn-success" id="issueCertBtn" style="display:none;" onclick="issueCertificates()">
             <i class="bi bi-file-earmark-check me-1"></i> إصدار شهادة
         </button>
-        <a href="{{ route('admin.students.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> إضافة طالب
-        </a>
-        <button type="button" class="btn btn-outline-primary import-btn" data-bs-toggle="modal" data-bs-target="#importModal">
-            <i class="bi bi-upload me-1"></i> استيراد
+    <a href="{{ route('admin.students.create') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> إضافة طالب
+    </a>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-three-dots" aria-hidden="true"></i> استيراد
         </button>
-        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#importFullModal">
-            <i class="bi bi-upload me-1"></i> استيراد كامل
-        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#importModal"><i class="bi bi-upload me-2" aria-hidden="true"></i>استيراد</button></li>
+            <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#importFullModal"><i class="bi bi-upload me-2" aria-hidden="true"></i>استيراد كامل</button></li>
+        </ul>
     </div>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-2">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالاسم أو الكود..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary" type="submit">
@@ -46,8 +43,8 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المركز</label>
+                <select name="center_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($centers as $center)
                         <option value="{{ $center->id }}" {{ (int)($centerId ?? '') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
@@ -55,8 +52,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">المشروع</label>
-                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المشروع</label>
+                <select name="project_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
@@ -64,8 +61,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">الفوج</label>
-                <select name="cohort_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الفوج</label>
+                <select name="cohort_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($cohorts as $cohort)
                         <option value="{{ $cohort->id }}" {{ (int)($cohortId ?? '') === $cohort->id ? 'selected' : '' }}>{{ $cohort->name }}</option>
@@ -73,8 +70,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">المقرر</label>
-                <select name="course_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المقرر</label>
+                <select name="course_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($courses as $course)
                         <option value="{{ $course->id }}" {{ (int)($courseId ?? '') === $course->id ? 'selected' : '' }}>{{ $course->name_ar }}</option>
@@ -82,8 +79,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">الحالة</label>
-                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select form-select-sm">
                     <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="active" {{ ($status ?? '') === 'active' ? 'selected' : '' }}>نشط</option>
                     <option value="inactive" {{ ($status ?? '') === 'inactive' ? 'selected' : '' }}>غير نشط</option>
@@ -92,19 +89,18 @@
                 </select>
             </div>
             <div class="col-md-1">
-                <label class="form-label small mb-1">الجنس</label>
-                <select name="gender" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الجنس</label>
+                <select name="gender" class="form-select form-select-sm">
                     <option value="all" {{ ($gender ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="male" {{ ($gender ?? '') === 'male' ? 'selected' : '' }}>ذكر</option>
                     <option value="female" {{ ($gender ?? '') === 'female' ? 'selected' : '' }}>أنثى</option>
                 </select>
             </div>
             <div class="col-md-1">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$perPage ?? 10" />
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$perPage ?? 10" />
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <form id="exportForm" method="POST" action="{{ route('admin.students.export') }}">
         @csrf
@@ -132,8 +128,8 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
                     <tr>
                         <th style="width:40px;"></th>
                         <th>الكود</th>
@@ -154,21 +150,17 @@
                                 <input type="checkbox" name="ids[]" value="{{ $student->id }}" class="form-check-input row-checkbox"
                                        data-student-id="{{ $student->id }}">
                             </td>
-                            <td><code>{{ $student->student_code }}</code></td>
+                            <td class="ltr-cell text-nowrap">{{ $student->student_code }}</td>
                             <td class="fw-medium">{{ $student->first_name_ar }} {{ $student->last_name_ar }}</td>
                             <td>
-                                @if ($student->gender === 'male')
-                                    <span class="badge bg-info text-white">ذكر</span>
-                                @else
-                                    <span class="badge bg-pink text-white">أنثى</span>
-                                @endif
+                                {{ $student->gender === 'male' ? 'ذكر' : 'أنثى' }}
                             </td>
-                            <td dir="ltr">{{ $student->phone ?? '—' }}</td>
+                            <td class="ltr-cell text-nowrap">{{ $student->phone ?? '—' }}</td>
                             <td>{{ $student->center?->name ?? '—' }}</td>
                             <td>
                                 @if ($student->projects->isNotEmpty())
                                     @foreach ($student->projects as $p)
-                                        <span class="badge bg-info me-1">{{ $p->name }}</span>
+                                        <x-status-badge tone="info" class="me-1">{{ $p->name }}</x-status-badge>
                                     @endforeach
                                 @else
                                     {{ $student->project?->name ?? '—' }}
@@ -176,29 +168,25 @@
                             </td>
                             <td>
                                 @if ($student->cohort)
-                                    <span class="badge bg-secondary">{{ $student->cohort->name }}</span>
+                                    <x-status-badge>{{ $student->cohort->name }}</x-status-badge>
                                 @else
                                     <span class="text-muted">—</span>
                                 @endif
                             </td>
                             <td>
                                 @if ($student->status === 'active')
-                                    <span class="badge bg-success">نشط</span>
+                                    <x-status-badge tone="success">نشط</x-status-badge>
                                 @elseif ($student->status === 'inactive')
-                                    <span class="badge bg-secondary">غير نشط</span>
+                                    <x-status-badge>غير نشط</x-status-badge>
                                 @elseif ($student->status === 'graduated')
-                                    <span class="badge bg-primary">متخرج</span>
+                                    <x-status-badge tone="brand">متخرج</x-status-badge>
                                 @elseif ($student->status === 'suspended')
-                                    <span class="badge bg-warning text-dark">موقوف</span>
+                                    <x-status-badge tone="warning">موقوف</x-status-badge>
                                 @endif
                             </td>
-                            <td>
-                                <a href="{{ route('admin.students.show', $student) }}" class="btn btn-sm btn-outline-info">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
+                            <td class="text-nowrap"><div class="row-actions">
+                                <a href="{{ route('admin.students.show', $student) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                                <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                                 <x-audit-history :model="'App\Models\Admin\Student\Student'" :model-id="$student->id" />
                                 <form method="POST" action="{{ route('admin.students.destroy', $student) }}" class="d-inline"
                                       onsubmit="return confirm('هل أنت متأكد من إزالة هذا الطالب من المشروع؟')">
@@ -207,19 +195,12 @@
                                     @if ($projectId)
                                         <input type="hidden" name="project_id" value="{{ $projectId }}">
                                     @endif
-                                    <button class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                                 </form>
-                            </td>
+                            </div></td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="11" class="text-center py-4 text-muted">
-                                <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                                لا يوجد طلاب
-                            </td>
-                        </tr>
+                        <x-empty-row colspan="10" icon="bi-mortarboard" title="لا يوجد طلاب بعد" />
                     @endforelse
                 </tbody>
             </table>

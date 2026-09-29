@@ -3,17 +3,14 @@
 @section('title', 'موقعو الشهادات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>موقعو الشهادات</h4>
-        <p>مكتبة الأسماء والتواقيع المستخدمة في الشهادات</p>
-    </div>
+<x-page-header :title="'موقعو الشهادات'" :description="'مكتبة الأسماء والتواقيع المستخدمة في الشهادات'"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'موقعو الشهادات']]">
     @canPermission('App\Models\Admin\Student\Certificate', 'create')
     <a href="{{ route('admin.students.certificates.signers.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة موقع
     </a>
     @endcanPermission
-</div>
+</x-page-header>
 
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item">
@@ -29,18 +26,17 @@
 </ul>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-3">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالاسم..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">الدور</label>
-                <select name="role" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الدور</label>
+                <select name="role" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach (\App\Models\Admin\Student\CertificateSigner::ROLES as $key => $label)
                         <option value="{{ $key }}" {{ $role === $key ? 'selected' : '' }}>{{ $label }}</option>
@@ -48,15 +44,14 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$signers->perPage()" />
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$signers->perPage()" />
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>الاسم</th>
@@ -80,27 +75,20 @@
                         </td>
                         <td>
                             @canPermission('App\Models\Admin\Student\Certificate', 'create')
-                            <a href="{{ route('admin.students.certificates.signers.edit', $signer) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            <a href="{{ route('admin.students.certificates.signers.edit', $signer) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             @endcanPermission
                             @canPermission('App\Models\Admin\Student\Certificate', 'delete')
                             <form method="POST" action="{{ route('admin.students.certificates.signers.destroy', $signer) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا الموقع؟')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">
-                            <i class="bi bi-person-x fs-3 d-block mb-2"></i>
-                            لا يوجد موقعون. أضف مدرباً ومديري مراكز ومشاريع مع صور تواقيعهم.
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="5" icon="bi-person-x" title="لا يوجد موقعون. أضف مدرباً ومديري مراكز ومشاريع مع صور تواقيعهم." />
                 @endforelse
             </tbody>
         </table>

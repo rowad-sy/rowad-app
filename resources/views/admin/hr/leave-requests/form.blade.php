@@ -3,13 +3,8 @@
 @section('title', 'طلب إجازة')
 
 @section('content')
-<div class="page-header">
-    <h4>طلب إجازة</h4>
-    <p>
-        <a href="{{ route('admin.hr.leave-requests.index') }}" class="text-decoration-none">طلبات الإجازات</a>
-        / طلب جديد
-    </p>
-</div>
+<x-page-header :title="'طلب إجازة'"
+               :breadcrumb="[['label' => 'طلبات الإجازات', 'url' => route('admin.hr.leave-requests.index')], ['label' => 'طلب جديد']]" />
 
 <div class="row">
     <div class="col-md-6">
@@ -57,8 +52,9 @@
                 </div>
 
                 @if ($balances->isNotEmpty())
-                <div class="mb-3 p-3 rounded" style="background:#f8f9fa;">
+                <div class="mb-3 p-3 rounded" style="background:var(--color-surface-muted);">
                     <label class="form-label fw-bold mb-2">رصيد الإجازات المتاح</label>
+                    <div class="table-responsive">
                     <table class="table table-sm table-borderless mb-0">
                         @foreach ($balances as $balance)
                             <tr>
@@ -75,6 +71,7 @@
                             </tr>
                         @endforeach
                     </table>
+                    </div>
                 </div>
                 @endif
 

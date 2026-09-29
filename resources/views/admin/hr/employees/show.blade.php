@@ -4,50 +4,46 @@
 
 @push('styles')
 <style>
-    .quick-link-card { transition: all 0.2s; border: 1px solid #e9ecef; cursor: pointer; }
-    .quick-link-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: #0d6efd; }
+    .quick-link-card { border: 1px solid var(--color-border); }
+    .quick-link-card:hover { border-color: var(--color-primary); }
     .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
-    .info-item { padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 6px; }
-    .info-item .label { font-size: 0.75rem; color: #6c757d; display: block; }
+    .info-item { padding: 0.5rem 0.75rem; background: var(--color-surface-muted); border-radius: 6px; min-width: 0; overflow-wrap: anywhere; }
+    .info-item .label { font-size: 0.75rem; color: var(--color-text-muted); display: block; }
     .info-item .value { font-size: 0.9rem; font-weight: 500; }
 </style>
 @endpush
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>{{ $employee->first_name_ar }} {{ $employee->last_name_ar }}</h4>
-        <p class="mb-0">
-            <i class="bi bi-person-badge me-1"></i> {{ $employee->employee_code }}
-            @if ($employee->status === 'active')
-                <span class="badge bg-success ms-2">نشط</span>
-            @else
-                <span class="badge bg-secondary ms-2">غير نشط</span>
-            @endif
-        </p>
-    </div>
-    <div class="d-flex gap-2">
-        <x-audit-history :model="'App\Models\Admin\Hr\Employee'" :model-id="$employee->id" />
-        @canPermission('App\Models\Admin\Hr\Employee', 'edit')
-        <a href="{{ route('admin.hr.employees.edit', $employee) }}" class="btn btn-outline-primary">
-            <i class="bi bi-pencil me-1"></i> تعديل
-        </a>
-        @endcanPermission
-        @canPermission('App\Models\Admin\Hr\Employee', 'view')
-        <a href="{{ route('admin.hr.employees.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-right me-1"></i> الموظفين
-        </a>
-        @endcanPermission
-    </div>
-</div>
+<x-page-header :title="$employee->first_name_ar . ' ' . $employee->last_name_ar"
+               :breadcrumb="[['label' => 'الموارد البشرية'], ['label' => 'الموظفين', 'url' => route('admin.hr.employees.index')], ['label' => $employee->first_name_ar . ' ' . $employee->last_name_ar]]">
+    <x-slot:meta>
+        {{-- ملخص الهوية والحالة والمعلومات الرئيسية (بيانات موجودة في الملف نفسه) --}}
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <x-status-badge><i class="bi bi-person-badge" aria-hidden="true"></i> <span class="ltr-cell d-inline-block">{{ $employee->employee_code }}</span></x-status-badge>
+            <x-status-badge :tone="$employee->status === 'active' ? 'success' : 'neutral'">{{ $employee->status === 'active' ? 'نشط' : 'غير نشط' }}</x-status-badge>
+            @if ($position?->title_ar)<x-status-badge tone="brand">{{ $position->title_ar }}</x-status-badge>@endif
+            @if ($employee->center)<x-status-badge><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ $employee->center->name }}</x-status-badge>@endif
+            @if ($employee->department)<x-status-badge><i class="bi bi-diagram-3" aria-hidden="true"></i> {{ $employee->department->name_ar }}</x-status-badge>@endif
+            @if ($employee->project)<x-status-badge><i class="bi bi-briefcase" aria-hidden="true"></i> {{ $employee->project->name }}</x-status-badge>@endif
+        </div>
+    </x-slot:meta>
+    @canPermission('App\Models\Admin\Hr\Employee', 'edit')
+    <a href="{{ route('admin.hr.employees.edit', $employee) }}" class="btn btn-primary">
+        <i class="bi bi-pencil me-1" aria-hidden="true"></i> تعديل
+    </a>
+    @endcanPermission
+    <x-audit-history :model="'App\Models\Admin\Hr\Employee'" :model-id="$employee->id" />
+    @canPermission('App\Models\Admin\Hr\Employee', 'view')
+    <a href="{{ route('admin.hr.employees.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-right me-1" aria-hidden="true"></i> قائمة الموظفين
+    </a>
+    @endcanPermission
+</x-page-header>
 
 {{-- Navigation Quick Links --}}
 @if ($navLinks->isNotEmpty())
-<div class="mb-4">
-    <div class="d-flex align-items-center gap-2 mb-3">
-        <div class="bg-primary" style="width: 4px; height: 24px; border-radius: 2px;"></div>
-        <h5 class="mb-0 fw-bold">روابط سريعة</h5>
-    </div>
+<x-fold title="روابط سريعة" icon="bi-lightning" :count="$navLinks->count()">
+    <div class="p-3">
     <div class="row g-2">
         @foreach ($navLinks as $link)
         <div class="col-6 col-md-4 col-lg-3 col-xl-2">
@@ -55,14 +51,15 @@
                 <div class="card quick-link-card h-100">
                     <div class="card-body text-center py-3">
                         <div class="fs-4 mb-1 text-primary"><i class="bi {{ $link['icon'] }}"></i></div>
-                        <small class="text-dark">{{ $link['label'] }}</small>
+                        <small>{{ $link['label'] }}</small>
                     </div>
                 </div>
             </a>
         </div>
         @endforeach
     </div>
-</div>
+    </div>
+</x-fold>
 @endif
 
 <div class="row g-3">
@@ -76,7 +73,7 @@
                 <div class="info-grid">
                     <div class="info-item">
                         <span class="label">كود الموظف</span>
-                        <span class="value"><code>{{ $employee->employee_code }}</code></span>
+                        <span class="value ltr-cell d-inline-block">{{ $employee->employee_code }}</span>
                     </div>
                     <div class="info-item">
                         <span class="label">الاسم AR</span>
@@ -163,7 +160,7 @@
             <div class="p-3">
                 @if ($employee->user)
                     <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="badge bg-success fs-6">مرتبط</span>
+                        <x-status-badge tone="success">مرتبط</x-status-badge>
                     </div>
                     <div class="info-grid" style="grid-template-columns:1fr;">
                         <div class="info-item">
@@ -177,11 +174,7 @@
                         <div class="info-item">
                             <span class="label">الحالة</span>
                             <span class="value">
-                                @if ($employee->user->is_active)
-                                    <span class="badge bg-success">نشط</span>
-                                @else
-                                    <span class="badge bg-secondary">موقوف</span>
-                                @endif
+                                <x-status-badge :tone="$employee->user->is_active ? 'success' : 'neutral'">{{ $employee->user->is_active ? 'نشط' : 'موقوف' }}</x-status-badge>
                             </span>
                         </div>
                     </div>
@@ -208,7 +201,7 @@
                 @if ($todaySchedule)
                     @if ($todaySchedule->is_day_off)
                         <div class="text-center py-2">
-                            <span class="badge bg-info fs-6">إجازة أسبوعية</span>
+                            <x-status-badge tone="info">إجازة أسبوعية</x-status-badge>
                         </div>
                     @else
                         <div class="text-center">

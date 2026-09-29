@@ -6,17 +6,18 @@
 <style>
     .matrix-wrap { overflow-x: auto; }
     .matrix { white-space: nowrap; font-size: 0.9rem; }
-    .matrix th.cat-head { background: #eef1f4; text-align: center; font-size: 0.95rem; }
-    .matrix th.model-head { background: #f8f9fa; font-weight: 600; text-align: center; font-size: 0.85rem; }
+    .matrix { --bs-table-bg: var(--color-card); --bs-table-color: var(--color-text-main); --bs-table-border-color: var(--color-border); }
+    .matrix th.cat-head { background: var(--color-surface-muted); color: var(--color-text-main); text-align: center; font-size: 0.95rem; }
+    .matrix th.model-head { background: var(--color-surface-muted); color: var(--color-text-main); font-weight: 600; text-align: center; font-size: 0.85rem; }
     .matrix td.perm-cell { min-width: 150px; vertical-align: top; text-align: right; }
     .matrix th.row-col,
     .matrix td.row-col {
         position: sticky;
         right: 0;
         z-index: 3;
-        background: #fff;
+        background: var(--color-card);
         min-width: 340px;
-        box-shadow: -2px 0 4px rgba(0,0,0,0.06);
+        box-shadow: -2px 0 4px rgba(0,0,0,0.12);
     }
     .matrix thead th.row-col { z-index: 4; }
     .perm-cell .perm-flag {
@@ -31,19 +32,14 @@
     .row-col .form-select { font-size: 0.9rem; }
     .row-col .btn-group .btn { font-size: 0.9rem; }
     .row-actions { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
-    .cat-select-all, .row-select-all { font-size: 0.85rem; cursor: pointer; color: #0d6efd; }
+    .cat-select-all, .row-select-all { font-size: 0.85rem; cursor: pointer; color: var(--color-primary-text); }
     .cat-select-all:hover, .row-select-all:hover { text-decoration: underline; }
 </style>
 @endpush
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($permission) ? 'تعديل الصلاحيات' : 'إضافة صلاحيات' }}</h4>
-    <p>
-        <a href="{{ route('admin.permissions.index') }}" class="text-decoration-none">الصلاحيات</a>
-        / {{ isset($permission) ? 'تعديل' : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($permission) ? 'تعديل الصلاحيات' : 'إضافة صلاحيات'"
+               :breadcrumb="[['label' => 'الصلاحيات', 'url' => route('admin.permissions.index')], ['label' => isset($permission) ? 'تعديل' : 'جديد']]" />
 
 @php
     $gridRows = [];
@@ -132,16 +128,17 @@
                     <i class="bi bi-person-plus me-1"></i> إضافة عنصر (مستخدم/مجموعة)
                 </button>
                 <button type="button" class="btn btn-outline-primary btn-sm" onclick="setAllFlags(true)">
-                    <i class="bi bi-check2-square me-1"></i> تحديد الكل
+                    <i class="bi bi-check2-square me-1" aria-hidden="true"></i> تحديد كل الخلايا
                 </button>
                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllFlags(false)">
-                    إلغاء التحديد
+                    إلغاء تحديد كل الخلايا
                 </button>
             </div>
 
             {{-- شبكة المصفوفة --}}
             <div class="form-card">
                 <div class="matrix-wrap">
+                    <div class="table-responsive">
                     <table class="table table-bordered table-sm matrix align-middle mb-0">
                         <thead>
                             <tr>
@@ -149,8 +146,8 @@
                                 @foreach ($modelGroups as $category => $models)
                                     <th class="cat-head" colspan="{{ count($models) }}">
                                         {{ $category }}
-                                        <a href="#" class="d-block cat-select-all" data-cat="{{ $loop->index }}"
-                                           onclick="event.preventDefault(); setCatAll({{ $loop->index }}, true)">تحديد الكل</a>
+                                        <button type="button" class="btn btn-link btn-sm p-0 d-block mx-auto cat-select-all" data-cat="{{ $loop->index }}"
+                                           onclick="setCatAll({{ $loop->index }}, true)">تحديد الفئة</button>
                                     </th>
                                 @endforeach
                             </tr>
@@ -175,6 +172,7 @@
                             @endforeach
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 @error('rows')
@@ -189,9 +187,9 @@
                 </small>
             </div>
 
-            <div class="d-flex gap-2 mt-3">
+            <div class="d-grid d-sm-flex gap-2 mt-3">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-lg me-1"></i> حفظ
+                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i> حفظ
                 </button>
                 <a href="{{ route('admin.permissions.index') }}" class="btn btn-outline-secondary">إلغاء</a>
             </div>
