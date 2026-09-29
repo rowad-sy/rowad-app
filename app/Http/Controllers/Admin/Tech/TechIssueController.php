@@ -8,6 +8,7 @@ use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Project;
 use App\Models\Admin\Tech\TechIssue;
 use App\Models\User;
+use App\Support\RecordAccess;
 use Illuminate\Http\Request;
 
 class TechIssueController extends Controller
@@ -16,7 +17,7 @@ class TechIssueController extends Controller
     {
         $this->middleware('permission:App\Models\Admin\Tech\TechIssue,view')->only(['index', 'show']);
         $this->middleware('permission:App\Models\Admin\Tech\TechIssue,create')->only(['create', 'store']);
-        $this->middleware('permission:App\Models\Admin\Tech\TechIssue,edit')->only(['edit', 'update']);
+        $this->middleware('permission:App\Models\Admin\Tech\TechIssue,edit')->only(['edit', 'update', 'respond']);
         $this->middleware('permission:App\Models\Admin\Tech\TechIssue,delete')->only(['destroy']);
     }
 
@@ -81,6 +82,7 @@ class TechIssueController extends Controller
         $validated['reported_by'] = auth()->id();
         $validated['status'] = 'open';
 
+        RecordAccess::authorizeTarget(TechIssue::class, 'create', $validated['center_id'] ?? null, $validated['project_id'] ?? null);
         TechIssue::create($validated);
 
         return redirect()->route('admin.tech.issues.index')
@@ -89,12 +91,14 @@ class TechIssueController extends Controller
 
     public function show(TechIssue $issue)
     {
+        RecordAccess::authorize(TechIssue::class, 'view', $issue->center_id, $issue->project_id, $issue->id);
         $issue->load(['center', 'project', 'reporter', 'assignee']);
         return view('admin.tech.issues.show', compact('issue'));
     }
 
     public function edit(TechIssue $issue)
     {
+        RecordAccess::authorize(TechIssue::class, 'edit', $issue->center_id, $issue->project_id, $issue->id);
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
@@ -104,6 +108,7 @@ class TechIssueController extends Controller
 
     public function update(Request $request, TechIssue $issue)
     {
+        RecordAccess::authorize(TechIssue::class, 'edit', $issue->center_id, $issue->project_id, $issue->id);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -114,6 +119,7 @@ class TechIssueController extends Controller
             'status' => 'required|in:open,in_progress,completed,blocked',
         ]);
 
+        RecordAccess::authorizeTarget(TechIssue::class, 'edit', $validated['center_id'] ?? null, $validated['project_id'] ?? null, $issue->id);
         $issue->update($validated);
 
         return redirect()->route('admin.tech.issues.index')
@@ -122,6 +128,7 @@ class TechIssueController extends Controller
 
     public function destroy(TechIssue $issue)
     {
+        RecordAccess::authorize(TechIssue::class, 'delete', $issue->center_id, $issue->project_id, $issue->id);
         $issue->delete();
 
         return redirect()->route('admin.tech.issues.index')
@@ -130,6 +137,7 @@ class TechIssueController extends Controller
 
     public function respond(Request $request, TechIssue $issue)
     {
+        RecordAccess::authorize(TechIssue::class, 'edit', $issue->center_id, $issue->project_id, $issue->id);
         $validated = $request->validate([
             'admin_response' => 'required|string',
             'status' => 'required|in:open,in_progress,completed,blocked',

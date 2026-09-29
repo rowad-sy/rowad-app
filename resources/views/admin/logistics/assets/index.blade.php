@@ -96,18 +96,18 @@
                         </td>
                         <td>{{ $asset->recipient?->name ?? '—' }}</td>
                         <td>
-                            @canPermission('App\Models\Admin\Logistics\Asset', 'edit')
+                            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Logistics\Asset', 'edit', $asset->center_id, $asset->project_id, $asset->id))
                             <a href="{{ route('admin.logistics.assets.edit', $asset) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
-                            @endcanPermission
+                            @endif
                             <x-audit-history :model="'App\Models\Admin\Logistics\Asset'" :model-id="$asset->id" />
-                            @canPermission('App\Models\Admin\Logistics\Asset', 'delete')
+                            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Logistics\Asset', 'delete', $asset->center_id, $asset->project_id, $asset->id))
                             <form method="POST" action="{{ route('admin.logistics.assets.destroy', $asset) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا الأصل؟')">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
-                            @endcanPermission
+                            @endif
                         </td>
                     </tr>
                 @empty

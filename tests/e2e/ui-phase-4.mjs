@@ -139,6 +139,42 @@ await section('5', async () => {
   await ctx.close();
 });
 
+// 6) نطاق السجل والإذن في التقنية والأصول بمتصفح فعلي: عرض فقط، مقيّد بمركز، ومخوّل
+await section('6', async () => {
+  const stamp = Date.now().toString().slice(-6);
+  // عرض فقط
+  let { ctx, p } = await ctxFor('readonly@test.local');
+  let r = await p.goto(BASE + '/admin/tech/issues/1');
+  ok('عرض فقط: تُفتح تفاصيل التذكرة', r.status() === 200);
+  ok('عرض فقط: لا نموذج رد ولا رابط تعديل', (await p.locator('form[action*="/respond"]').count()) === 0 && (await p.locator('a[href$="/issues/1/edit"]').count()) === 0);
+  r = await p.goto(BASE + '/admin/tech/issues/1/edit'); ok('عرض فقط: رابط التعديل المباشر مرفوض من الخادم', r.status() === 403);
+  await ctx.close();
+  // مقيّد بمركز 1
+  ({ ctx, p } = await ctxFor('scoped@test.local'));
+  r = await p.goto(BASE + '/admin/tech/issues/1'); ok('مقيّد: تذكرة مركزه تُفتح', r.status() === 200);
+  ok('مقيّد: يظهر نموذج الرد ورابط التعديل داخل نطاقه', (await p.locator('form[action*="/respond"]').count()) === 1 && (await p.locator('a[href$="/issues/1/edit"]').count()) === 1);
+  await p.fill('textarea[name=admin_response]', 'رد E2E ' + stamp);
+  await p.selectOption('select[name=status]', 'in_progress');
+  await p.click('form[action*="/respond"] button[type=submit]'); await p.waitForLoadState('load');
+  ok('مقيّد: الرد المسموح يُحفظ ويظهر', (await p.textContent('body')).includes('رد E2E ' + stamp));
+  r = await p.goto(BASE + '/admin/tech/issues/2'); ok('مقيّد: تذكرة مركز آخر (مباشرة) مرفوضة 403', r.status() === 403);
+  ok('مقيّد: صفحة الرفض لا تكشف بيانات التذكرة', !(await p.textContent('body')).includes('طلب تثبيت برنامج'));
+  await p.goto(BASE + '/admin/tech/issues'); ok('مقيّد: القائمة لا تعرض تذكرة المركز الآخر', !(await p.textContent('body')).includes('طلب تثبيت برنامج'));
+  r = await p.goto(BASE + '/admin/logistics/assets/2'); ok('مقيّد: أصل مركز آخر مرفوض 403', r.status() === 403);
+  ok('مقيّد: لا كشف لبيانات الأصل المرفوض', !(await p.textContent('body')).includes('طاولة اجتماعات'));
+  await p.goto(BASE + '/admin/logistics/assets'); ok('مقيّد: قائمة الأصول تعرض أصل مركزه فقط', (await p.textContent('body')).includes('حاسوب محمول') && !(await p.textContent('body')).includes('طاولة اجتماعات'));
+  r = await p.goto(BASE + '/admin/logistics/assets/1'); ok('مقيّد: تفاصيل أصل مركزه تُفتح', r.status() === 200);
+  await p.screenshot({ path: `${OUT}/scoped-asset-show-1440-light.png` });
+  await ctx.close();
+  // مخوّل بلا نطاق
+  ({ ctx, p } = await ctxFor('ops@test.local'));
+  r = await p.goto(BASE + '/admin/tech/issues/2'); ok('مخوّل: تفاصيل تذكرة أي مركز تُفتح', r.status() === 200);
+  await p.fill('textarea[name=admin_response]', 'رد المخوّل ' + stamp); await p.click('form[action*="/respond"] button[type=submit]'); await p.waitForLoadState('load');
+  ok('مخوّل: الرد والتعديل المسموحان يعملان', (await p.textContent('body')).includes('رد المخوّل ' + stamp));
+  r = await p.goto(BASE + '/admin/logistics/assets/2'); ok('مخوّل: أصل أي مركز يُعرض', r.status() === 200);
+  await ctx.close();
+});
+
 await browser.close();
 console.log(results.join('\n'));
 console.log(`\n${results.filter((r) => r.startsWith('PASS')).length} passed, ${results.filter((r) => r.startsWith('FAIL')).length} failed`);

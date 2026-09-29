@@ -66,11 +66,11 @@
             </div>
 
             <div class="d-flex gap-2">
-                @canPermission('App\Models\Admin\Tech\TechEquipment', 'edit')
+                @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Tech\TechEquipment', 'edit', $equipment->center_id, $equipment->project_id, $equipment->id))
                 <a href="{{ route('admin.tech.equipment.edit', $equipment) }}" class="btn btn-primary">
                     <i class="bi bi-pencil me-1"></i> تعديل
                 </a>
-                @endcanPermission
+                @endif
                 <a href="{{ route('admin.tech.equipment.index') }}" class="btn btn-outline-secondary">
                     العودة
                 </a>

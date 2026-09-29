@@ -4,9 +4,9 @@
 
 @section('logistics-content')
 <x-page-header :title="$asset->name" :breadcrumb="[['label' => 'الأصول', 'url' => route('admin.logistics.assets.index')], ['label' => $asset->name]]">
-    @canPermission('App\Models\Admin\Logistics\Asset', 'edit')
+    @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Logistics\Asset', 'edit', $asset->center_id, $asset->project_id, $asset->id))
         <a href="{{ route('admin.logistics.assets.edit', $asset) }}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> تعديل</a>
-    @endcanPermission
+    @endif
     <x-audit-history :model="'App\Models\Admin\Logistics\Asset'" :model-id="$asset->id" />
     <a href="{{ route('admin.logistics.assets.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
 </x-page-header>

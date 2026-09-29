@@ -105,18 +105,18 @@
                         <td>{{ $item->center?->name ?? '—' }}</td>
                         <td>{{ $item->project?->name ?? '—' }}</td>
                         <td>
-                            @canPermission('App\Models\Admin\Tech\TechEquipment', 'edit')
+                            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Tech\TechEquipment', 'edit', $item->center_id, $item->project_id, $item->id))
                             <a href="{{ route('admin.tech.equipment.edit', $item) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
-                            @endcanPermission
+                            @endif
                             <x-audit-history :model="'App\Models\Admin\Tech\TechEquipment'" :model-id="$item->id" />
-                            @canPermission('App\Models\Admin\Tech\TechEquipment', 'delete')
+                            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Tech\TechEquipment', 'delete', $item->center_id, $item->project_id, $item->id))
                             <form method="POST" action="{{ route('admin.tech.equipment.destroy', $item) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه المعدة؟')">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
-                            @endcanPermission
+                            @endif
                         </td>
                     </tr>
                 @empty
