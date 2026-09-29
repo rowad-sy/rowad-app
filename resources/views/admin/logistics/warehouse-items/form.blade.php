@@ -36,7 +36,8 @@
                         <label class="form-label">الكمية <span class="text-danger">*</span></label>
                         <input type="number" name="quantity"
                                class="form-control @error('quantity') is-invalid @enderror"
-                               value="{{ old('quantity', $item->quantity ?? '1') }}" required min="0" step="any">
+                               value="{{ old('quantity', $item->quantity ?? '1') }}" required min="0" step="1" inputmode="numeric" aria-describedby="quantityHelp">
+                        <div class="form-text" id="quantityHelp">عدد صحيح (0 أو أكبر)؛ لا تُقبل الكسور.</div>
                         @error('quantity') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-6">

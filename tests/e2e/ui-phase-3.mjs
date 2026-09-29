@@ -168,6 +168,56 @@ await section('4', async () => {
   await ctx.close();
 });
 
+// ============ 7) طلب شراء: مفاتيح غير متتابعة، خطأ خادم حقيقي بجوار الحقل، ثم التصحيح والحفظ ============
+await section('6', async () => {
+  const { ctx, p } = await login('ops@test.local');
+  const special = 'بند "أول" <b>x</b> & \'y\'';
+  for (const w of [390, 768, 1440]) {
+    await p.setViewportSize({ width: w, height: 900 });
+    await p.goto(BASE + '/admin/logistics/purchase-requests/create');
+    await p.selectOption('select[name=center_id]', { index: 1 });
+    await p.selectOption('select[name=project_id]', { index: 1 });
+    await p.click('button:has-text("إضافة بند")'); await p.click('button:has-text("إضافة بند")'); // مفاتيح 0,1,2
+    await p.locator('#itemsBody .item-row[data-key="1"] .btn-outline-danger').click();            // حذف 1
+    await p.click('button:has-text("إضافة بند")');                                                  // مفتاح 3
+    const keys = await p.$$eval('#itemsBody .item-row', (r) => r.map((x) => x.dataset.key));
+    ok(`[${w}] طلب شراء: المفاتيح بعد إضافة/حذف/إضافة غير متتابعة وفريدة`, keys.join(',') === '0,2,3', keys.join(','));
+    const fill = async (k, d, q, u, pr, n) => { const r = p.locator(`#itemsBody .item-row[data-key="${k}"]`); await r.locator('.item-desc').fill(d); await r.locator('.item-qty').fill(q); await r.locator('.item-unit').fill(u); await r.locator('.item-price').fill(pr); if (n) await r.locator('.item-notes').fill(n); };
+    await fill(0, special, '4', 'علبة', '2.5', 'ملاحظة');
+    await fill(2, '', '0', 'قطعة', '10');   // وصف فارغ + كمية صفر: أخطاء خادم حقيقية
+    await fill(3, 'بند ثالث', '3', 'كرتون', '1.25');
+    await p.evaluate(() => { document.querySelector('form:has(#itemsBody)').noValidate = true; });
+    await p.click('form:has(#itemsBody) button[type=submit]');
+    await p.waitForLoadState('load');
+    const after = await p.$$eval('#itemsBody .item-row', (r) => r.map((x) => x.dataset.key));
+    ok(`[${w}] بعد فشل الخادم: المفاتيح الأصلية محفوظة`, after.join(',') === '0,2,3', after.join(','));
+    ok(`[${w}] القيم كما أُرسلت (نص خاص، صفر، فارغ)`, (await p.inputValue('#pr-item-0-description')) === special && (await p.inputValue('#pr-item-2-quantity')) === '0' && (await p.inputValue('#pr-item-2-description')) === '');
+    const fb = await p.$eval('#pr-item-2-description', (el) => ({ inv: el.getAttribute('aria-invalid'), d: el.getAttribute('aria-describedby'), txt: document.getElementById(el.getAttribute('aria-describedby') || 'x')?.textContent || '' }));
+    ok(`[${w}] خطأ الوصف بجوار الحقل الصحيح ومربوط (aria-invalid/describedby)`, fb.inv === 'true' && fb.d === 'pr-item-2-description-error' && fb.txt.includes('وصف البند'), JSON.stringify(fb));
+    const fq = await p.$eval('#pr-item-2-quantity', (el) => document.getElementById(el.getAttribute('aria-describedby') || 'x')?.textContent || '');
+    ok(`[${w}] خطأ الكمية عند المفتاح 2`, fq.includes('كمية البند'), fq);
+    ok(`[${w}] لا أخطاء على البنود السليمة`, (await p.locator('#itemsBody .item-row[data-key="0"] .is-invalid, #itemsBody .item-row[data-key="3"] .is-invalid').count()) === 0);
+    ok(`[${w}] التركيز على أول حقل خاطئ`, (await p.evaluate(() => document.activeElement && document.activeElement.id)) === 'pr-item-2-description');
+    await p.click('button:has-text("إضافة بند")');
+    const names = await p.$$eval('#itemsBody [name]', (e) => e.map((x) => x.name));
+    ok(`[${w}] إضافة بند بعد الخطأ: مفتاح جديد 4 بلا تكرار`, (await p.$$eval('#itemsBody .item-row', (r) => r.map((x) => x.dataset.key))).join(',') === '0,2,3,4' && new Set(names).size === names.length);
+    ok(`[${w}] الجدول يمرّر محليًا بلا تمرير أفقي للصفحة`, (await hscroll(p)) === 0);
+    await p.screenshot({ path: `${OUT}/purchase-request-form-errors-${w}-light.png`, fullPage: false });
+    if (w === 1440) { await theme(p, 'dark'); await p.screenshot({ path: `${OUT}/purchase-request-form-errors-1440-dark.png`, fullPage: false }); await theme(p, 'light'); }
+    if (w === 390 || w === 768) { await theme(p, 'dark'); ok(`[${w}] داكن: بلا تمرير أفقي`, (await hscroll(p)) === 0); await theme(p, 'light'); }
+    // تصحيح ثم حفظ فعلي
+    await p.locator('#itemsBody .item-row[data-key="4"] .btn-outline-danger').click();
+    await p.fill('#pr-item-2-description', 'بند ثانٍ مصحّح'); await p.fill('#pr-item-2-quantity', '2');
+    await p.click('form:has(#itemsBody) button[type=submit]');
+    await p.waitForLoadState('load');
+    const ids = await p.$$eval('a[href*="/purchase-requests/"]', (a) => a.map((x) => (x.getAttribute('href').match(/purchase-requests\/(\d+)$/) || [])[1]).filter(Boolean).map(Number));
+    await p.goto(BASE + '/admin/logistics/purchase-requests/' + Math.max(...ids));
+    const body = await p.textContent('body');
+    ok(`[${w}] بعد التصحيح: حُفظ الطلب وظهرت البنود والإجمالي الصحيح (10+20+3.75=33.75)`, /33\.75/.test(body) && body.includes('بند ثانٍ مصحّح') && body.includes('بند ثالث') && body.includes('<b>x</b>'), new URL(p.url()).pathname);
+  }
+  await ctx.close();
+});
+
 // ============ 6) لقطات تمثيلية ============
 await section('5', async () => {
   const { ctx, p } = await login('admin@test.local');

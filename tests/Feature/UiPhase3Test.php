@@ -177,3 +177,95 @@ test('tasks statistics view renders with shared KPI cards (view-only test: the c
     expect($html)->toContain('class="kpi tone-brand"')->toContain('إجمالي المهام')->toContain('لم تنفذ')
         ->and(str_contains($html, 'stat-card'))->toBeFalse();
 });
+
+test('warehouse item routes reject an item that belongs to another warehouse, before any change or archive record', function () {
+    $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
+    [$c1] = p3Centers();
+    $w1 = Warehouse::create(['name' => 'مخزن أول', 'center_id' => $c1->id]);
+    $w2 = Warehouse::create(['name' => 'مخزن ثانٍ', 'center_id' => $c1->id]);
+    $item = WarehouseItem::create(['warehouse_id' => $w2->id, 'name' => 'مادة المخزن الثاني', 'quantity' => 9, 'unit' => 'علبة', 'description' => 'وصف']);
+
+    $this->actingAs($admin)->get(route('admin.logistics.warehouses.items.edit', [$w1, $item]))->assertNotFound();
+    $this->actingAs($admin)->put(route('admin.logistics.warehouses.items.update', [$w1, $item]), ['name' => 'مخترقة', 'quantity' => 1, 'unit' => 'س'])->assertNotFound();
+    $this->actingAs($admin)->post(route('admin.logistics.warehouses.items.destroy', [$w1, $item]), ['delete_reason' => 'سبب'])->assertNotFound();
+
+    $item->refresh();
+    expect($item->name)->toBe('مادة المخزن الثاني')->and($item->quantity)->toBe(9)->and($item->unit)->toBe('علبة')->and(WarehouseItem::find($item->id))->not->toBeNull()
+        ->and(DeletedItem::count())->toBe(0);
+
+    // التعديل والحذف الصحيحان من المخزن الأصلي
+    $this->actingAs($admin)->get(route('admin.logistics.warehouses.items.edit', [$w2, $item]))->assertOk()->assertSee('مادة المخزن الثاني');
+    $this->actingAs($admin)->put(route('admin.logistics.warehouses.items.update', [$w2, $item]), ['name' => 'مادة معدلة', 'quantity' => 4, 'unit' => 'كرتون', 'description' => 'وصف'])->assertRedirect();
+    expect($item->fresh()->name)->toBe('مادة معدلة')->and($item->fresh()->quantity)->toBe(4);
+
+    $this->actingAs($admin)->post(route('admin.logistics.warehouses.items.destroy', [$w2, $item]), ['delete_reason' => 'تالفة'])->assertRedirect();
+    expect(WarehouseItem::find($item->id))->toBeNull();
+    $rec = DeletedItem::sole();
+    expect($rec->warehouse_id)->toBe($w2->id)->and($rec->item_name)->toBe('مادة معدلة')->and($rec->quantity)->toBe(4)
+        ->and($rec->unit)->toBe('كرتون')->and($rec->delete_reason)->toBe('تالفة')->and(DeletedItem::where('warehouse_id', $w1->id)->count())->toBe(0);
+});
+
+test('a view-only user cannot edit, update or delete warehouse items', function () {
+    $viewer = p3User([], ['can_create' => false, 'can_edit' => false, 'can_delete' => false]);
+    [$c1] = p3Centers();
+    $w = Warehouse::create(['name' => 'مخزن', 'center_id' => $c1->id]);
+    $item = WarehouseItem::create(['warehouse_id' => $w->id, 'name' => 'مادة', 'quantity' => 3, 'unit' => 'قطعة']);
+
+    $this->actingAs($viewer)->get(route('admin.logistics.warehouses.items.edit', [$w, $item]))->assertForbidden();
+    $this->actingAs($viewer)->put(route('admin.logistics.warehouses.items.update', [$w, $item]), ['name' => 'x', 'quantity' => 1, 'unit' => 'y'])->assertForbidden();
+    $this->actingAs($viewer)->post(route('admin.logistics.warehouses.items.destroy', [$w, $item]), ['delete_reason' => 'س'])->assertForbidden();
+    expect($item->fresh()->name)->toBe('مادة')->and(DeletedItem::count())->toBe(0);
+});
+
+test('a fractional warehouse item quantity is rejected by the real form path, keeping the typed value and the stored quantity', function () {
+    $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
+    [$c1] = p3Centers();
+    $w = Warehouse::create(['name' => 'مخزن', 'center_id' => $c1->id]);
+    $item = WarehouseItem::create(['warehouse_id' => $w->id, 'name' => 'مادة', 'quantity' => 5, 'unit' => 'قطعة']);
+
+    $page = $this->actingAs($admin)->from(route('admin.logistics.warehouses.items.edit', [$w, $item]))
+        ->followingRedirects()
+        ->put(route('admin.logistics.warehouses.items.update', [$w, $item]), ['name' => 'مادة', 'quantity' => '2.5', 'unit' => 'قطعة']);
+    $page->assertOk()->assertSee('value="2.5"', false)->assertSee('step="1"', false);
+    expect($item->fresh()->quantity)->toBe(5);
+
+    $this->actingAs($admin)->post(route('admin.logistics.warehouses.items.store', $w), ['name' => 'جديدة', 'quantity' => '0.5', 'unit' => 'ق'])->assertSessionHasErrors('quantity');
+    expect(WarehouseItem::where('name', 'جديدة')->count())->toBe(0);
+});
+
+test('purchase request failed save keeps original item keys, values and per-field errors in the re-rendered form (real failed request)', function () {
+    $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
+    [$c1] = p3Centers();
+    $project = Project::create(['name' => 'مشروع']);
+    $items = [
+        3 => ['description' => 'بند "أول" <b>&</b>', 'quantity' => '0', 'unit' => 'علبة', 'unit_price' => '2.5', 'budget_line' => '', 'notes' => ''],
+        7 => ['description' => '', 'quantity' => '2', 'unit' => 'قطعة', 'unit_price' => 'abc', 'budget_line' => '', 'notes' => "ملاحظة 'خاصة'"],
+    ];
+
+    $res = $this->actingAs($admin)->from(route('admin.logistics.purchase-requests.create'))->followingRedirects()
+        ->post(route('admin.logistics.purchase-requests.store'), ['center_id' => $c1->id, 'project_id' => $project->id, 'items' => $items]);
+    $res->assertOk();
+    $html = $res->getContent();
+
+    // المفاتيح الأصلية 3 و7 (لا إعادة ترقيم) والقيم كما أُرسلت (الصفر والنص غير الصالح والفارغ)
+    expect($html)->toContain('"key":"3"')->toContain('"key":"7"')->toContain('"quantity":"0"')->toContain('"unit_price":"abc"')->toContain('"description":null')
+        ->and($html)->not->toContain('"key":"0"')->and($html)->not->toContain('"key":"1"')
+        // أخطاء الخادم مرتبطة بالمفاتيح الأصلية
+        ->and($html)->toContain('"items.3.quantity"')->toContain('"items.7.description"')->toContain('"items.7.unit_price"')
+        // النص الخاص يُنقل مُهرَّبًا داخل JSON (لا HTML خام)
+        ->and($html)->not->toContain('<b>')->toContain('\\u003Cb\\u003E');
+    expect(\App\Models\Admin\Logistics\PurchaseRequest::count())->toBe(0);
+});
+
+test('purchase request saves corrected items with their keys, quantities, prices and totals', function () {
+    $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
+    [$c1] = p3Centers();
+    $project = Project::create(['name' => 'مشروع']);
+    $this->actingAs($admin)->post(route('admin.logistics.purchase-requests.store'), ['center_id' => $c1->id, 'project_id' => $project->id, 'items' => [
+        3 => ['description' => 'بند أول', 'quantity' => 4, 'unit' => 'علبة', 'unit_price' => '2.50'],
+        7 => ['description' => 'بند ثانٍ', 'quantity' => 2, 'unit' => 'قطعة', 'unit_price' => '10'],
+    ]])->assertRedirect();
+    $pr = \App\Models\Admin\Logistics\PurchaseRequest::with('items')->sole();
+    expect($pr->items)->toHaveCount(2)->and((float) $pr->items->firstWhere('description', 'بند أول')->total_price)->toBe(10.0)
+        ->and((float) $pr->items->firstWhere('description', 'بند ثانٍ')->total_price)->toBe(20.0);
+});

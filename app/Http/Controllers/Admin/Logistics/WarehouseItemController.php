@@ -7,6 +7,7 @@ use App\Models\Admin\Logistics\DeletedItem;
 use App\Models\Admin\Logistics\Warehouse;
 use App\Models\Admin\Logistics\WarehouseItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WarehouseItemController extends Controller
 {
@@ -50,13 +51,21 @@ class WarehouseItemController extends Controller
             ->with('success', 'تم إضافة الصنف بنجاح');
     }
 
+    /** المادة يجب أن تتبع المخزن الموجود في الرابط (يُفحص بعد middleware الصلاحيات وقبل أي تعديل). */
+    private function ensureBelongs(Warehouse $warehouse, WarehouseItem $item): void
+    {
+        abort_unless((int) $item->warehouse_id === (int) $warehouse->id, 404);
+    }
+
     public function edit(Warehouse $warehouse, WarehouseItem $item)
     {
+        $this->ensureBelongs($warehouse, $item);
         return view('admin.logistics.warehouse-items.form', compact('warehouse', 'item'));
     }
 
     public function update(Warehouse $warehouse, WarehouseItem $item, Request $request)
     {
+        $this->ensureBelongs($warehouse, $item);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
@@ -73,20 +82,23 @@ class WarehouseItemController extends Controller
 
     public function destroy(Warehouse $warehouse, WarehouseItem $item, Request $request)
     {
+        $this->ensureBelongs($warehouse, $item);
         $request->validate([
             'delete_reason' => 'required|string|max:1000',
         ]);
 
-        DeletedItem::create([
-            'warehouse_id' => $warehouse->id,
-            'item_name' => $item->name,
-            'description' => $item->description,
-            'quantity' => $item->quantity,
-            'unit' => $item->unit,
-            'delete_reason' => $request->delete_reason,
-        ]);
+        DB::transaction(function () use ($warehouse, $item, $request) {
+            DeletedItem::create([
+                'warehouse_id' => $warehouse->id,
+                'item_name' => $item->name,
+                'description' => $item->description,
+                'quantity' => $item->quantity,
+                'unit' => $item->unit,
+                'delete_reason' => $request->delete_reason,
+            ]);
 
-        $item->delete();
+            $item->delete();
+        });
 
         return redirect()->route('admin.logistics.warehouses.items.index', $warehouse->id)
             ->with('success', 'تم حذف الصنف ونقله إلى المواد المحذوفة');
