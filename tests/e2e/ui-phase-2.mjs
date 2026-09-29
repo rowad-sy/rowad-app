@@ -30,7 +30,7 @@ async function login(email) {
   await p.waitForURL((u) => !u.pathname.includes('login'));
   return { ctx, p };
 }
-const theme = (p, t) => p.evaluate((x) => { document.documentElement.dataset.theme = x; document.documentElement.dataset.bsTheme = x; }, t);
+const theme = async (p, t) => { await p.evaluate((x) => { document.documentElement.dataset.theme = x; document.documentElement.dataset.bsTheme = x; }, t); await p.waitForTimeout(350); }; // انتظار انتهاء انتقال الألوان قبل اللقطات
 const hscroll = (p) => p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const q = (p) => new URL(p.url()).searchParams;
 
