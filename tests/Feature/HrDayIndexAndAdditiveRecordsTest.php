@@ -205,16 +205,42 @@ test('ids sent with warnings or notes must belong to the employee; another emplo
         ->assertSessionHasErrors('warnings.0.id');
 });
 
-test('a stale form that resubmits existing warning or note content without ids does not duplicate them', function () {
+test('two intentional additions with identical content are saved as two independent records, and a save without additions duplicates nothing', function () {
     $actor = gAdmin();
     $author = User::factory()->create(['type' => 'employee']);
-    [$emp] = gEmployeeWithRecords('G-STALE', $author);
+    [$emp, $w, $n] = gEmployeeWithRecords('G-SAME', $author);
     $this->actingAs($actor);
 
-    $this->put(route('admin.hr.employees.update', $emp), gBasics('G-STALE', [
-        'warnings' => [0 => ['date' => '2026-01-10', 'reason' => 'تأخر متكرر', 'level' => 'written']],
-        'notes_list' => [0 => ['note' => 'ملاحظة قديمة مهمة']],
-    ]))->assertRedirect();
+    // إضافتان بمحتوى واحد في الطلب نفسه، ومحتوى مطابق لسجل موجود
+    $this->put(route('admin.hr.employees.update', $emp), gBasics('G-SAME', [
+        'warnings' => [
+            0 => ['date' => '2026-01-10', 'reason' => 'تأخر متكرر', 'level' => 'written'],   // مطابق تمامًا للموجود
+            1 => ['date' => '2026-04-01', 'reason' => 'إنذار مكرر', 'level' => 'verbal'],
+            2 => ['date' => '2026-04-01', 'reason' => 'إنذار مكرر', 'level' => 'verbal'],
+        ],
+        'notes_list' => [
+            0 => ['note' => 'ملاحظة قديمة مهمة'],                                             // مطابقة للموجودة
+            1 => ['note' => 'ملاحظة مكررة'],
+            2 => ['note' => 'ملاحظة مكررة'],
+        ],
+    ]))->assertRedirect(route('admin.hr.employees.index'));
 
-    expect(Warning::where('employee_id', $emp->id)->count())->toBe(1)->and(EmployeeNote::where('employee_id', $emp->id)->count())->toBe(1);
+    expect(Warning::where('employee_id', $emp->id)->count())->toBe(4)
+        ->and(Warning::where('employee_id', $emp->id)->where('reason', 'إنذار مكرر')->count())->toBe(2)
+        ->and(Warning::where('employee_id', $emp->id)->where('reason', 'تأخر متكرر')->count())->toBe(2)
+        ->and(EmployeeNote::where('employee_id', $emp->id)->count())->toBe(4)
+        ->and(EmployeeNote::where('note', 'ملاحظة مكررة')->count())->toBe(2)
+        ->and(EmployeeNote::where('note', 'ملاحظة مكررة')->pluck('user_id')->unique()->all())->toBe([$actor->id]);
+
+    // السجلان الأصليان لم يتغيّرا (ملكية/تاريخ/حالة الطي)
+    expect(EmployeeNote::find($n->id)->user_id)->toBe($author->id)
+        ->and((string) EmployeeNote::find($n->id)->created_at)->toBe('2025-12-01 08:00:00')
+        ->and(Warning::find($w->id)->is_folded)->toBeTrue()
+        ->and(Warning::find($w->id)->fold_reason)->toBe('انتهت المدة');
+
+    // حفظ الموظف دون إضافات (كما يرسله النموذج) لا يكرر شيئًا
+    foreach (range(1, 2) as $_) {
+        $this->put(route('admin.hr.employees.update', $emp), gBasics('G-SAME'))->assertRedirect();
+    }
+    expect(Warning::where('employee_id', $emp->id)->count())->toBe(4)->and(EmployeeNote::where('employee_id', $emp->id)->count())->toBe(4);
 });

@@ -319,39 +319,30 @@ class EmployeeController extends Controller
             $employee->update($docUpdates);
         });
 
-        // Warnings — إضافية فقط: لا يُعاد إنشاء الموجود ولا يُعدَّل. الصف الذي يحمل id هو سجل موجود (تحقّقنا من انتمائه)
-        // فيُتجاهل، والصف المطابق تمامًا (تاريخ+سبب+مستوى) لتنبيه موجود لا يُكرَّر (يحمي من نماذج قديمة مفتوحة).
+        // Warnings — إضافية فقط: كل صف جديد يُحفظ سجلًا مستقلًا (حتى لو طابق محتواه سجلًا آخر). الصف الذي يحمل id
+        // سجل موجود (تحقّقنا من انتمائه للموظف) فلا يُنشأ ولا يُعدَّل؛ والمحفوظ يُعرض للقراءة ولا يُرسل من النموذج.
         if ($request->has('warnings')) {
             foreach ($request->input('warnings', []) as $warning) {
                 if (!empty($warning['id'])) {
                     continue;
                 }
                 if (!empty($warning['date']) && !empty($warning['reason'])) {
-                    $level = $warning['level'] ?? 'verbal';
-                    $exists = $employee->warnings()
-                        ->whereDate('date', $warning['date'])
-                        ->where('reason', $warning['reason'])
-                        ->where('level', $level)
-                        ->exists();
-                    if ($exists) {
-                        continue;
-                    }
                     $employee->warnings()->create([
                         'date' => $warning['date'],
                         'reason' => $warning['reason'],
-                        'level' => $level,
+                        'level' => $warning['level'] ?? 'verbal',
                     ]);
                 }
             }
         }
 
-        // Notes — إضافية فقط: تبقى الموجودة بصاحبها وتاريخها، ولا تُكرَّر ملاحظة مطابقة نصًا لموجودة
+        // Notes — إضافية فقط: الموجودة تبقى بصاحبها وتاريخها، وكل ملاحظة جديدة تُحفظ مستقلة
         if ($request->has('notes_list')) {
             foreach ($request->input('notes_list', []) as $note) {
                 if (!empty($note['id'])) {
                     continue;
                 }
-                if (!empty($note['note']) && !$employee->notesRelation()->where('note', $note['note'])->exists()) {
+                if (!empty($note['note'])) {
                     $employee->notesRelation()->create([
                         'user_id' => auth()->id(),
                         'note' => $note['note'],
