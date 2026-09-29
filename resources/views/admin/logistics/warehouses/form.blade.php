@@ -3,13 +3,8 @@
 @section('title', isset($warehouse) ? 'تعديل مخزن' : 'إضافة مخزن')
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>{{ isset($warehouse) ? 'تعديل المخزن' : 'إضافة مخزن' }}</h4>
-    <p>
-        <a href="{{ route('admin.logistics.warehouses.index') }}" class="text-decoration-none">المخازن</a>
-        / {{ isset($warehouse) ? $warehouse->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($warehouse) ? 'تعديل المخزن' : 'إضافة مخزن'"
+               :breadcrumb="[['label' => 'المخازن', 'url' => route('admin.logistics.warehouses.index')], ['label' => isset($warehouse) ? $warehouse->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-6">

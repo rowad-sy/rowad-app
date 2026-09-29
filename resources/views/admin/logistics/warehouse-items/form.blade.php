@@ -3,13 +3,8 @@
 @section('title', isset($item) ? 'تعديل مادة' : 'إضافة مادة')
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>{{ isset($item) ? 'تعديل المادة' : 'إضافة مادة' }}</h4>
-    <p>
-        <a href="{{ route('admin.logistics.warehouses.items', $warehouse) }}" class="text-decoration-none">{{ $warehouse->name }}</a>
-        / {{ isset($item) ? $item->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($item) ? 'تعديل المادة' : 'إضافة مادة'"
+               :breadcrumb="[['label' => $warehouse->name, 'url' => route('admin.logistics.warehouses.items.index', $warehouse)], ['label' => isset($item) ? $item->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-6">
@@ -57,7 +52,7 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg me-1"></i> حفظ
                     </button>
-                    <a href="{{ route('admin.logistics.warehouses.items', $warehouse) }}" class="btn btn-outline-secondary">إلغاء</a>
+                    <a href="{{ route('admin.logistics.warehouses.items.index', $warehouse) }}" class="btn btn-outline-secondary">إلغاء</a>
                 </div>
             </form>
         </div>

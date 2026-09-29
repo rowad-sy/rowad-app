@@ -92,12 +92,12 @@ class WarehouseItemController extends Controller
             ->with('success', 'تم حذف الصنف ونقله إلى المواد المحذوفة');
     }
 
-    public function deleted()
+    public function deleted(Warehouse $warehouse)
     {
-        $deletedItems = DeletedItem::with('warehouse')
+        $deletedItems = DeletedItem::where('warehouse_id', $warehouse->id)
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
-        return view('admin.logistics.warehouse-items.deleted', compact('deletedItems'));
+        return view('admin.logistics.warehouse-items.deleted', compact('warehouse', 'deletedItems'));
     }
 }

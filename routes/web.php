@@ -225,7 +225,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::get('{report}/print', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'printDocument'])->name('print');
             Route::delete('{report}', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'destroy'])->name('destroy');
         });
-        Route::resource('project-activities', ProjectActivityController::class)->except(['show']);
+        Route::resource('project-activities', ProjectActivityController::class)->except(['show'])->parameters(['project-activities' => 'activity']);
         Route::prefix('physiotherapy')->name('physiotherapy.')->group(function () {
             Route::resource('rooms', \App\Http\Controllers\Admin\Physiotherapy\PhysioRoomController::class)->except(['show']);
             Route::resource('patients', \App\Http\Controllers\Admin\Physiotherapy\PhysioPatientController::class);
@@ -355,7 +355,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::get('warehouses/{warehouse}/items/{item}/edit', [WarehouseItemController::class, 'edit'])->name('warehouses.items.edit');
             Route::put('warehouses/{warehouse}/items/{item}', [WarehouseItemController::class, 'update'])->name('warehouses.items.update');
             Route::post('warehouses/{warehouse}/items/{item}/delete', [WarehouseItemController::class, 'destroy'])->name('warehouses.items.destroy');
-            Route::get('deleted-items', [WarehouseItemController::class, 'deleted'])->name('warehouses.items.deleted');
+            Route::get('warehouses/{warehouse}/deleted-items', [WarehouseItemController::class, 'deleted'])->name('warehouses.items.deleted');
             Route::resource('assets', AssetController::class);
 
             // Export/Import
