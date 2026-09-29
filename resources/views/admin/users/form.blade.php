@@ -8,13 +8,8 @@
 @section('title', isset($user) ? 'تعديل مستخدم' : 'إضافة مستخدم')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($user) ? 'تعديل المستخدم' : 'إضافة مستخدم' }}</h4>
-    <p>
-        <a href="{{ route('admin.users.index') }}" class="text-decoration-none">المستخدمين</a>
-        / {{ isset($user) ? $user->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($user) ? 'تعديل المستخدم' : 'إضافة مستخدم'"
+               :breadcrumb="[['label' => 'المستخدمين', 'url' => route('admin.users.index')], ['label' => isset($user) ? $user->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-6">

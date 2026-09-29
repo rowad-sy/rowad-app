@@ -3,113 +3,107 @@
 @section('title', 'لوحة مدير المشروع')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>لوحة مدير المشروع</h4>
-        <p>
-            نظرة عامة على الطلاب والخطط والمهام وطلبات الشراء ضمن نطاقك
-            @if ($scopeCenterId || $scopeProjectId || $scopeCohortId)
-                <span class="badge bg-light text-dark border me-1">
-                    <i class="bi bi-funnel"></i> {{ trim(collect([
-                        $scopeCenter?->name ?? null,
-                        $scopeProject?->name ?? null,
-                        $scopeCohort?->name ?? null,
-                    ])->filter()->implode(' — ')) }}
-                </span>
-            @endif
-        </p>
-    </div>
+<x-page-header title="لوحة مدير المشروع" description="نظرة عامة على الطلاب والخطط والمهام وطلبات الشراء ضمن نطاقك"
+               :breadcrumb="[['label' => 'لوحة مدير المشروع']]">
+    <x-slot:meta>
+        @if ($scopeCenterId || $scopeProjectId || $scopeCohortId)
+            <span class="badge-status is-brand mt-2"><i class="bi bi-funnel" aria-hidden="true"></i> {{ trim(collect([
+                $scopeCenter?->name ?? null,
+                $scopeProject?->name ?? null,
+                $scopeCohort?->name ?? null,
+            ])->filter()->implode(' — ')) }}</span>
+        @endif
+    </x-slot:meta>
     <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="btn btn-outline-primary">
-        <i class="bi bi-cart me-1"></i> طلبات الشراء
+        <i class="bi bi-cart me-1" aria-hidden="true"></i> طلبات الشراء
     </a>
-</div>
+</x-page-header>
+
+@if ($awaitingMyEventCards->isNotEmpty() || $awaitingMySignCount > 0)
+{{-- تحتاج إجراءً منك: بطاقات فعاليات محالة إليك، وطلبات شراء بانتظار توقيعك (نفس شروط المتحكم) --}}
+<section class="dash-section" aria-labelledby="attn-title">
+    <h2 class="section-title" id="attn-title">تحتاج إجراءً منك
+        <span class="count-pill is-attention">{{ $awaitingMyEventCards->count() + $awaitingMySignCount }}</span>
+    </h2>
+    @if ($awaitingMySignCount > 0)
+        <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="kpi attention-card mb-3">
+            <div class="kpi-label"><i class="bi bi-pen" aria-hidden="true"></i> طلبات شراء بانتظار توقيعك</div>
+            <div class="kpi-value">{{ $awaitingMySignCount }}</div>
+            <div class="kpi-hint">عرض طلبات الشراء</div>
+        </a>
+    @endif
+    @if ($awaitingMyEventCards->isNotEmpty())
+    <div class="table-container attention-card">
+        <div class="p-3 border-bottom fw-bold">بطاقات فعاليات بانتظار موافقتك</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>اسم الفعالية</th><th>المشروع</th><th>التاريخ</th><th>أنشأها</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach ($awaitingMyEventCards as $card)
+                    <tr>
+                        <td class="fw-medium">{{ $card->name }}</td>
+                        <td class="text-muted">{{ $card->project?->name ?? '—' }}</td>
+                        <td class="text-muted">{{ $card->event_date?->format('d/m/Y') ?? '—' }}</td>
+                        <td class="text-muted">{{ $card->creator?->name ?? '—' }}</td>
+                        <td><a href="{{ route('admin.event-cards.show', $card) }}" class="btn btn-sm btn-brand"><i class="bi bi-check2-circle me-1"></i>مراجعة</a></td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    </div>
+    @endif
+</section>
+@endif
 
 @include('admin.partials._shortcuts')
 
 {{-- Student / Task / Plan Cards --}}
 <div class="d-flex align-items-center gap-2 mb-3">
-    <div class="bg-primary" style="width: 4px; height: 24px; border-radius: 2px;"></div>
-    <h5 class="mb-0 fw-bold">الطلاب والمهام</h5>
+    <h2 class="section-title mb-0">الطلاب والمهام</h2>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
-        <div class="table-container text-center p-3">
-            <div class="fs-3 fw-bold text-primary">
-                <i class="bi bi-mortarboard"></i>
-            </div>
-            <div class="fs-4 fw-bold">{{ $studentsCount }}</div>
-            <small class="text-muted">الطلاب</small>
-        </div>
+        <x-kpi label="الطلاب" :value="$studentsCount" />
     </div>
     <div class="col-md-3 col-6">
-        <div class="table-container text-center p-3">
-            <div class="fs-3 fw-bold text-info">
-                <i class="bi bi-list-task"></i>
-            </div>
-            <div class="fs-4 fw-bold">{{ $tasksCount }}</div>
-            <small class="text-muted">إجمالي المهام</small>
-        </div>
+        <x-kpi label="إجمالي المهام" :value="$tasksCount" />
     </div>
     <div class="col-md-3 col-6">
-        <div class="table-container text-center p-3">
-            <div class="fs-3 fw-bold text-success">
-                <i class="bi bi-person-check"></i>
-            </div>
-            <div class="fs-4 fw-bold">{{ $myTasksCount }}</div>
-            <small class="text-muted">مهامي</small>
-        </div>
+        <x-kpi label="مهامي" :value="$myTasksCount" />
     </div>
     <div class="col-md-3 col-6">
-        <div class="table-container text-center p-3">
-            <div class="fs-3 fw-bold text-secondary">
-                <i class="bi bi-calendar-week"></i>
-            </div>
-            <div class="fs-4 fw-bold">{{ $trainingPlansCount }}</div>
-            <small class="text-muted">الخطط التدريبية</small>
-        </div>
+        <x-kpi label="الخطط التدريبية" :value="$trainingPlansCount" />
     </div>
 </div>
 
 {{-- Purchase Requests Cycle Cards --}}
 <div class="d-flex align-items-center gap-2 mb-3">
-    <div class="bg-success" style="width: 4px; height: 24px; border-radius: 2px;"></div>
-    <h5 class="mb-0 fw-bold">دورة طلبات الشراء</h5>
+    <h2 class="section-title mb-0">دورة طلبات الشراء</h2>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
-        <div class="table-container text-center p-3">
-            <div class="fs-4 fw-bold text-warning">{{ $pendingPricingCount }}</div>
-            <small class="text-muted">بانتظار التسعير</small>
-        </div>
+        <x-kpi label="بانتظار التسعير" :value="$pendingPricingCount" tone="warning" />
     </div>
     <div class="col-md-3 col-6">
-        <div class="table-container text-center p-3">
-            <div class="fs-4 fw-bold text-info">{{ $awaitingMySignCount }}</div>
-            <small class="text-muted">بموجودي للتوقيع</small>
-        </div>
+        <x-kpi label="بموجودي للتوقيع" :value="$awaitingMySignCount" tone="info" />
     </div>
     <div class="col-md-3 col-6">
-        <div class="table-container text-center p-3">
-            <div class="fs-4 fw-bold text-success">{{ $approvedCount }}</div>
-            <small class="text-muted">معتمد</small>
-        </div>
+        <x-kpi label="معتمد" :value="$approvedCount" tone="success" />
     </div>
     <div class="col-md-3 col-6">
-        <div class="table-container text-center p-3">
-            <div class="fs-4 fw-bold text-dark">{{ $executedCount }}</div>
-            <small class="text-muted">منفَّذ</small>
-        </div>
+        <x-kpi label="منفَّذ" :value="$executedCount" />
     </div>
 </div>
 
 {{-- Status Distribution --}}
 @if ($statusCounts->isNotEmpty())
-<div class="table-container mb-4">
-    <div class="p-3 border-bottom">
-        <h5 class="mb-0"><i class="bi bi-bar-chart me-1"></i> توزيع الحالات</h5>
-    </div>
+<x-fold title="توزيع الحالات" icon="bi-bar-chart" :count="count(\App\Models\Admin\Logistics\PurchaseRequest::STATUSES)" open>
+    <div class="table-container">
     <div class="p-3">
         @php
             $statusColors = [
@@ -127,14 +121,13 @@
             @endforeach
         </div>
     </div>
-</div>
+    </div>
+</x-fold>
 @endif
 
 {{-- Recent Requests --}}
-<div class="table-container mb-4">
-    <div class="p-3 border-bottom">
-        <h5 class="mb-0"><i class="bi bi-clock-history me-1"></i> آخر طلبات الشراء</h5>
-    </div>
+<x-fold title="آخر طلبات الشراء" icon="bi-clock-history" :count="count($recentPurchaseRequests ?? [])">
+    <div class="table-container">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
@@ -189,12 +182,12 @@
             </tbody>
         </table>
     </div>
-</div>
+    </div>
+</x-fold>
 
 {{-- Event Cards --}}
 <div class="d-flex align-items-center gap-2 mb-3">
-    <div class="bg-warning" style="width: 4px; height: 24px; border-radius: 2px;"></div>
-    <h5 class="mb-0 fw-bold">بطاقات الفعاليات</h5>
+    <h2 class="section-title mb-0">بطاقات الفعاليات</h2>
 </div>
 <div class="table-container mb-4">
     <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
@@ -242,37 +235,10 @@
     </div>
 </div>
 
-@if ($awaitingMyEventCards->isNotEmpty())
-<div class="d-flex align-items-center gap-2 mb-3">
-    <div class="bg-danger" style="width: 4px; height: 24px; border-radius: 2px;"></div>
-    <h5 class="mb-0 fw-bold">بانتظار موافقتي</h5>
-</div>
-<div class="table-container mb-4">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr><th>اسم الفعالية</th><th>المشروع</th><th>التاريخ</th><th>أنشأها</th><th></th></tr>
-            </thead>
-            <tbody>
-                @foreach ($awaitingMyEventCards as $card)
-                    <tr>
-                        <td class="fw-medium">{{ $card->name }}</td>
-                        <td class="text-muted">{{ $card->project?->name ?? '—' }}</td>
-                        <td class="text-muted">{{ $card->event_date?->format('d/m/Y') ?? '—' }}</td>
-                        <td class="text-muted">{{ $card->creator?->name ?? '—' }}</td>
-                        <td><a href="{{ route('admin.event-cards.show', $card) }}" class="btn btn-sm btn-brand"><i class="bi bi-check2-circle me-1"></i>مراجعة</a></td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
-@endif
 
 {{-- Recent Activities --}}
 <div class="d-flex align-items-center gap-2 mb-3">
-    <div class="bg-warning" style="width: 4px; height: 24px; border-radius: 2px;"></div>
-    <h5 class="mb-0 fw-bold">الأنشطة</h5>
+    <h2 class="section-title mb-0">الأنشطة</h2>
 </div>
 <div class="table-container">
     <div class="d-flex justify-content-between align-items-center p-3 border-bottom">

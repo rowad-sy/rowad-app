@@ -10,25 +10,15 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700&display=swap" rel="stylesheet">
     @vite(['resources/js/app.js'])
-    <style>
-        .sidebar-section .nav-section { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-        .sidebar-section .nav-section:hover { background: rgba(255,255,255,0.05); }
-        .sidebar-section .section-arrow { transition: transform 0.2s; font-size: 0.75rem; }
-        .sidebar-section.collapsed .section-arrow { transform: rotate(-90deg); }
-        .sidebar-section.collapsed .section-items { display: none; }
-        .sidebar.collapsed .sidebar-section .section-arrow { display: none; }
-        .sidebar.collapsed .sidebar-section .section-items { display: none; }
-        .sidebar.collapsed .sidebar-section .nav-section { cursor: default; }
-    </style>
     @stack('styles')
 </head>
 <body>
 
     <!-- Sidebar Overlay (mobile) -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
     <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
+    <nav class="sidebar" id="sidebar" aria-label="القائمة الرئيسية">
         <div class="brand">
             <img src="{{ asset('images/logo.png') }}" alt="لوغو المؤسسة">
             <span class="brand-text">مؤسسة الرواد</span>
@@ -51,10 +41,10 @@
             };
         @endphp
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>الرئيسية</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">الرئيسية</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 <a href="{{ route('admin.home') }}" class="nav-link {{ request()->routeIs('admin.home') ? 'active' : '' }}">
                     <i class="bi bi-grid-3x3-gap"></i> <span>التطبيقات</span>
@@ -75,10 +65,10 @@
             ['App\Models\User', 'view'],
         ]))
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>الإدارة</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">الإدارة</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 @canPermission('App\Models\Admin\Center', 'view')
                 <a href="{{ route('admin.centers.index') }}" class="nav-link {{ request()->routeIs('admin.centers.*') ? 'active' : '' }}">
@@ -123,10 +113,10 @@
             ['App\Models\Admin\Hr\EmployeeAttendance', 'view'],
         ]))
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>الموارد البشرية</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">الموارد البشرية</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 @canPermission('App\Models\Admin\Hr\Employee', 'view')
                 <a href="{{ route('admin.hr.employees.index') }}" class="nav-link {{ request()->routeIs('admin.hr.employees.*') ? 'active' : '' }}">
@@ -180,10 +170,10 @@
             ['App\Models\Admin\Logistics\LogisticsSetting', 'view'],
         ]))
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>اللوجستي</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">اللوجستي</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'view')
                 <a href="{{ route('admin.logistics.statistics') }}" class="nav-link {{ request()->routeIs('admin.logistics.statistics') ? 'active' : '' }}">
@@ -227,10 +217,10 @@
             ['App\Models\Admin\Student\Certificate', 'view'],
         ]))
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>الطلاب</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">الطلاب</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 @canPermission('App\Models\Admin\Student\Student', 'view')
                 <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.index') || request()->routeIs('admin.students.create') || request()->routeIs('admin.students.edit') || request()->routeIs('admin.students.show') || request()->routeIs('admin.students.attendance') || request()->routeIs('admin.students.statistics') ? 'active' : '' }}">
@@ -300,10 +290,10 @@
             ['App\Models\Admin\ProjectDocs\AnnexTemplate', 'view'],
         ]))
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>إدارة المشاريع</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">إدارة المشاريع</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 @canPermission('page:admin.project-manager.dashboard', 'view')
                 <a href="{{ route('admin.project-manager.dashboard') }}" class="nav-link {{ request()->routeIs('admin.project-manager.dashboard') ? 'active' : '' }}">
@@ -402,10 +392,10 @@
             ['page:admin.physiotherapy.statistics.index', 'view'],
         ]))
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>العلاج الفيزيائي</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">العلاج الفيزيائي</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 @canPermission('App\Models\Admin\Physiotherapy\PhysioPatient', 'view')
                 <a href="{{ route('admin.physiotherapy.patients.index') }}" class="nav-link {{ request()->routeIs('admin.physiotherapy.patients.*') ? 'active' : '' }}">
@@ -442,10 +432,10 @@
             ['App\Models\User', 'view'],
         ]))
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>التقنية</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">التقنية</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
                 <a href="{{ route('admin.tech.issues.index') }}" class="nav-link {{ request()->routeIs('admin.tech.issues.*') ? 'active' : '' }}">
@@ -475,10 +465,10 @@
             ['App\Models\AuditLog', 'view'],
         ]))
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>النظام والتدقيق</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">النظام والتدقيق</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 @canPermission('App\Models\AuditLog', 'view')
                 <a href="{{ route('admin.audit-logs.index') }}" class="nav-link {{ request()->routeIs('admin.audit-logs.*') ? 'active' : '' }}">
@@ -493,10 +483,10 @@
         {{-- Student Navigation --}}
         @if (auth()->user()->type === 'student')
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>حسابي</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">حسابي</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
                     <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
@@ -514,10 +504,10 @@
         {{-- Beneficiary Navigation --}}
         @if (auth()->user()->type === 'beneficiary')
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>الرئيسية</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">الرئيسية</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 <a href="{{ route('admin.beneficiary.dashboard') }}" class="nav-link {{ request()->routeIs('admin.beneficiary.dashboard') ? 'active' : '' }}">
                     <i class="bi bi-speedometer2"></i> <span>لوحة المستفيد</span>
@@ -525,10 +515,10 @@
             </div>
         </div>
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>حسابي</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">حسابي</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
                     <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
@@ -538,10 +528,10 @@
         @endif
         @else
         <div class="sidebar-section">
-            <div class="nav-section" onclick="toggleSection(this)">
-                <span>حسابي</span>
-                <i class="bi bi-chevron-down section-arrow"></i>
-            </div>
+            <button type="button" class="nav-section" aria-expanded="true" onclick="toggleSection(this)">
+                <span class="section-label">حسابي</span>
+                <i class="bi bi-chevron-down section-arrow" aria-hidden="true"></i>
+            </button>
             <div class="section-items">
                 <a href="{{ route('admin.profile') }}" class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
                     <i class="bi bi-person-circle"></i> <span>الملف الشخصي</span>
@@ -552,48 +542,49 @@
             </div>
         </div>
         @endif
-    </div>
+    </nav>
 
     <!-- Main Content -->
     <div class="main-content">
         <!-- Top Navbar -->
-        <nav class="navbar-top d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-link text-dark p-0 sidebar-toggle" id="sidebarToggle" type="button">
-                    <i class="bi bi-list fs-4"></i>
+        <header class="navbar-top d-flex align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2 topbar-context">
+                <button class="btn btn-light topbar-btn sidebar-toggle" id="sidebarToggle" type="button"
+                        aria-controls="sidebar" aria-expanded="false" aria-label="فتح القائمة الجانبية">
+                    <i class="bi bi-list fs-5" aria-hidden="true"></i>
                 </button>
-                <span class="text-muted small">
-                    <i class="bi bi-calendar3 me-1"></i>
-                    {{ now()->locale('ar')->translatedFormat('l d F Y') }}
+                <span class="fw-bold text-truncate">@yield('title', 'لوحة التحكم')</span>
+                <span class="text-muted small topbar-date d-none d-lg-inline">
+                    <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>{{ now()->locale('ar')->translatedFormat('l d F Y') }}
                 </span>
             </div>
-            <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-light btn-sm theme-toggle-btn" type="button" title="تبديل الوضع الليلي/النهاري">
-                    <i class="bi bi-moon-stars"></i>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-light topbar-btn theme-toggle-btn" type="button" aria-label="تبديل الوضع الليلي/النهاري" title="تبديل الوضع الليلي/النهاري">
+                    <i class="bi bi-moon-stars" aria-hidden="true"></i>
                 </button>
-                <a href="{{ route('admin.portal') }}" class="btn btn-light btn-sm text-decoration-none" title="الصفحة الرئيسية">
-                    <i class="bi bi-house-door"></i>
+                <a href="{{ route('admin.portal') }}" class="btn btn-light topbar-btn text-decoration-none" aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
+                    <i class="bi bi-house-door" aria-hidden="true"></i>
                 </a>
                 <div class="dropdown">
-                    <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle me-1"></i>
-                        {{ auth()->user()->name }}
+                    <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="الحساب: {{ auth()->user()->name }}" style="height: var(--control-height-sm); max-width: 12rem;">
+                        <i class="bi bi-person-circle" aria-hidden="true"></i>
+                        <span class="text-truncate d-none d-sm-inline">{{ auth()->user()->name }}</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{{ route('admin.profile') }}"><i class="bi bi-person me-2"></i>الملف الشخصي</a></li>
+                        <li><a class="dropdown-item" href="{{ route('admin.profile') }}"><i class="bi bi-person me-2" aria-hidden="true"></i>الملف الشخصي</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="dropdown-item">
-                                    <i class="bi bi-box-arrow-left me-2"></i>تسجيل الخروج
+                                    <i class="bi bi-box-arrow-left me-2" aria-hidden="true"></i>تسجيل الخروج
                                 </button>
                             </form>
                         </li>
                     </ul>
                 </div>
             </div>
-        </nav>
+        </header>
 
         <!-- Page Content -->
         <div class="page-content">
@@ -603,13 +594,13 @@
                         <i class="bi bi-envelope-check me-1"></i>
                         حسابك غير مفعّل بعد. يرجى الضغط على رابط التفعيل المرسل إلى بريدك الإلكتروني لتفعيل حسابك،
                         وسيُطلب منك تغيير كلمة المرور حتى تستطيع استخدام النظام.
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
                     </div>
                 @else
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         <i class="bi bi-exclamation-octagon me-1"></i>
                         تم إيقاف حسابك من قبل الإدارة. يرجى التواصل مع الإدارة لمعرفة سبب الإيقاف.
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
                     </div>
                 @endif
             @endif
@@ -618,7 +609,7 @@
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="bi bi-exclamation-circle me-1"></i>
                     {{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
                 </div>
             @endif
 
@@ -630,7 +621,7 @@
                             <li>{{ $preError }}</li>
                         @endforeach
                     </ul>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
                 </div>
             @endif
 
@@ -638,7 +629,7 @@
                 <div class="alert alert-info alert-dismissible fade show" role="alert">
                     <i class="bi bi-info-circle me-1"></i>
                     {{ session('info') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
                 </div>
             @endif
 
@@ -646,7 +637,7 @@
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="bi bi-check-circle me-1"></i>
                     {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
                 </div>
             @endif
 
@@ -654,7 +645,14 @@
                 <div class="alert alert-warning alert-dismissible fade show" role="alert">
                     <i class="bi bi-exclamation-triangle me-1"></i>
                     {{ session('warning') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                    تعذّر الحفظ: يوجد {{ $errors->count() }} {{ $errors->count() === 1 ? 'خطأ' : 'أخطاء' }} في البيانات المُدخلة، راجع الحقول المحددة.
                 </div>
             @endif
 
@@ -665,11 +663,11 @@
     @stack('scripts')
 
     <!-- Audit History Modal -->
-    <div class="modal fade" id="auditHistoryModal" tabindex="-1">
+    <div class="modal fade" id="auditHistoryModal" tabindex="-1" aria-labelledby="auditHistoryTitle" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>سجل التغييرات</h5>
+                    <h5 class="modal-title" id="auditHistoryTitle"><i class="bi bi-clock-history me-2"></i>سجل التغييرات</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="auditHistoryContent">
@@ -702,45 +700,118 @@
     </script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('sidebarToggle');
-            const overlay = document.getElementById('sidebarOverlay');
+        (function () {
+            var MOBILE = window.matchMedia('(max-width: 768px)');
+            var RAIL_KEY = 'rowad-sidebar-rail';
+            var sidebar = document.getElementById('sidebar');
+            var toggleBtn = document.getElementById('sidebarToggle');
+            var overlay = document.getElementById('sidebarOverlay');
+            var lastFocus = null;
 
-            toggleBtn.addEventListener('click', function () {
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.toggle('mobile-open');
-                    overlay.classList.toggle('show');
-                } else {
-                    sidebar.classList.toggle('collapsed');
-                }
-            });
+            function store(fn) { try { return fn(); } catch (e) { return null; } }
 
-            overlay.addEventListener('click', function () {
+            function isOpenMobile() { return sidebar.classList.contains('mobile-open'); }
+
+            function syncToggle() {
+                var expanded = MOBILE.matches ? isOpenMobile() : !sidebar.classList.contains('collapsed');
+                toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                toggleBtn.setAttribute('aria-label', MOBILE.matches
+                    ? (expanded ? 'إغلاق القائمة الجانبية' : 'فتح القائمة الجانبية')
+                    : (expanded ? 'تصغير القائمة الجانبية' : 'توسيع القائمة الجانبية'));
+                // على الجوال تُخفى القائمة المغلقة عن لوحة المفاتيح وقارئات الشاشة
+                if (MOBILE.matches && !expanded) { sidebar.setAttribute('inert', ''); } else { sidebar.removeAttribute('inert'); }
+                var rail = !MOBILE.matches && sidebar.classList.contains('collapsed');
+                sidebar.querySelectorAll('.nav-link').forEach(function (a) {
+                    var label = a.querySelector('span');
+                    if (!label) return;
+                    a.setAttribute('aria-label', label.textContent.trim());
+                    if (rail) { a.setAttribute('title', label.textContent.trim()); } else { a.removeAttribute('title'); }
+                });
+                sidebar.querySelectorAll('.nav-link.active').forEach(function (a) { a.setAttribute('aria-current', 'page'); });
+            }
+
+            function openMobile() {
+                lastFocus = document.activeElement;
+                sidebar.classList.add('mobile-open');
+                overlay.classList.add('show');
+                document.body.classList.add('sidebar-locked');
+                syncToggle();
+                var first = sidebar.querySelector('.nav-link.active, .nav-link');
+                if (first) first.focus();
+            }
+
+            function closeMobile(restoreFocus) {
+                if (!isOpenMobile()) return;
                 sidebar.classList.remove('mobile-open');
                 overlay.classList.remove('show');
-            });
+                document.body.classList.remove('sidebar-locked');
+                syncToggle();
+                if (restoreFocus !== false) (lastFocus && lastFocus.focus ? lastFocus : toggleBtn).focus();
+            }
 
-            // Auto-open sections with an active link
-            document.querySelectorAll('.sidebar-section').forEach(function (section) {
-                var hasActive = section.querySelector('.nav-link.active');
-                var key = 'sidebar_section_' + section.querySelector('.nav-section span').textContent.trim();
-                var stored = localStorage.getItem(key);
+            // التفضيل المحفوظ يخص سطح المكتب فقط، ولا يؤثر في قائمة الجوال
+            if (!MOBILE.matches && store(function () { return localStorage.getItem(RAIL_KEY); }) === '1') {
+                sidebar.classList.add('collapsed');
+            }
 
-                if (hasActive) {
-                    section.classList.remove('collapsed');
-                    localStorage.setItem(key, 'open');
-                } else if (stored === 'collapsed') {
-                    section.classList.add('collapsed');
+            toggleBtn.addEventListener('click', function () {
+                if (MOBILE.matches) {
+                    isOpenMobile() ? closeMobile() : openMobile();
+                } else {
+                    var rail = sidebar.classList.toggle('collapsed');
+                    store(function () { localStorage.setItem(RAIL_KEY, rail ? '1' : '0'); });
+                    syncToggle();
                 }
             });
-        });
+
+            overlay.addEventListener('click', function () { closeMobile(); });
+
+            document.addEventListener('keydown', function (e) {
+                if (!isOpenMobile()) return;
+                if (e.key === 'Escape') { e.preventDefault(); closeMobile(); return; }
+                if (e.key === 'Tab') {
+                    // حصر التركيز داخل القائمة أثناء فتحها
+                    var f = sidebar.querySelectorAll('a[href], button:not([disabled])');
+                    if (!f.length) return;
+                    var first = f[0], last = f[f.length - 1];
+                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                }
+            });
+
+            // إغلاق قائمة الجوال عند اختيار رابط، وعند تغيّر حجم الشاشة
+            sidebar.addEventListener('click', function (e) { if (e.target.closest('a.nav-link')) closeMobile(false); });
+            MOBILE.addEventListener('change', function () {
+                closeMobile(false);
+                if (!MOBILE.matches) {
+                    var pref = store(function () { return localStorage.getItem(RAIL_KEY); }) === '1';
+                    sidebar.classList.toggle('collapsed', pref);
+                }
+                syncToggle();
+            });
+
+            // فتح القسم الحالي تلقائيًا وتمييزه، واستعادة حالة الأقسام المطوية
+            sidebar.querySelectorAll('.sidebar-section').forEach(function (section) {
+                var head = section.querySelector('.nav-section');
+                var key = 'sidebar_section_' + head.querySelector('.section-label').textContent.trim();
+                var stored = store(function () { return localStorage.getItem(key); });
+                var hasActive = !!section.querySelector('.nav-link.active');
+                section.classList.toggle('has-active', hasActive);
+                var closed = hasActive ? false : stored === 'collapsed';
+                section.classList.toggle('is-closed', closed);
+                head.setAttribute('aria-expanded', closed ? 'false' : 'true');
+                if (hasActive) store(function () { localStorage.setItem(key, 'open'); });
+            });
+
+            syncToggle();
+        })();
 
         function toggleSection(el) {
             var section = el.closest('.sidebar-section');
-            var isCollapsed = section.classList.toggle('collapsed');
-            var key = 'sidebar_section_' + section.querySelector('.nav-section span').textContent.trim();
-            localStorage.setItem(key, isCollapsed ? 'collapsed' : 'open');
+            var closed = section.classList.toggle('is-closed');
+            el.setAttribute('aria-expanded', closed ? 'false' : 'true');
+            var key = 'sidebar_section_' + el.querySelector('.section-label').textContent.trim();
+            try { localStorage.setItem(key, closed ? 'collapsed' : 'open'); } catch (e) {}
         }
     </script>
 </body>

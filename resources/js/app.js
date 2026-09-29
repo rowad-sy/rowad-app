@@ -14,6 +14,7 @@ window.QRCode = QRCode;
         document.querySelectorAll('.theme-toggle-btn').forEach((btn) => {
             const icon = btn.querySelector('i');
             if (icon) icon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+            btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
         });
     };
     apply(localStorage.getItem(KEY) || 'light');

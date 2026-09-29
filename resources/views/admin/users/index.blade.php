@@ -3,23 +3,22 @@
 @section('title', 'المستخدمين')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>المستخدمين</h4>
-        <p>إدارة مستخدمي النظام</p>
-    </div>
+<x-page-header title="المستخدمين" description="إدارة مستخدمي النظام" :breadcrumb="[['label' => 'الإدارة'], ['label' => 'المستخدمين']]">
     @canPermission('App\Models\User', 'create')
     <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> إضافة مستخدم
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> إضافة مستخدم
     </a>
-    <a href="{{ route('admin.users.export', request()->query()) }}" class="btn btn-outline-success">
-        <i class="bi bi-download me-1"></i> تصدير
-    </a>
-    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
-        <i class="bi bi-upload me-1"></i> استيراد
-    </button>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-three-dots" aria-hidden="true"></i> المزيد
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{{ route('admin.users.export', request()->query()) }}"><i class="bi bi-download me-2" aria-hidden="true"></i>تصدير</a></li>
+            <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#importModal"><i class="bi bi-upload me-2" aria-hidden="true"></i>استيراد</button></li>
+        </ul>
+    </div>
     @endcanPermission
-</div>
+</x-page-header>
 
 <div class="table-container">
     @php
@@ -32,76 +31,83 @@
         ];
         $currentType = $type ?? 'all';
     @endphp
-    <div class="p-3 border-bottom d-flex flex-wrap gap-2">
+    <div class="p-3 border-bottom d-flex flex-wrap gap-2" role="navigation" aria-label="تصفية حسب نوع المستخدم">
         @foreach ($tabs as $tabType => $tab)
             @php
                 $tabQuery = array_filter([
                     'type' => $tabType !== '' ? $tabType : null,
                     'status' => ($status ?? 'all') !== 'all' ? $status : null,
                     'search' => !empty($search) ? $search : null,
+                    'center_id' => $centerId ?? null,
+                    'project_id' => $projectId ?? null,
+                    'job_title_id' => $jobTitleId ?? null,
+                    'per_page' => ($perPage ?? 10) != 10 ? $perPage : null,
                 ]);
             @endphp
             <a href="{{ route('admin.users.index', $tabQuery) }}"
-               class="btn btn-sm {{ ($currentType === 'all' ? '' : $currentType) === $tabType ? 'btn-primary' : 'btn-outline-secondary' }}">
-                <i class="bi {{ $tab['icon'] }} me-1"></i> {{ $tab['label'] }}
+               class="btn btn-sm {{ ($currentType === 'all' ? '' : $currentType) === $tabType ? 'btn-primary' : 'btn-outline-secondary' }}"
+               @if (($currentType === 'all' ? '' : $currentType) === $tabType) aria-current="page" @endif>
+                <i class="bi {{ $tab['icon'] }} me-1" aria-hidden="true"></i> {{ $tab['label'] }}
             </a>
         @endforeach
     </div>
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label small mb-1">بحث</label>
+    @php
+        $activeFilters = collect([!empty($search), ($status ?? 'all') !== 'all', !empty($centerId), !empty($projectId), !empty($jobTitleId)])->filter()->count();
+    @endphp
+    <x-filter-bar :active="$activeFilters" :clear="route('admin.users.index', array_filter(['type' => $type && $type !== 'all' ? $type : null]))">
+        @if ($type && $type !== 'all') <input type="hidden" name="type" value="{{ $type }}"> @endif
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="f-search">بحث</label>
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="بحث عن مستخدم/مسمى..." value="{{ $search }}">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        <i class="bi bi-search"></i>
+                    <input type="text" id="f-search" name="search" class="form-control" placeholder="بحث عن مستخدم/مسمى..." value="{{ $search }}">
+                    <button class="btn btn-outline-secondary" type="submit" aria-label="بحث">
+                        <i class="bi bi-search" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">الحالة</label>
-                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="f-status">الحالة</label>
+                <select id="f-status" name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="active" {{ ($status ?? '') === 'active' ? 'selected' : '' }}>نشط</option>
                     <option value="inactive" {{ ($status ?? '') === 'inactive' ? 'selected' : '' }}>غير مفعّل / مغلق</option>
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="f-center_id">المركز</label>
+                <select id="f-center_id" name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="">الكل</option>
                     @foreach ($centers as $center)
                         <option value="{{ $center->id }}" {{ (int)($centerId ?? '') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">المشروع</label>
-                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="f-project_id">المشروع</label>
+                <select id="f-project_id" name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="">الكل</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">المسمى الوظيفي</label>
-                <select name="job_title_id" class="form-select form-select-sm" onchange="this.form.submit()">
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="f-job_title_id">المسمى الوظيفي</label>
+                <select id="f-job_title_id" name="job_title_id" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="">الكل</option>
                     @foreach ($jobTitles as $jt)
                         <option value="{{ $jt->id }}" {{ (int)($jobTitleId ?? '') === $jt->id ? 'selected' : '' }}>{{ $jt->title_ar }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-1">
-                <label class="form-label small mb-1">&nbsp;</label>
+            <div class="col-auto d-flex align-items-end">
                 <x-per-page-selector :perPage="$perPage ?? 10" />
             </div>
-        </form>
-    </div>
+    </x-filter-bar>
 
-    <table class="table table-hover align-middle">
-        <thead class="table-light">
+    <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
             <tr>
                 <th>#</th>
                 <th>الاسم</th>
@@ -121,16 +127,16 @@
                 <tr>
                     <td>{{ $user->id }}</td>
                     <td class="fw-medium">{{ $user->name }}</td>
-                    <td dir="ltr">{{ $user->email }}</td>
+                    <td class="ltr-cell">{{ $user->email }}</td>
                     <td>
                         @if ($user->type === 'super-admin')
-                            <span class="badge bg-danger text-white">سوبر أدمن</span>
+                            <x-status-badge tone="danger">سوبر أدمن</x-status-badge>
                         @elseif ($user->type === 'employee')
-                            <span class="badge bg-info text-white">موظف</span>
+                            <x-status-badge tone="info">موظف</x-status-badge>
                         @elseif ($user->type === 'beneficiary')
-                            <span class="badge bg-secondary text-white">مستفيد</span>
+                            <x-status-badge>مستفيد</x-status-badge>
                         @elseif ($user->type === 'student')
-                            <span class="badge bg-primary text-white">طالب</span>
+                            <x-status-badge tone="brand">طالب</x-status-badge>
                         @else
                             <span class="text-muted">—</span>
                         @endif
@@ -138,7 +144,7 @@
                     @if ($type === 'employee' || !$type || $type === 'all')
                     <td>
                         @if ($user->type === 'employee' && $user->jobTitle)
-                            <span class="badge bg-secondary">{{ $user->jobTitle->title_ar }}</span>
+                            <x-status-badge>{{ $user->jobTitle->title_ar }}</x-status-badge>
                         @else
                             <span class="text-muted">—</span>
                         @endif
@@ -158,66 +164,68 @@
                     @endif
                     <td>
                         @if ($user->is_active)
-                            <span class="badge bg-success">نشط</span>
+                            <x-status-badge tone="success">نشط</x-status-badge>
                         @elseif (blank($user->email_verified_at))
-                            <span class="badge bg-warning text-dark">غير مفعّل</span>
+                            <x-status-badge tone="warning">غير مفعّل</x-status-badge>
                             <div class="small text-muted mt-1">لم يفعّل حسابه بعد</div>
                         @else
-                            <span class="badge bg-danger">مغلق</span>
+                            <x-status-badge tone="danger">مغلق</x-status-badge>
                             <div class="small text-danger mt-1">تم إيقاف الحساب من قبل الإدارة</div>
                         @endif
                         @if ($user->must_change_password)
-                            <div class="small text-warning mt-1">
+                            <div class="small mt-1" style="color: var(--status-warning)">
                                 <i class="bi bi-key"></i> يجب تغيير كلمة المرور
                             </div>
                         @endif
                     </td>
                     <td>
                         @foreach ($user->groups as $group)
-                            <span class="badge bg-info text-white me-1">{{ $group->name }}</span>
+                            <x-status-badge tone="info" class="me-1">{{ $group->name }}</x-status-badge>
                         @endforeach
                     </td>
-                    <td>
+                    <td class="text-nowrap"><div class="row-actions">
                         @canPermission('App\Models\User', 'edit')
-                        <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i>
+                        <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل {{ $user->name }}" title="تعديل">
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
                         </a>
                         <form method="POST" action="{{ route('admin.users.toggle-status', $user) }}" class="d-inline">
                             @csrf
-                            <button class="btn btn-sm btn-outline-{{ $user->is_active ? 'warning' : 'success' }}">
-                                <i class="bi bi-{{ $user->is_active ? 'pause' : 'play' }}"></i>
+                            <button class="btn btn-sm btn-outline-{{ $user->is_active ? 'warning' : 'success' }}"
+                                    aria-label="{{ $user->is_active ? 'إيقاف' : 'تفعيل' }} {{ $user->name }}" title="{{ $user->is_active ? 'إيقاف الحساب' : 'تفعيل الحساب' }}">
+                                <i class="bi bi-{{ $user->is_active ? 'pause' : 'play' }}" aria-hidden="true"></i>
                             </button>
                         </form>
                         @endcanPermission
                         <x-audit-history :model="'App\Models\User'" :model-id="$user->id" />
                         @canPermission('App\Models\User', 'delete')
                         @if ($user->type === 'super-admin')
-                            <button class="btn btn-sm btn-outline-danger" disabled title="لا يمكن حذف مستخدم من نوع سوبر أدمن">
-                                <i class="bi bi-trash"></i>
+                            <button class="btn btn-sm btn-outline-danger" disabled title="لا يمكن حذف مستخدم من نوع سوبر أدمن" aria-label="لا يمكن حذف مستخدم من نوع سوبر أدمن">
+                                <i class="bi bi-trash" aria-hidden="true"></i>
                             </button>
                         @else
                             <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف {{ $user->name }}" title="حذف">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </form>
                         @endif
                         @endcanPermission
-                    </td>
+                    </div></td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" class="text-center py-4 text-muted">
-                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                        لا توجد مستخدمين
+                    <td colspan="9">
+                        <x-empty-state icon="bi-people" title="لا يوجد مستخدمون مطابقون"
+                                       :hint="$activeFilters ? 'جرّب تعديل الفلاتر أو مسحها.' : null" />
                     </td>
                 </tr>
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <div class="p-3 d-flex justify-content-between align-items-center">
         <div class="text-muted small">
