@@ -3,10 +3,7 @@
 @section('title', 'لوحة المستفيد')
 
 @section('content')
-<div class="page-header">
-    <h4>مرحباً بك يا {{ $user->name }}</h4>
-    <p>لوحة المستفيد - مؤسسة الرواد للتعاون والتنمية</p>
-</div>
+<x-page-header :title="'مرحباً بك يا ' . $user->name" description="لوحة المستفيد - مؤسسة الرواد للتعاون والتنمية" />
 
 <div class="row g-4">
     <div class="col-md-6">
@@ -15,16 +12,16 @@
                 <i class="bi bi-person-circle me-1"></i> معلومات الحساب
             </h5>
             <div class="info-grid" style="display:grid;grid-template-columns:1fr;gap:0.75rem;">
-                <div class="info-item" style="padding:0.5rem 0.75rem;background:#f8f9fa;border-radius:6px;">
-                    <span style="font-size:0.75rem;color:#6c757d;display:block;">الاسم</span>
+                <div class="info-item" style="padding:0.5rem 0.75rem;background:var(--color-surface-muted);border:1px solid var(--color-border);border-radius:6px;">
+                    <span style="font-size:0.75rem;color:var(--color-text-muted);display:block;">الاسم</span>
                     <span style="font-size:0.9rem;font-weight:500;">{{ $user->name }}</span>
                 </div>
-                <div class="info-item" style="padding:0.5rem 0.75rem;background:#f8f9fa;border-radius:6px;">
-                    <span style="font-size:0.75rem;color:#6c757d;display:block;">البريد الإلكتروني</span>
+                <div class="info-item" style="padding:0.5rem 0.75rem;background:var(--color-surface-muted);border:1px solid var(--color-border);border-radius:6px;">
+                    <span style="font-size:0.75rem;color:var(--color-text-muted);display:block;">البريد الإلكتروني</span>
                     <span style="font-size:0.9rem;font-weight:500;" dir="ltr">{{ $user->email }}</span>
                 </div>
-                <div class="info-item" style="padding:0.5rem 0.75rem;background:#f8f9fa;border-radius:6px;">
-                    <span style="font-size:0.75rem;color:#6c757d;display:block;">تاريخ التسجيل</span>
+                <div class="info-item" style="padding:0.5rem 0.75rem;background:var(--color-surface-muted);border:1px solid var(--color-border);border-radius:6px;">
+                    <span style="font-size:0.75rem;color:var(--color-text-muted);display:block;">تاريخ التسجيل</span>
                     <span style="font-size:0.9rem;font-weight:500;">{{ $user->created_at->locale('ar')->translatedFormat('l d F Y') }}</span>
                 </div>
             </div>
