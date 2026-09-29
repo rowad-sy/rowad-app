@@ -3,11 +3,8 @@
 @section('title', 'إدارة المهام')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>إدارة المهام</h4>
-        <p>عرض وإدارة مهام المشاريع</p>
-    </div>
+<x-page-header :title="'إدارة المهام'" :description="'عرض وإدارة مهام المشاريع'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'إدارة المهام']]">
     @canPermission('App\Models\Admin\ProjectTask', 'create')
     <div>
         <a href="{{ route('admin.projects.tasks.create') }}" class="btn btn-primary">
@@ -15,14 +12,13 @@
         </a>
     </div>
     @endcanPermission
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-2">
-                <label class="form-label small mb-1">الحالة</label>
-                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach (['pending' => 'قيد الانتظار', 'in_progress' => 'قيد التنفيذ', 'completed' => 'منفذة', 'delayed' => 'متأخرة', 'cancelled' => 'ملغاة'] as $val => $label)
                         <option value="{{ $val }}" {{ request('status') === $val ? 'selected' : '' }}>{{ $label }}</option>
@@ -30,8 +26,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">الشهر</label>
-                <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الشهر</label>
+                <select name="month" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach (range(1, 12) as $m)
                         <option value="{{ $m }}" {{ (int)request('month') === $m ? 'selected' : '' }}>{{ now()->month($m)->locale('ar')->translatedFormat('F') }}</option>
@@ -39,8 +35,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">السنة</label>
-                <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">السنة</label>
+                <select name="year" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach (range(now()->year - 2, now()->year + 1) as $y)
                         <option value="{{ $y }}" {{ (int)request('year') === $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -48,8 +44,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المركز</label>
+                <select name="center_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($centers as $center)
                         <option value="{{ $center->id }}" {{ (int)request('center_id') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
@@ -57,15 +53,14 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$perPage ?? 10" />
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$perPage ?? 10" />
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>المهمة</th>
@@ -107,21 +102,21 @@
                         </td>
                         <td>{{ $task->created_at->format('Y-m-d') }}</td>
                         <td>
-                            <a href="{{ route('admin.projects.tasks.show', $task) }}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                            <a href="{{ route('admin.projects.tasks.show', $task) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
                             @canPermission('App\Models\Admin\ProjectTask', 'edit')
-                            <a href="{{ route('admin.projects.tasks.edit', $task) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                            <a href="{{ route('admin.projects.tasks.edit', $task) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\ProjectTask'" :model-id="$task->id" />
                             @canPermission('App\Models\Admin\ProjectTask', 'delete')
                             <form method="POST" action="{{ route('admin.projects.tasks.destroy', $task) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد؟')">
                                 @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-2"></i>لا توجد مهام</td></tr>
+                    <x-empty-row colspan="9" icon="bi-inbox" title="لا توجد مهام" />
                 @endforelse
             </tbody>
         </table>
@@ -137,7 +132,7 @@
 @push('styles')
 <style>
 .task-hint-popup {
-    display: none; position: absolute; z-index: 1000; background: #fff; border: 1px solid #dee2e6;
+    display: none; position: absolute; z-index: 1000; background: var(--color-surface); color: var(--color-text-main); border: 1px solid var(--color-border);
     border-radius: 8px; padding: 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     min-width: 260px; top: 100%; left: 0; margin-top: 4px;
 }

@@ -7,11 +7,8 @@
     $colors = ['review' => 'bg-warning text-dark', 'approved' => 'bg-info', 'assigned' => 'bg-primary', 'completed' => 'bg-success', 'rejected' => 'bg-danger', 'cancelled' => 'bg-secondary'];
 @endphp
 
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>خطة الحركة</h4>
-        <p>طلبات الحركة بين المراكز: مدير مشروع → إدارة المشاريع → مسؤول الحركة → المتابِعون</p>
-    </div>
+<x-page-header :title="'خطة الحركة'" :description="'طلبات الحركة بين المراكز: مدير مشروع → إدارة المشاريع → مسؤول الحركة → المتابِعون'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'خطة الحركة']]">
     <div class="d-flex gap-2">
         <a href="{{ route('admin.movement-plans.help') }}" class="btn btn-outline-info">
             <i class="bi bi-question-circle me-1"></i> معلومات ونصائح
@@ -22,17 +19,16 @@
         </a>
         @endcanPermission
     </div>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             @if (request('project_id'))
                 <input type="hidden" name="project_id" value="{{ request('project_id') }}">
             @endif
             <div class="col-md-3">
-                <label class="form-label small mb-1">الحالة</label>
-                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach (\App\Models\Admin\MovementPlan::STATUSES as $key => $label)
                         <option value="{{ $key }}" {{ request('status') === $key ? 'selected' : '' }}>{{ $label }}</option>
@@ -40,20 +36,19 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المركز</label>
+                <select name="center_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($centers as $center)
                         <option value="{{ $center->id }}" {{ (int)request('center_id') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
                     @endforeach
                 </select>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>رقم الحركة</th>
                     <th>التاريخ</th>
@@ -86,18 +81,18 @@
                         </td>
                         <td>{{ $plan->creator?->name ?? '—' }}</td>
                         <td>
-                            <a href="{{ route('admin.movement-plans.show', $plan) }}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                            <a href="{{ route('admin.movement-plans.show', $plan) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
                             <x-audit-history :model="'App\Models\Admin\MovementPlan'" :model-id="$plan->id" />
                             @canPermission('App\Models\Admin\MovementPlan', 'delete')
                             <form method="POST" action="{{ route('admin.movement-plans.destroy', $plan) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد؟')">
                                 @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-2"></i>لا توجد خطط حركة</td></tr>
+                    <x-empty-row colspan="9" icon="bi-inbox" title="لا توجد خطط حركة" />
                 @endforelse
             </tbody>
         </table>

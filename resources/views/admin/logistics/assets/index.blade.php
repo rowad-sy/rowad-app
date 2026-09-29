@@ -3,11 +3,8 @@
 @section('title', 'الأصول')
 
 @section('logistics-content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>الأصول</h4>
-        <p>إدارة الأصول والممتلكات</p>
-    </div>
+<x-page-header :title="'الأصول'" :description="'إدارة الأصول والممتلكات'"
+               :breadcrumb="[['label' => 'اللوجستي'], ['label' => 'الأصول']]">
     <div class="d-flex gap-2">
         @canPermission('App\Models\Admin\Logistics\Asset', 'create')
         <a href="{{ route('admin.logistics.assets.create') }}" class="btn btn-primary">
@@ -25,14 +22,13 @@
             </label>
         </form>
     </div>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-3">
-                <label class="form-label small mb-1">النوع</label>
-                <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">النوع</label>
+                <select name="type" class="form-select form-select-sm">
                     <option value="all" {{ ($type ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="أثاث" {{ ($type ?? '') === 'أثاث' ? 'selected' : '' }}>أثاث</option>
                     <option value="أجهزة" {{ ($type ?? '') === 'أجهزة' ? 'selected' : '' }}>أجهزة</option>
@@ -40,8 +36,8 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">الحالة</label>
-                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select form-select-sm">
                     <option value="all" {{ ($filterStatus ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="جيد" {{ ($filterStatus ?? '') === 'جيد' ? 'selected' : '' }}>جيد</option>
                     <option value="تالف" {{ ($filterStatus ?? '') === 'تالف' ? 'selected' : '' }}>تالف</option>
@@ -49,8 +45,8 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المركز</label>
+                <select name="center_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($centers ?? [] as $center)
                         <option value="{{ $center->id }}" {{ (int)($centerId ?? '') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
@@ -58,15 +54,14 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$perPage ?? 10" />
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$perPage ?? 10" />
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>كود الأصل</th>
                     <th>الاسم</th>
@@ -90,40 +85,33 @@
                         <td>{{ $asset->room_number ?? '—' }}</td>
                         <td>
                             @if ($asset->status === 'جيد')
-                                <span class="badge bg-success">جيد</span>
+                                <x-status-badge tone="success">جيد</x-status-badge>
                             @elseif ($asset->status === 'تالف')
-                                <span class="badge bg-danger">تالف</span>
+                                <x-status-badge tone="danger">تالف</x-status-badge>
                             @elseif ($asset->status === 'صيانة')
-                                <span class="badge bg-warning text-dark">صيانة</span>
+                                <x-status-badge tone="warning">صيانة</x-status-badge>
                             @else
-                                <span class="badge bg-secondary">{{ $asset->status }}</span>
+                                <x-status-badge>{{ $asset->status }}</x-status-badge>
                             @endif
                         </td>
                         <td>{{ $asset->recipient?->name ?? '—' }}</td>
                         <td>
-                            <a href="{{ route('admin.logistics.assets.edit', $asset) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            @canPermission('App\Models\Admin\Logistics\Asset', 'edit')
+                            <a href="{{ route('admin.logistics.assets.edit', $asset) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                            @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Logistics\Asset'" :model-id="$asset->id" />
                             @canPermission('App\Models\Admin\Logistics\Asset', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.assets.destroy', $asset) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا الأصل؟')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا توجد أصول
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="9" icon="bi-inbox" title="لا توجد أصول" />
                 @endforelse
             </tbody>
         </table>

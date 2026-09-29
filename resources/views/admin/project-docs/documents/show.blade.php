@@ -14,19 +14,17 @@
     ][$document->status] ?? 'secondary';
 @endphp
 
-<div class="page-header">
-    <h4>{{ $document->title ?: $document->template->title_ar }}</h4>
-    <p>
-        <a href="{{ route('admin.project-docs.documents.index') }}" class="text-decoration-none">الوثائق</a>
-        / عرض <span class="badge bg-{{ $badge }} ms-2">{{ $document::STATUSES[$document->status] }}</span>
-    </p>
-</div>
+@php $tone = ['success' => 'success', 'warning' => 'warning', 'danger' => 'danger', 'info' => 'info', 'primary' => 'brand'][$badge] ?? 'neutral'; @endphp
+<x-page-header :title="$document->title ?: $document->template->title_ar"
+               :breadcrumb="[['label' => 'الوثائق', 'url' => route('admin.project-docs.documents.index')], ['label' => 'عرض']]">
+    <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ $document::STATUSES[$document->status] }}</x-status-badge></div></x-slot:meta>
+</x-page-header>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <span class="text-muted small">من قالب:</span>
         <strong>{{ $document->template->title_ar }}</strong>
-        <span class="badge bg-secondary">V{{ $document->template_version }}</span>
+        <x-status-badge>V{{ $document->template_version }}</x-status-badge>
     </div>
     <div class="d-flex gap-2">
         <a href="{{ route('admin.project-docs.documents.help') }}" class="btn btn-outline-info" title="معلومات ونصائح">
@@ -69,7 +67,7 @@
         <form method="POST" action="{{ route('admin.project-docs.documents.destroy', $document) }}"
               onsubmit="return confirm('حذف الوثيقة نهائياً؟')">
             @csrf @method('DELETE')
-            <button class="btn btn-outline-danger"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
         </form>
         @endif
         @endcanPermission
@@ -110,7 +108,7 @@
                             <span class="badge bg-primary-subtle text-primary">صفحة {{ $sectionPage }}</span>
                         @endif
                         @if (!empty($section['assignee_role']))
-                            <span class="badge bg-info text-dark">يُعبأ بواسطة: {{ $section['assignee_role'] }}</span>
+                            <x-status-badge tone="info">يُعبأ بواسطة: {{ $section['assignee_role'] }}</x-status-badge>
                         @endif
                         @if ($filled)
                             <span class="badge bg-success-subtle text-success">معبأ</span>
@@ -118,7 +116,7 @@
                             <span class="badge bg-danger-subtle text-danger">ناقص</span>
                         @endif
                         @if ($block?->locked)
-                            <span class="badge bg-warning text-dark"><i class="bi bi-lock"></i> مقفول</span>
+                            <x-status-badge tone="warning"><i class="bi bi-lock"></i> مقفول</x-status-badge>
                         @endif
                     </span>
                 </div>

@@ -3,12 +3,8 @@
 @section('title', 'وثيقة جديدة')
 
 @section('content')
-<div class="page-header">
-    <h4>وثيقة جديدة من قالب</h4>
-    <p>
-        <a href="{{ route('admin.project-docs.documents.index') }}" class="text-decoration-none">الوثائق</a> / جديد
-    </p>
-</div>
+<x-page-header :title="'وثيقة جديدة من قالب'"
+               :breadcrumb="[['label' => 'الوثائق', 'url' => route('admin.project-docs.documents.index')], ['label' => 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

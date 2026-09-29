@@ -3,27 +3,29 @@
 @section('title', 'إحصائيات العلاج الفيزيائي')
 
 @section('content')
-<div class="page-header">
-    <h4>إحصائيات العلاج الفيزيائي</h4>
-    <p>
-        <a href="{{ route('admin.home') }}" class="text-decoration-none">التطبيقات</a> / العلاج الفيزيائي / الإحصائيات
-    </p>
-</div>
+<x-page-header :title="'إحصائيات العلاج الفيزيائي'"
+               :breadcrumb="[['label' => 'العلاج الفيزيائي'], ['label' => 'الإحصائيات']]" />
 
-<div class="d-flex mb-3">
-    <form method="GET" class="d-flex gap-2 flex-wrap align-items-center">
-        <select name="center_id" class="form-select" style="width: auto;">
-            <option value="">كل المراكز</option>
-            @foreach ($centers as $center)
-                <option value="{{ $center->id }}" {{ (int) $centerId === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
-            @endforeach
-        </select>
-        <label class="small text-muted mb-0">من</label>
-        <input type="date" name="from_date" class="form-control" style="width: auto;" value="{{ $fromDate ?? '' }}">
-        <label class="small text-muted mb-0">إلى</label>
-        <input type="date" name="to_date" class="form-control" style="width: auto;" value="{{ $toDate ?? '' }}">
-        <button class="btn btn-outline-primary">عرض</button>
-    </form>
+<div class="table-container mb-3">
+    <x-filter-bar>
+        <div class="col-12 col-md-4 filter-field">
+            <label class="form-label" for="f-center_id">المركز</label>
+            <select id="f-center_id" name="center_id" class="form-select">
+                <option value="">كل المراكز</option>
+                @foreach ($centers as $center)
+                    <option value="{{ $center->id }}" {{ (int) $centerId === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-from_date">من</label>
+            <input type="date" id="f-from_date" name="from_date" class="form-control" value="{{ $fromDate ?? '' }}">
+        </div>
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-to_date">إلى</label>
+            <input type="date" id="f-to_date" name="to_date" class="form-control" value="{{ $toDate ?? '' }}">
+        </div>
+    </x-filter-bar>
 </div>
 
 <div class="row g-3 mb-3">
@@ -97,7 +99,7 @@
                         @forelse ($patientsPerCenter as $row)
                         <tr>
                             <td>{{ $row['center'] }}</td>
-                            <td class="text-end"><span class="badge bg-primary">{{ $row['total'] }}</span></td>
+                            <td class="text-end"><x-status-badge tone="brand">{{ $row['total'] }}</x-status-badge></td>
                         </tr>
                         @empty
                         <tr><td class="text-center text-muted py-3">لا بيانات</td></tr>
@@ -117,7 +119,7 @@
                         @forelse ($patientsPerRoom as $row)
                         <tr>
                             <td>{{ $row['room'] }}</td>
-                            <td class="text-end"><span class="badge bg-primary">{{ $row['total'] }}</span></td>
+                            <td class="text-end"><x-status-badge tone="brand">{{ $row['total'] }}</x-status-badge></td>
                         </tr>
                         @empty
                         <tr><td class="text-center text-muted py-3">لا بيانات</td></tr>
@@ -154,7 +156,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="3" class="text-center text-muted py-3">لا جلسات بعد</td></tr>
+                        <x-empty-row colspan="3" title="لا جلسات بعد" />
                         @endforelse
                     </tbody>
                 </table>

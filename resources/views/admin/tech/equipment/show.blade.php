@@ -3,22 +3,16 @@
 @section('title', $equipment->name)
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>{{ $equipment->name }}</h4>
-        <p>
-            <a href="{{ route('admin.tech.equipment.index') }}" class="text-decoration-none">المعدات التقنية</a>
-            / #{{ $equipment->id }}
-        </p>
-    </div>
+<x-page-header :title="$equipment->name" :breadcrumb="[['label' => 'المعدات التقنية', 'url' => route('admin.tech.equipment.index')], ['label' => '#' . $equipment->id]]">
     <x-audit-history :model="'App\Models\Admin\Tech\TechEquipment'" :model-id="$equipment->id" />
-</div>
+</x-page-header>
 
 <div class="row">
     <div class="col-md-8">
         <div class="form-card">
             <h5 class="mb-3">تفاصيل المعدة</h5>
 
+            <div class="table-responsive">
             <table class="table table-bordered">
                 <tr>
                     <th style="width:180px;">الاسم</th>
@@ -36,11 +30,11 @@
                     <th>الحالة الفنية</th>
                     <td>
                         @switch($equipment->condition)
-                            @case('a') <span class="badge bg-success">ممتاز</span> @break
-                            @case('b') <span class="badge bg-primary">جيد</span> @break
-                            @case('c') <span class="badge bg-warning text-dark">متوسط</span> @break
-                            @case('d') <span class="badge bg-danger">سيئ</span> @break
-                            @case('e') <span class="badge bg-dark">تالف</span> @break
+                            @case('a') <x-status-badge tone="success">ممتاز</x-status-badge> @break
+                            @case('b') <x-status-badge tone="brand">جيد</x-status-badge> @break
+                            @case('c') <x-status-badge tone="warning">متوسط</x-status-badge> @break
+                            @case('d') <x-status-badge tone="danger">سيئ</x-status-badge> @break
+                            @case('e') <x-status-badge>تالف</x-status-badge> @break
                         @endswitch
                     </td>
                 </tr>
@@ -69,11 +63,14 @@
                     <td>{{ $equipment->updated_at->locale('ar')->translatedFormat('d M Y, h:i A') }}</td>
                 </tr>
             </table>
+            </div>
 
             <div class="d-flex gap-2">
+                @canPermission('App\Models\Admin\Tech\TechEquipment', 'edit')
                 <a href="{{ route('admin.tech.equipment.edit', $equipment) }}" class="btn btn-primary">
                     <i class="bi bi-pencil me-1"></i> تعديل
                 </a>
+                @endcanPermission
                 <a href="{{ route('admin.tech.equipment.index') }}" class="btn btn-outline-secondary">
                     العودة
                 </a>

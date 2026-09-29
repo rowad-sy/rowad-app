@@ -3,10 +3,7 @@
 @section('title', 'إحصائيات اللوجستيك')
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>إحصائيات اللوجستيك</h4>
-    <p>نظرة عامة على طلبات الشراء</p>
-</div>
+<x-page-header title="إحصائيات اللوجستيك" description="نظرة عامة على طلبات الشراء" :breadcrumb="[['label' => 'اللوجستيك'], ['label' => 'الإحصائيات']]" />
 
 {{-- Summary Cards --}}
 <div class="row g-3 mb-4">
@@ -50,11 +47,10 @@
 
 {{-- Filters --}}
 <div class="table-container mb-4">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-4">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المركز</label>
+                <select name="center_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($centers ?? [] as $center)
                         <option value="{{ $center->id }}" {{ (int)($centerId ?? '') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
@@ -62,16 +58,15 @@
                 </select>
             </div>
             <div class="col-md-4">
-                <label class="form-label small mb-1">المشروع</label>
-                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المشروع</label>
+                <select name="project_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($projects ?? [] as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
                     @endforeach
                 </select>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 </div>
 
 {{-- Recent Requests Table --}}
@@ -81,7 +76,7 @@
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>رقم الطلب</th>
                     <th>المواصفات</th>
@@ -104,26 +99,21 @@
                         <td>{{ $request->project?->name ?? '—' }}</td>
                         <td>
                             @if ($request->status === 'pending')
-                                <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                                <x-status-badge tone="warning">قيد الانتظار</x-status-badge>
                             @elseif ($request->status === 'approved')
-                                <span class="badge bg-info">تمت الموافقة</span>
+                                <x-status-badge tone="info">تمت الموافقة</x-status-badge>
                             @elseif ($request->status === 'rejected')
-                                <span class="badge bg-danger">مرفوض</span>
+                                <x-status-badge tone="danger">مرفوض</x-status-badge>
                             @elseif ($request->status === 'executed')
-                                <span class="badge bg-success">منفذ</span>
+                                <x-status-badge tone="success">منفذ</x-status-badge>
                             @else
-                                <span class="badge bg-secondary">{{ $request->status }}</span>
+                                <x-status-badge>{{ $request->status }}</x-status-badge>
                             @endif
                         </td>
                         <td>{{ $request->created_at?->format('Y-m-d') }}</td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا توجد طلبات شراء
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="8" icon="bi-inbox" title="لا توجد طلبات شراء" />
                 @endforelse
             </tbody>
         </table>

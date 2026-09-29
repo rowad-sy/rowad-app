@@ -3,21 +3,19 @@
 @section('title', 'التذاكر الفنية')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>التذاكر الفنية</h4>
-        <p>إدارة طلبات الدعم الفني</p>
-    </div>
+<x-page-header :title="'التذاكر الفنية'" :description="'إدارة طلبات الدعم الفني'"
+               :breadcrumb="[['label' => 'التقنية'], ['label' => 'التذاكر الفنية']]">
+    @canPermission('App\Models\Admin\Tech\TechIssue', 'create')
     <a href="{{ route('admin.tech.issues.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة تذكرة
     </a>
-</div>
+    @endcanPermission
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-3">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالعنوان..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary" type="submit">
@@ -26,8 +24,8 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المركز</label>
+                <select name="center_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($centers as $center)
                         <option value="{{ $center->id }}" {{ (int)($centerId ?? '') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
@@ -35,8 +33,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">المشروع</label>
-                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المشروع</label>
+                <select name="project_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
@@ -44,8 +42,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">الحالة</label>
-                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select form-select-sm">
                     <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="open" {{ ($status ?? '') === 'open' ? 'selected' : '' }}>مفتوحة</option>
                     <option value="in_progress" {{ ($status ?? '') === 'in_progress' ? 'selected' : '' }}>قيد التنفيذ</option>
@@ -54,8 +52,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">الأولوية</label>
-                <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الأولوية</label>
+                <select name="priority" class="form-select form-select-sm">
                     <option value="all" {{ ($priority ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="low" {{ ($priority ?? '') === 'low' ? 'selected' : '' }}>منخفضة</option>
                     <option value="medium" {{ ($priority ?? '') === 'medium' ? 'selected' : '' }}>متوسطة</option>
@@ -63,16 +61,15 @@
                     <option value="urgent" {{ ($priority ?? '') === 'urgent' ? 'selected' : '' }}>عاجلة</option>
                 </select>
             </div>
-            <div class="col-md-1">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$perPage ?? 10" />
+            <div class="col-auto">
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$perPage ?? 10" />
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>العنوان</th>
@@ -95,48 +92,41 @@
                         <td>{{ $issue->project?->name ?? '—' }}</td>
                         <td>
                             @switch($issue->status)
-                                @case('open') <span class="badge bg-primary">مفتوحة</span> @break
-                                @case('in_progress') <span class="badge bg-warning text-dark">قيد التنفيذ</span> @break
-                                @case('completed') <span class="badge bg-success">مكتملة</span> @break
-                                @case('blocked') <span class="badge bg-danger">مغلقة</span> @break
+                                @case('open') <x-status-badge tone="brand">مفتوحة</x-status-badge> @break
+                                @case('in_progress') <x-status-badge tone="warning">قيد التنفيذ</x-status-badge> @break
+                                @case('completed') <x-status-badge tone="success">مكتملة</x-status-badge> @break
+                                @case('blocked') <x-status-badge tone="danger">مغلقة</x-status-badge> @break
                             @endswitch
                         </td>
                         <td>
                             @switch($issue->priority)
-                                @case('low') <span class="badge bg-secondary">منخفضة</span> @break
-                                @case('medium') <span class="badge bg-info">متوسطة</span> @break
-                                @case('high') <span class="badge bg-warning text-dark">مرتفعة</span> @break
-                                @case('urgent') <span class="badge bg-danger">عاجلة</span> @break
+                                @case('low') <x-status-badge>منخفضة</x-status-badge> @break
+                                @case('medium') <x-status-badge tone="info">متوسطة</x-status-badge> @break
+                                @case('high') <x-status-badge tone="warning">مرتفعة</x-status-badge> @break
+                                @case('urgent') <x-status-badge tone="danger">عاجلة</x-status-badge> @break
                             @endswitch
                         </td>
                         <td>{{ $issue->reporter?->name ?? '—' }}</td>
                         <td>{{ $issue->assignee?->name ?? '—' }}</td>
                         <td class="small">{{ $issue->created_at->locale('ar')->translatedFormat('d M Y') }}</td>
                         <td>
-                            <a href="{{ route('admin.tech.issues.show', $issue) }}" class="btn btn-sm btn-outline-info">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                            <a href="{{ route('admin.tech.issues.edit', $issue) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            <a href="{{ route('admin.tech.issues.show', $issue) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                            @canPermission('App\Models\Admin\Tech\TechIssue', 'edit')
+                            <a href="{{ route('admin.tech.issues.edit', $issue) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                            @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Tech\TechIssue'" :model-id="$issue->id" />
+                            @canPermission('App\Models\Admin\Tech\TechIssue', 'delete')
                             <form method="POST" action="{{ route('admin.tech.issues.destroy', $issue) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه التذكرة؟')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
+                            @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="10" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا توجد تذاكر
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="10" icon="bi-inbox" title="لا توجد تذاكر" />
                 @endforelse
             </tbody>
         </table>

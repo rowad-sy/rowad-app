@@ -3,13 +3,8 @@
 @section('title', isset($approvalRule) ? 'تعديل قاعدة موافقة' : 'إضافة قاعدة موافقة')
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>{{ isset($approvalRule) ? 'تعديل قاعدة الموافقة' : 'إضافة قاعدة موافقة' }}</h4>
-    <p>
-        <a href="{{ route('admin.logistics.approval-rules.index') }}" class="text-decoration-none">قواعد الموافقات</a>
-        / {{ isset($approvalRule) ? $approvalRule->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($approvalRule) ? 'تعديل قاعدة الموافقة' : 'إضافة قاعدة موافقة'"
+               :breadcrumb="[['label' => 'قواعد الموافقات', 'url' => route('admin.logistics.approval-rules.index')], ['label' => isset($approvalRule) ? $approvalRule->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-6">

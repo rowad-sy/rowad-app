@@ -3,16 +3,9 @@
 @section('title', $issue->title)
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>{{ $issue->title }}</h4>
-        <p>
-            <a href="{{ route('admin.tech.issues.index') }}" class="text-decoration-none">التذاكر الفنية</a>
-            / #{{ $issue->id }}
-        </p>
-    </div>
+<x-page-header :title="$issue->title" :breadcrumb="[['label' => 'التذاكر الفنية', 'url' => route('admin.tech.issues.index')], ['label' => '#' . $issue->id]]">
     <x-audit-history :model="'App\Models\Admin\Tech\TechIssue'" :model-id="$issue->id" />
-</div>
+</x-page-header>
 
 <div class="row">
     <div class="col-md-8">
@@ -123,9 +116,11 @@
 
             <hr>
 
+            @canPermission('App\Models\Admin\Tech\TechIssue', 'edit')
             <a href="{{ route('admin.tech.issues.edit', $issue) }}" class="btn btn-outline-primary w-100">
                 <i class="bi bi-pencil me-1"></i> تعديل التذكرة
             </a>
+            @endcanPermission
         </div>
     </div>
 </div>

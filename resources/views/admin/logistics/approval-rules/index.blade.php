@@ -3,11 +3,8 @@
 @section('title', 'قواعد الموافقات')
 
 @section('logistics-content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>قواعد الموافقات</h4>
-        <p>إدارة قواعد موافقات طلبات الشراء</p>
-    </div>
+<x-page-header :title="'قواعد الموافقات'" :description="'إدارة قواعد موافقات طلبات الشراء'"
+               :breadcrumb="[['label' => 'اللوجستي'], ['label' => 'قواعد الموافقات']]">
     @canPermission('App\Models\Admin\Logistics\ApprovalRule', 'create')
     <div>
         <a href="{{ route('admin.logistics.approval-rules.create') }}" class="btn btn-primary">
@@ -15,12 +12,12 @@
         </a>
     </div>
     @endcanPermission
-</div>
+</x-page-header>
 
 <div class="table-container">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>الاسم</th>
                     <th>الحد الأدنى</th>
@@ -39,33 +36,26 @@
                         <td>{{ $rule->required_approvals }}</td>
                         <td>
                             @foreach ($rule->approvers ?? [] as $approver)
-                                <span class="badge bg-info me-1">{{ $approver->name }}</span>
+                                <x-status-badge tone="info">{{ $approver->name }}</x-status-badge>
                             @endforeach
                         </td>
                         <td>
-                            <a href="{{ route('admin.logistics.approval-rules.edit', $rule) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            @canPermission('App\Models\Admin\Logistics\ApprovalRule', 'edit')
+                            <a href="{{ route('admin.logistics.approval-rules.edit', $rule) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                            @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Logistics\ApprovalRule'" :model-id="$rule->id" />
                             @canPermission('App\Models\Admin\Logistics\ApprovalRule', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.approval-rules.destroy', $rule) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف قاعدة الموافقة هذه؟')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا توجد قواعد موافقات
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="6" icon="bi-inbox" title="لا توجد قواعد موافقات" />
                 @endforelse
             </tbody>
         </table>

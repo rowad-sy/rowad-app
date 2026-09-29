@@ -3,44 +3,46 @@
 @section('title', 'التقارير الشهرية')
 
 @section('content')
-<div class="page-header">
-    <h4>التقارير الشهرية</h4>
-    <p>
-        <a href="{{ route('admin.home') }}" class="text-decoration-none">التطبيقات</a> / التقارير الشهرية
-    </p>
-</div>
+<x-page-header :title="'التقارير الشهرية'"
+               :breadcrumb="[['label' => 'التقارير الشهرية']]">
+    @canPermission('App\Models\Admin\MonthlyReports\MonthlyReportTemplate', 'view')
+        <a href="{{ route('admin.monthly-reports.templates.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-collection"></i> القوالب
+        </a>
+        @endcanPermission
+        @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'create')
+        <a href="{{ route('admin.monthly-reports.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> إضافة تقرير
+        </a>
+        @endcanPermission
+</x-page-header>
 
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <form method="GET" class="d-flex gap-2 flex-wrap">
-        <select name="status" class="form-select" style="width: auto;">
+<div class="table-container mb-3">
+    <x-filter-bar>
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-status">الحالة</label>
+            <select id="f-status" name="status" class="form-select">
             <option value="">كل الحالات</option>
             @foreach (\App\Models\Admin\MonthlyReports\MonthlyReport::STATUSES as $key => $label)
                 <option value="{{ $key }}" {{ ($status ?? '') == $key ? 'selected' : '' }}>{{ $label }}</option>
             @endforeach
         </select>
-        <select name="project_id" class="form-select" style="width: auto;">
+        </div>
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-project_id">المشروع</label>
+            <select id="f-project_id" name="project_id" class="form-select">
             <option value="">كل المشاريع</option>
             @foreach ($projects as $project)
                 <option value="{{ $project->id }}" {{ ($projectId ?? '') == $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
             @endforeach
         </select>
-        <button class="btn btn-outline-primary">تصفية</button>
-    </form>
-    @canPermission('App\Models\Admin\MonthlyReports\MonthlyReportTemplate', 'view')
-    <a href="{{ route('admin.monthly-reports.templates.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-collection"></i> القوالب
-    </a>
-    @endcanPermission
-    @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'create')
-    <a href="{{ route('admin.monthly-reports.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> إضافة تقرير
-    </a>
-    @endcanPermission
+        </div>
+    </x-filter-bar>
 </div>
 
-<div class="card">
-    <div class="card-body table-responsive">
-        <table class="table table-hover align-middle">
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
                     <th>التقرير</th>
@@ -75,20 +77,14 @@
                     </td>
                     <td>{{ $report->creator?->name }}</td>
                     <td class="text-nowrap">
-                        <a href="{{ route('admin.monthly-reports.show', $report) }}" class="btn btn-sm btn-outline-secondary" title="عرض">
-                            <i class="bi bi-eye"></i>
-                        </a>
+                        <a href="{{ route('admin.monthly-reports.show', $report) }}" class="btn btn-sm btn-outline-secondary" title="عرض" aria-label="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
                         @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'edit')
                         @if ($report->status !== 'approved')
-                        <a href="{{ route('admin.monthly-reports.edit', $report) }}" class="btn btn-sm btn-outline-primary" title="تعبئة/تعديل">
-                            <i class="bi bi-pencil"></i>
-                        </a>
+                        <a href="{{ route('admin.monthly-reports.edit', $report) }}" class="btn btn-sm btn-outline-primary" title="تعبئة/تعديل" aria-label="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                         @endif
                         @endcanPermission
                         @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'view')
-                        <a href="{{ route('admin.monthly-reports.print', $report) }}" target="_blank" class="btn btn-sm btn-outline-dark" title="طباعة A4">
-                            <i class="bi bi-printer"></i>
-                        </a>
+                        <a href="{{ route('admin.monthly-reports.print', $report) }}" target="_blank" class="btn btn-sm btn-outline-dark" title="طباعة A4" aria-label="طباعة"><i class="bi bi-printer" aria-hidden="true"></i></a>
                         @endcanPermission
                         @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'create')
                         <form method="POST" action="{{ route('admin.monthly-reports.duplicate', $report) }}" class="d-inline"
@@ -102,7 +98,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">لا توجد تقارير بعد</td></tr>
+                <x-empty-row colspan="7" title="لا توجد تقارير بعد" />
                 @endforelse
             </tbody>
         </table>

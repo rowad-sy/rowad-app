@@ -17,11 +17,8 @@
 @endpush
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>إحصائيات التقنية</h4>
-        <p>نظرة شاملة على التذاكر والمعدات التقنية</p>
-    </div>
+<x-page-header :title="'إحصائيات التقنية'" :description="'نظرة شاملة على التذاكر والمعدات التقنية'"
+               :breadcrumb="[['label' => 'التقنية'], ['label' => 'إحصائيات التقنية']]">
     @if (array_filter($filters))
     <div>
         <a href="{{ route('admin.tech.statistics') }}" class="btn btn-outline-secondary btn-sm">
@@ -29,7 +26,7 @@
         </a>
     </div>
     @endif
-</div>
+</x-page-header>
 
 {{-- ─── Filter Form ─── --}}
 <form method="GET" action="{{ route('admin.tech.statistics') }}" class="mb-4">
@@ -73,50 +70,10 @@
 
 {{-- ─── Summary Cards ─── --}}
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card stat-card-lg bg-primary text-white h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <div class="stat-icon bg-white bg-opacity-25"><i class="bi bi-ticket"></i></div>
-                <div>
-                    <small class="opacity-75">إجمالي التذاكر</small>
-                    <h3>{{ $totalIssues }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card-lg bg-warning text-dark h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <div class="stat-icon bg-white bg-opacity-25"><i class="bi bi-exclamation-triangle"></i></div>
-                <div>
-                    <small class="opacity-75">عاجلة + مرتفعة</small>
-                    <h3>{{ $urgentIssues + $highIssues }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card-lg bg-success text-white h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <div class="stat-icon bg-white bg-opacity-25"><i class="bi bi-check-circle"></i></div>
-                <div>
-                    <small class="opacity-75">مكتملة</small>
-                    <h3>{{ $completedIssues }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card-lg bg-info text-white h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <div class="stat-icon bg-white bg-opacity-25"><i class="bi bi-pc-display"></i></div>
-                <div>
-                    <small class="opacity-75">إجمالي المعدات</small>
-                    <h3>{{ $totalEquipment }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="col-6 col-md-3"><x-kpi label="إجمالي التذاكر" :value="$totalIssues" icon="bi-ticket" tone="brand" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="عاجلة + مرتفعة" :value="$urgentIssues + $highIssues" icon="bi-exclamation-triangle" tone="warning" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="مكتملة" :value="$completedIssues" icon="bi-check-circle" tone="success" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="إجمالي المعدات" :value="$totalEquipment" icon="bi-pc-display" tone="info" /></div>
 </div>
 
 {{-- ─── Charts Row 1: Issue Stats ─── --}}
@@ -155,7 +112,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light"><tr><th>المركز</th><th>العدد</th></tr></thead>
+                    <thead><tr><th>المركز</th><th>العدد</th></tr></thead>
                     <tbody>
                         @foreach ($centerIssueStats as $cs)
                             <tr><td>{{ $cs->name }}</td><td>{{ $cs->total }}</td></tr>
@@ -177,7 +134,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light"><tr><th>النوع</th><th>العدد</th></tr></thead>
+                    <thead><tr><th>النوع</th><th>العدد</th></tr></thead>
                     <tbody>
                         @foreach ($typeLabels as $i => $label)
                             <tr><td>{{ $label }}</td><td>{{ $typeData[$i] }}</td></tr>
@@ -208,7 +165,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light"><tr><th>المركز</th><th>العدد</th></tr></thead>
+                    <thead><tr><th>المركز</th><th>العدد</th></tr></thead>
                     <tbody>
                         @foreach ($centerEquipStats as $cs)
                             <tr><td>{{ $cs->name }}</td><td>{{ $cs->total }}</td></tr>

@@ -3,13 +3,8 @@
 @section('title', isset($task) ? 'تعديل مهمة' : 'إضافة مهمة')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($task) ? 'تعديل المهمة' : 'إضافة مهمة' }}</h4>
-    <p>
-        <a href="{{ route('admin.projects.tasks.index') }}" class="text-decoration-none">المهام</a>
-        / {{ isset($task) ? $task->title : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($task) ? 'تعديل المهمة' : 'إضافة مهمة'"
+               :breadcrumb="[['label' => 'المهام', 'url' => route('admin.projects.tasks.index')], ['label' => isset($task) ? $task->title : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">

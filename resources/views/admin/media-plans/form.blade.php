@@ -3,14 +3,8 @@
 @section('title', isset($plan) ? 'تعديل خطة إعلامية' : 'إضافة خطة إعلامية')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($plan) ? 'تعديل الخطة الإعلامية' : 'إضافة خطة إعلامية' }}</h4>
-    <p>
-        <a href="{{ route('admin.media-plans.index') }}" class="text-decoration-none">الخطة الإعلامية</a>
-        / {{ isset($plan) ? 'تعديل' : 'جديد' }}
-    </p>
-    <small class="text-muted">تُعبَّأ الخطة في الفترة من 25 إلى 30 من الشهر، ويدخلها مسؤول المشروع.</small>
-</div>
+<x-page-header :title="isset($plan) ? 'تعديل الخطة الإعلامية' : 'إضافة خطة إعلامية'" description="تُعبَّأ الخطة في الفترة من 25 إلى 30 من الشهر، ويدخلها مسؤول المشروع."
+               :breadcrumb="[['label' => 'الخطة الإعلامية', 'url' => route('admin.media-plans.index')], ['label' => isset($plan) ? 'تعديل' : 'جديد']]" />
 
 <div class="form-card mb-3">
     <form method="POST"

@@ -3,30 +3,30 @@
 @section('title', 'متابعة المرضى حسب المعالج')
 
 @section('content')
-<div class="page-header">
-    <h4>متابعة المرضى حسب المعالج</h4>
-    <p>
-        <a href="{{ route('admin.home') }}" class="text-decoration-none">التطبيقات</a> / العلاج الفيزيائي / المتابعة
-    </p>
-</div>
+<x-page-header :title="'متابعة المرضى حسب المعالج'"
+               :breadcrumb="[['label' => 'العلاج الفيزيائي'], ['label' => 'المتابعة']]" />
 
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <form method="GET" class="d-flex gap-2 flex-wrap">
-        <select name="center_id" class="form-select" style="width: auto;">
+<div class="table-container mb-3">
+    <x-filter-bar>
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-center_id">المركز</label>
+            <select id="f-center_id" name="center_id" class="form-select">
             <option value="">كل المراكز</option>
             @foreach ($centers as $center)
                 <option value="{{ $center->id }}" {{ (string) request('center_id') === (string) $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
             @endforeach
         </select>
-        <select name="therapist_id" class="form-select" style="width: auto;">
+        </div>
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-therapist_id">المعالج</label>
+            <select id="f-therapist_id" name="therapist_id" class="form-select">
             <option value="">كل المعالجين (تجميع)</option>
             @foreach ($therapists as $therapist)
                 <option value="{{ $therapist->id }}" {{ (string) request('therapist_id') === (string) $therapist->id ? 'selected' : '' }}>{{ $therapist->name }}</option>
             @endforeach
         </select>
-        <button class="btn btn-outline-primary">عرض</button>
-    </form>
-    <p class="text-muted small mb-0">عدد الجلسات + ما فُعل بكل جلسة لكل مريض، مجمّعاً حسب المعالج.</p>
+        </div>
+    </x-filter-bar>
 </div>
 
 @forelse ($patients as $groupKey => $groupPatients)
@@ -44,7 +44,7 @@
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="bi bi-person-badge me-1"></i> المعالج: {{ $groupLabel }}</span>
-            <span class="badge bg-primary">{{ count($groupPatients) }} مريض</span>
+            <x-status-badge tone="brand">{{ count($groupPatients) }} مريض</x-status-badge>
         </div>
         <div class="card-body">
             @forelse ($groupPatients as $patient)
@@ -56,17 +56,18 @@
                                 {{ \App\Models\Admin\Physiotherapy\PhysioPatient::GENDERS[$patient->gender] ?? $patient->gender }}
                             </span>
                             @if ($patient->is_transferred)
-                                <span class="badge bg-warning text-dark">منقول</span>
+                                <x-status-badge tone="warning">منقول</x-status-badge>
                             @endif
                         </div>
-                        <div class="d-flex gap-2">
-                            <span class="badge bg-secondary">مركز: {{ $patient->center?->name ?? '—' }}</span>
-                            <span class="badge bg-secondary">غرفة: {{ $patient->room?->name ?? '—' }}</span>
-                            <span class="badge bg-dark">عدد الجلسات: {{ $patient->sessions_count }}</span>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <x-status-badge class="text-wrap">مركز: {{ $patient->center?->name ?? "—" }}</x-status-badge>
+                            <x-status-badge class="text-wrap">غرفة: {{ $patient->room?->name ?? '—' }}</x-status-badge>
+                            <x-status-badge>عدد الجلسات: {{ $patient->sessions_count }}</x-status-badge>
                         </div>
                     </div>
 
                     @if ($patient->sessions->isNotEmpty())
+                        <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0 border-top">
                             <thead>
                                 <tr>
@@ -87,6 +88,7 @@
                                 @endforeach
                             </tbody>
                         </table>
+                        </div>
                     @else
                         <p class="small text-muted mb-0">لا توجد جلسات مسجلة لهذا المريض بعد.</p>
                     @endif

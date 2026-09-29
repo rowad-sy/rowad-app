@@ -3,15 +3,12 @@
 @section('title', 'تقويم الفعاليات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h4><i class="bi bi-calendar3 me-2 text-danger"></i>تقويم الفعاليات</h4>
-        <p>الفعاليات التي تمت وستتم في المؤسسة (بطاقات الفعاليات المعتمدة)</p>
-    </div>
+<x-page-header :title="'تقويم الفعاليات'" :description="'الفعاليات التي تمت وستتم في المؤسسة (بطاقات الفعاليات المعتمدة)'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'تقويم الفعاليات']]">
     <a href="{{ route('admin.portal') }}" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-right me-1"></i> رجوع
     </a>
-</div>
+</x-page-header>
 
 <div class="cal-wrap">
     <div class="cal-head">

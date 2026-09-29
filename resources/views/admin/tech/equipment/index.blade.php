@@ -3,21 +3,19 @@
 @section('title', 'المعدات التقنية')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>المعدات التقنية</h4>
-        <p>إدارة أجهزة ومعدات التقنية</p>
-    </div>
+<x-page-header :title="'المعدات التقنية'" :description="'إدارة أجهزة ومعدات التقنية'"
+               :breadcrumb="[['label' => 'التقنية'], ['label' => 'المعدات التقنية']]">
+    @canPermission('App\Models\Admin\Tech\TechEquipment', 'create')
     <a href="{{ route('admin.tech.equipment.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة معدة
     </a>
-</div>
+    @endcanPermission
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-3">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالاسم أو الرقم التسلسلي..." value="{{ $search }}">
                     <button class="btn btn-outline-secondary" type="submit">
@@ -26,8 +24,8 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">المركز</label>
-                <select name="center_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المركز</label>
+                <select name="center_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($centers as $center)
                         <option value="{{ $center->id }}" {{ (int)($centerId ?? '') === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
@@ -35,8 +33,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">المشروع</label>
-                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المشروع</label>
+                <select name="project_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
@@ -44,8 +42,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">النوع</label>
-                <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">النوع</label>
+                <select name="type" class="form-select form-select-sm">
                     <option value="all" {{ ($type ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     @php
                         $types = \App\Models\Admin\Tech\TechEquipment::select('type')->distinct()->orderBy('type')->pluck('type');
@@ -56,8 +54,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">الحالة</label>
-                <select name="condition" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">الحالة</label>
+                <select name="condition" class="form-select form-select-sm">
                     <option value="all" {{ ($condition ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="a" {{ ($condition ?? '') === 'a' ? 'selected' : '' }}>ممتاز</option>
                     <option value="b" {{ ($condition ?? '') === 'b' ? 'selected' : '' }}>جيد</option>
@@ -66,16 +64,15 @@
                     <option value="e" {{ ($condition ?? '') === 'e' ? 'selected' : '' }}>تالف</option>
                 </select>
             </div>
-            <div class="col-md-1">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$perPage ?? 10" />
+            <div class="col-auto">
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$perPage ?? 10" />
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>الاسم</th>
@@ -97,38 +94,33 @@
                         <td><code>{{ $item->serial_number ?? '—' }}</code></td>
                         <td>
                             @switch($item->condition)
-                                @case('a') <span class="badge bg-success">ممتاز</span> @break
-                                @case('b') <span class="badge bg-primary">جيد</span> @break
-                                @case('c') <span class="badge bg-warning text-dark">متوسط</span> @break
-                                @case('d') <span class="badge bg-danger">سيئ</span> @break
-                                @case('e') <span class="badge bg-dark">تالف</span> @break
+                                @case('a') <x-status-badge tone="success">ممتاز</x-status-badge> @break
+                                @case('b') <x-status-badge tone="brand">جيد</x-status-badge> @break
+                                @case('c') <x-status-badge tone="warning">متوسط</x-status-badge> @break
+                                @case('d') <x-status-badge tone="danger">سيئ</x-status-badge> @break
+                                @case('e') <x-status-badge>تالف</x-status-badge> @break
                             @endswitch
                         </td>
                         <td>{{ $item->room ?? '—' }}</td>
                         <td>{{ $item->center?->name ?? '—' }}</td>
                         <td>{{ $item->project?->name ?? '—' }}</td>
                         <td>
-                            <a href="{{ route('admin.tech.equipment.edit', $item) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            @canPermission('App\Models\Admin\Tech\TechEquipment', 'edit')
+                            <a href="{{ route('admin.tech.equipment.edit', $item) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                            @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Tech\TechEquipment'" :model-id="$item->id" />
+                            @canPermission('App\Models\Admin\Tech\TechEquipment', 'delete')
                             <form method="POST" action="{{ route('admin.tech.equipment.destroy', $item) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه المعدة؟')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
+                            @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا توجد معدات
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="9" icon="bi-inbox" title="لا توجد معدات" />
                 @endforelse
             </tbody>
         </table>

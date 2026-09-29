@@ -3,35 +3,25 @@
 @section('title', $patient->name)
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h4>{{ $patient->name }}</h4>
-        <p>
-            <a href="{{ route('admin.physiotherapy.patients.index') }}" class="text-decoration-none">المرضى</a> / {{ $patient->name }}
-        </p>
-    </div>
-    <div class="d-flex gap-2">
-        @canPermission('App\Models\Admin\Physiotherapy\PhysioPatient', 'edit')
-        <a href="{{ route('admin.physiotherapy.patients.edit', $patient) }}" class="btn btn-outline-primary">
-            <i class="bi bi-pencil me-1"></i> تعديل البيانات
-        </a>
-        @endcanPermission
-    </div>
-</div>
+<x-page-header :title="$patient->name" :breadcrumb="[['label' => 'المرضى', 'url' => route('admin.physiotherapy.patients.index')], ['label' => $patient->name]]">
+    @canPermission('App\Models\Admin\Physiotherapy\PhysioPatient', 'edit')
+    <a href="{{ route('admin.physiotherapy.patients.edit', $patient) }}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> تعديل البيانات</a>
+    @endcanPermission
+</x-page-header>
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
     <span class="badge {{ $patient->gender === 'male' ? 'bg-primary-subtle text-primary' : 'bg-danger-subtle text-danger' }}">
         {{ \App\Models\Admin\Physiotherapy\PhysioPatient::GENDERS[$patient->gender] ?? $patient->gender }}
     </span>
     @if ($patient->is_transferred)
-        <span class="badge bg-warning text-dark">منقول {{ $patient->transferred_at?->format('d/m/Y') }}</span>
+        <x-status-badge tone="warning">منقول {{ $patient->transferred_at?->format('d/m/Y') }}</x-status-badge>
     @else
-        <span class="badge bg-success">نشط</span>
+        <x-status-badge tone="success">نشط</x-status-badge>
     @endif
-    <span class="badge bg-secondary">مركز: {{ $patient->center?->name ?? '—' }}</span>
-    <span class="badge bg-secondary">المعالج: {{ $patient->therapist?->name ?? '—' }}</span>
-    <span class="badge bg-secondary">الغرفة: {{ $patient->room?->name ?? '—' }}</span>
-    <span class="badge bg-dark">عدد الجلسات: {{ $patient->sessions->count() }}</span>
+    <x-status-badge>مركز: {{ $patient->center?->name ?? '—' }}</x-status-badge>
+    <x-status-badge>المعالج: {{ $patient->therapist?->name ?? '—' }}</x-status-badge>
+    <x-status-badge>الغرفة: {{ $patient->room?->name ?? '—' }}</x-status-badge>
+    <x-status-badge>عدد الجلسات: {{ $patient->sessions->count() }}</x-status-badge>
 </div>
 
 <div class="row g-3 mb-3">
@@ -135,7 +125,7 @@
                         <form method="POST" action="{{ route('admin.physiotherapy.sessions.destroy', $session) }}"
                               class="d-inline" onsubmit="return confirm('حذف الجلسة نهائياً؟')">
                             @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </form>
                         @endcanPermission
                     </td>
@@ -179,7 +169,7 @@
                 </tr>
                 @endcanPermission
                 @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">لا توجد جلسات بعد — أضف الجلسة الأولى</td></tr>
+                <x-empty-row colspan="6" title="لا توجد جلسات بعد — أضف الجلسة الأولى" />
                 @endforelse
             </tbody>
         </table>

@@ -12,13 +12,8 @@
 @endpush
 
 @section('logistics-content')
-<div class="page-header">
-    <h4>{{ isset($purchaseRequest) ? 'تعديل طلب شراء' : 'إضافة طلب شراء' }}</h4>
-    <p>
-        <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="text-decoration-none">طلبات الشراء</a>
-        / {{ isset($purchaseRequest) ? '#' . $purchaseRequest->id : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($purchaseRequest) ? 'تعديل طلب شراء' : 'إضافة طلب شراء'"
+               :breadcrumb="[['label' => 'طلبات الشراء', 'url' => route('admin.logistics.purchase-requests.index')], ['label' => isset($purchaseRequest) ? '#' . $purchaseRequest->id : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-12">
@@ -39,7 +34,7 @@
                     @error('items') <div class="text-danger small mb-2">{{ $message }}</div> @enderror
                     <div class="table-responsive">
                         <table class="table table-bordered mb-0" id="itemsTable">
-                            <thead class="table-light">
+                            <thead>
                                 <tr>
                                     <th style="width:35%">الوصف</th>
                                     <th style="width:10%">الكمية</th>
@@ -77,9 +72,7 @@
                                         <input type="text" class="form-control item-notes" placeholder="اختياري">
                                     </td>
                                     <td>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)" aria-label="حذف البند" title="حذف البند"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                                     </td>
                                 </tr>
                             </template>
@@ -202,34 +195,60 @@
 </div>
 @endsection
 
+@php
+    $oldItemRows = collect(old('items', []))->filter(fn ($r) => is_array($r))->map(fn ($r, $k) => ['key' => (string) $k, 'data' => $r])->values()->all();
+    $itemErrorRows = collect($errors->getMessages())->filter(fn ($m, $k) => str_starts_with($k, 'items.'))->all();
+@endphp
 @push('scripts')
 <script>
     var itemIndex = 0;
+    // بعد محاولة حفظ فاشلة: البنود المُرسلة بمفاتيحها الأصلية (items.N.*) وأخطاء الخادم المرتبطة بها كما أُرجعت
+    var oldItems = {!! json_encode($oldItemRows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) !!};
+    var itemErrors = {!! json_encode($itemErrorRows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) !!};
+    var ITEM_FIELDS = [['description', '.item-desc', 'وصف البند'], ['quantity', '.item-qty', 'الكمية'], ['unit', '.item-unit', 'الوحدة'],
+        ['budget_line', '.item-budget', 'خط الميزانية'], ['unit_price', '.item-price', 'سعر الوحدة'], ['notes', '.item-notes', 'ملاحظات']];
 
-    function addItem(data) {
+    function addItem(data, key) {
         var template = document.getElementById('itemTemplate');
         var clone = template.content.cloneNode(true);
         var row = clone.querySelector('.item-row');
+        // مفتاح الصف: الأصلي عند الاستعادة، وإلا أكبر مفتاح مستخدم + 1 (لا يعتمد على عدد الصفوف)
+        var k = (key !== undefined && key !== null && key !== '') ? String(key) : String(itemIndex);
+        if (/^\d+$/.test(k)) itemIndex = Math.max(itemIndex, parseInt(k, 10) + 1);
+        var n = document.querySelectorAll('#itemsBody .item-row').length + 1;
+        row.dataset.key = k;
 
-        row.querySelector('.item-desc').setAttribute('name', 'items[' + itemIndex + '][description]');
-        row.querySelector('.item-qty').setAttribute('name', 'items[' + itemIndex + '][quantity]');
-        row.querySelector('.item-unit').setAttribute('name', 'items[' + itemIndex + '][unit]');
-        row.querySelector('.item-budget').setAttribute('name', 'items[' + itemIndex + '][budget_line]');
-        row.querySelector('.item-price').setAttribute('name', 'items[' + itemIndex + '][unit_price]');
-        row.querySelector('.item-notes').setAttribute('name', 'items[' + itemIndex + '][notes]');
+        ITEM_FIELDS.forEach(function (f) {
+            var el = row.querySelector(f[1]);
+            el.setAttribute('name', 'items[' + k + '][' + f[0] + ']');
+            el.id = 'pr-item-' + k + '-' + f[0];
+            el.setAttribute('aria-label', f[2] + ' — بند ' + n);
+            if (data) {
+                // القيمة كما أُرسلت (صفر/فارغ/غير صالح) دون أي بديل تلقائي
+                var v = data[f[0]];
+                el.value = (typeof v === 'string' || typeof v === 'number') ? String(v) : '';
+            }
+        });
+        row.querySelector('.item-total').setAttribute('aria-label', 'الإجمالي — بند ' + n);
 
-        if (data) {
-            row.querySelector('.item-desc').value = data.description || '';
-            row.querySelector('.item-qty').value = data.quantity || 1;
-            row.querySelector('.item-unit').value = data.unit || '';
-            row.querySelector('.item-budget').value = data.budget_line || '';
-            row.querySelector('.item-price').value = data.unit_price || 0;
-            row.querySelector('.item-notes').value = data.notes || '';
-            calcRow(row.querySelector('.item-qty'));
-        }
+        // أخطاء الخادم بجوار الحقل وفق المفتاح الأصلي، وتُنشأ بـtextContent (لا HTML)
+        ITEM_FIELDS.forEach(function (f) {
+            var msgs = itemErrors['items.' + k + '.' + f[0]];
+            if (!msgs || !msgs.length) return;
+            var el = row.querySelector(f[1]);
+            var fb = document.createElement('div');
+            fb.className = 'invalid-feedback d-block';
+            fb.id = el.id + '-error';
+            fb.textContent = msgs.join(' ');
+            el.classList.add('is-invalid');
+            el.setAttribute('aria-invalid', 'true');
+            el.setAttribute('aria-describedby', fb.id);
+            el.insertAdjacentElement('afterend', fb);
+        });
 
+        if (data) calcRow(row.querySelector('.item-qty'));
         document.getElementById('itemsBody').appendChild(clone);
-        itemIndex++;
+        if (!/^\d+$/.test(k)) itemIndex++;
         calcGrandTotal();
     }
 
@@ -261,7 +280,7 @@
 
     // Add first row on load
     document.addEventListener('DOMContentLoaded', function () {
-        addItem();
+        if (oldItems.length) { oldItems.forEach(function (it) { addItem(it.data, it.key); }); } else { addItem(); }
 
         // Signature canvas
         var canvas = document.getElementById('signatureCanvas');

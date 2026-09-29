@@ -3,13 +3,8 @@
 @section('title', isset($path) ? 'تعديل مسار' : 'إضافة مسار')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($path) ? 'تعديل المسار' : 'إضافة مسار جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.paths.index') }}" class="text-decoration-none">المسارات</a>
-        / {{ isset($path) ? $path->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($path) ? 'تعديل المسار' : 'إضافة مسار جديد'"
+               :breadcrumb="[['label' => 'المسارات', 'url' => route('admin.paths.index')], ['label' => isset($path) ? $path->name : 'جديد']]" />
 
 <form method="POST" action="{{ isset($path) ? route('admin.paths.update', $path) : route('admin.paths.store') }}">
     @csrf

@@ -91,6 +91,9 @@ return [
 
     // أسماء الحقول المعروضة في الرسائل (المفاتيح الداخلية لا تتغير)
     'attributes' => [
+        'items' => 'البنود', 'items.*.description' => 'وصف البند', 'items.*.quantity' => 'كمية البند', 'items.*.unit' => 'وحدة البند',
+        'items.*.unit_price' => 'سعر وحدة البند', 'items.*.budget_line' => 'خط ميزانية البند', 'items.*.notes' => 'ملاحظات البند',
+        'quantity' => 'الكمية', 'unit' => 'الوحدة', 'unit_price' => 'سعر الوحدة', 'delete_reason' => 'سبب الحذف',
         'name' => 'الاسم', 'name_ar' => 'الاسم بالعربية', 'name_en' => 'الاسم بالإنجليزية',
         'title_ar' => 'المسمى بالعربية', 'title_en' => 'المسمى بالإنجليزية',
         'description' => 'الوصف', 'description_ar' => 'الوصف بالعربية', 'description_en' => 'الوصف بالإنجليزية',

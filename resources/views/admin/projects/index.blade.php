@@ -3,19 +3,17 @@
 @section('title', 'المشاريع')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>المشاريع</h4>
-        <p>إدارة المشاريع التي تعمل عليها المؤسسة</p>
-    </div>
+<x-page-header :title="'المشاريع'" :description="'إدارة المشاريع التي تعمل عليها المؤسسة'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'المشاريع']]">
+    @canPermission('App\Models\Admin\Project', 'create')
     <a href="{{ route('admin.projects.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة مشروع
     </a>
-</div>
+    @endcanPermission
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2">
+    <x-filter-bar>
             <div class="col-md-4">
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث عن مشروع..." value="{{ $search }}">
@@ -24,11 +22,11 @@
                     </button>
                 </div>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
-    <table class="table table-hover align-middle">
-        <thead class="table-light">
+    <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
             <tr>
                 <th>#</th>
                 <th>اسم المشروع</th>
@@ -59,30 +57,26 @@
                         <a href="{{ route('admin.projects.overview', $project) }}" class="btn btn-sm btn-outline-brand" title="صفحة المشروع">
                             <i class="bi bi-box-arrow-up-left"></i>
                         </a>
-                        <a href="{{ route('admin.projects.edit', $project) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i>
-                        </a>
+                        @canPermission('App\Models\Admin\Project', 'edit')
+                        <a href="{{ route('admin.projects.edit', $project) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                        @endcanPermission
                         <x-audit-history :model="'App\Models\Admin\Project'" :model-id="$project->id" />
+                        @canPermission('App\Models\Admin\Project', 'delete')
                         <form method="POST" action="{{ route('admin.projects.destroy', $project) }}" class="d-inline"
                               onsubmit="return confirm('هل أنت متأكد من حذف هذا المشروع؟')">
                             @csrf
                             @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-trash"></i>
-                            </button>
+                            <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </form>
+                        @endcanPermission
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">
-                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                        لا توجد مشاريع
-                    </td>
-                </tr>
+                <x-empty-row colspan="7" icon="bi-inbox" title="لا توجد مشاريع" />
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <div class="p-3">
         {{ $projects->links() }}

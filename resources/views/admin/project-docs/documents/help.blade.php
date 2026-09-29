@@ -3,15 +3,12 @@
 @section('title', 'معلومات ونصائح — وثائق المشروع')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h4><i class="bi bi-question-circle ms-1"></i> معلومات ونصائح — وثائق المشروع</h4>
-        <p>دليل شامل لكيفية عمل الوثائق (ملاحق المشروع): القوالب، التعبئة، سير العمل، والوثائق المشتركة بين مستخدمين.</p>
-    </div>
+<x-page-header :title="'معلومات ونصائح — وثائق المشروع'" :description="'دليل شامل لكيفية عمل الوثائق (ملاحق المشروع): القوالب، التعبئة، سير العمل، والوثائق المشتركة بين مستخدمين.'"
+               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'معلومات ونصائح — وثائق المشروع']]">
     <a href="{{ route('admin.project-docs.documents.index') }}" class="btn btn-outline-primary">
         <i class="bi bi-arrow-right me-1"></i> العودة للوثائق
     </a>
-</div>
+</x-page-header>
 
 <div class="row g-3">
 
@@ -63,19 +60,19 @@
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-arrow-repeat me-1"></i> دورة حياة الوثيقة (سير العمل)</h5></div>
             <div class="p-3">
                 <ol class="small mb-3 ps-3">
-                    <li class="mb-1"><strong>إنشاء:</strong> من زر «وثيقة جديدة» اختر القالب وحدد المشروع/المركز/الفترة (اختياري). تُنشأ الوثيقة كـ <span class="badge bg-secondary">مسودة</span> بأقسام فارغة.</li>
+                    <li class="mb-1"><strong>إنشاء:</strong> من زر «وثيقة جديدة» اختر القالب وحدد المشروع/المركز/الفترة (اختياري). تُنشأ الوثيقة كـ <x-status-badge>مسودة</x-status-badge> بأقسام فارغة.</li>
                     <li class="mb-1"><strong>تعبئة:</strong> من زر «تعبئة/تعديل» تُملأ الأقسام قسماً قسماً، ويظهر لكل قسم حالته (معبأ/ناقص). يمكن قفل أي قسم بعد حفظه.</li>
                     <li class="mb-1"><strong>إرسال للمراجعة:</strong> زر «إرسال للمراجعة» يقفل كل الأقسام تلقائياً — لا يمكن إرسال وثيقة فيها أقسام ناقصة.</li>
-                    <li class="mb-1"><strong>مراجعة:</strong> الوثيقة تصبح <span class="badge bg-warning text-dark">قيد المراجعة</span>، ويستطيع من يملك صلاحية التحرير التعليق أو الاعتماد أو الرفض.</li>
-                    <li class="mb-1"><strong>اعتماد / رفض:</strong> الاعتماد يثبّت الوثيقة نهائياً <span class="badge bg-success">معتمد</span>. الرفض يعيدها <span class="badge bg-danger">مرفوضة</span> مع تسجيل سببه.</li>
+                    <li class="mb-1"><strong>مراجعة:</strong> الوثيقة تصبح <x-status-badge tone="warning">قيد المراجعة</x-status-badge>، ويستطيع من يملك صلاحية التحرير التعليق أو الاعتماد أو الرفض.</li>
+                    <li class="mb-1"><strong>اعتماد / رفض:</strong> الاعتماد يثبّت الوثيقة نهائياً <x-status-badge tone="success">معتمد</x-status-badge>. الرفض يعيدها <x-status-badge tone="danger">مرفوضة</x-status-badge> مع تسجيل سببه.</li>
                     <li class="mb-1"><strong>إعادة فتح (عند الرفض فقط):</strong> يستطيع <strong>منشئ الوثيقة</strong> فتحها مجدداً كمسودة لتعديل أقسامها.</li>
                 </ol>
                 <div class="row text-center small g-1 mb-3">
-                    <div class="col"><span class="badge bg-secondary w-100 py-2">مسودة</span></div>
+                    <div class="col"><x-status-badge>مسودة</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-warning text-dark w-100 py-2">قيد المراجعة</span></div>
+                    <div class="col"><x-status-badge tone="warning">قيد المراجعة</x-status-badge></div>
                     <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><span class="badge bg-success w-100 py-2">معتمد</span></div>
+                    <div class="col"><x-status-badge tone="success">معتمد</x-status-badge></div>
                 </div>
                 <div class="text-center small mb-0">
                     <a href="{{ route('admin.project-docs.documents.index') }}" class="text-decoration-none">من صفحة الوثائق يمكنك تصفية القائمة حسب الحالة</a>
@@ -90,7 +87,7 @@
 
                 <div class="border rounded p-3 mb-3 bg-light">
                     <h6 class="fw-bold mb-2"><i class="bi bi-person-badge text-primary"></i> 1) لكل قسم «مسؤول تعبئة» (يُعبأ بواسطة)</h6>
-                    <p class="small mb-0">بعض أقسام القوالب تحمل وسماً أزرق <span class="badge bg-info text-dark">يُعبأ بواسطة: …</span> مثل «مدير المشروع» أو «مدير المتابعة والتقييم (MEAL)». هذا دليل على الجهة صاحبة الاختصاص — الوثيقة نفسها مفتوحة لأي مستخدم مخوّل، لكن الوسم يوضح من يفترض أن يعبّئ.</p>
+                    <p class="small mb-0">بعض أقسام القوالب تحمل وسماً أزرق <x-status-badge tone="info">يُعبأ بواسطة: …</x-status-badge> مثل «مدير المشروع» أو «مدير المتابعة والتقييم (MEAL)». هذا دليل على الجهة صاحبة الاختصاص — الوثيقة نفسها مفتوحة لأي مستخدم مخوّل، لكن الوسم يوضح من يفترض أن يعبّئ.</p>
                 </div>
 
                 <div class="border rounded p-3 mb-3 bg-light">
@@ -99,7 +96,7 @@
                         <ul class="small mb-0">
                             <li>أثناء المسودة يمكن قفل أي قسم بعلامة <strong>«قفل بعد الحفظ»</strong> بعد اكتماله (مثل قسم MEAL بعد أن يعبّئه مختصّه).</li>
                             <li>عند «إرسال للمراجعة» تُقفل <strong>كل الأقسام</strong> تلقائياً.</li>
-                            <li>القسم المقفول لا يستطيع التعديل عليه سوى <strong>منشئ الوثيقة</strong> — لحمايته من تغيير على عمل زميل. يظهر عليه شارة <span class="badge bg-warning text-dark"><i class="bi bi-lock"></i> مقفول</span>.</li>
+                            <li>القسم المقفول لا يستطيع التعديل عليه سوى <strong>منشئ الوثيقة</strong> — لحمايته من تغيير على عمل زميل. يظهر عليه شارة <x-status-badge tone="warning"><i class="bi bi-lock"></i> مقفول</x-status-badge>.</li>
                         </ul>
                     </p>
                 </div>
@@ -134,7 +131,7 @@
                     <h6 class="fw-bold mb-2"><i class="bi bi-diagram-2 text-primary"></i> 5) سيناريو واقعي</h6>
                     <ol class="small mb-0 ps-3">
                         <li class="mb-1">أنشأ <strong>مدير المشروع</strong> وثيقة «التقرير الشهري للمشروع» وعبّأ أقسام الملخص والأنشطة والمواقع (دون قفلها).</li>
-                        <li class="mb-1">عبّأ <strong>مختص MEAL</strong> قسم MEAL (الوسم <span class="badge bg-info text-dark">يُعبأ بواسطة: مدير المتابعة والتقييم</span>) ثم فعّل <strong>«قفل بعد الحفظ»</strong> — حفاظاً على محتواه.</li>
+                        <li class="mb-1">عبّأ <strong>مختص MEAL</strong> قسم MEAL (الوسم <x-status-badge tone="info">يُعبأ بواسطة: مدير المتابعة والتقييم</x-status-badge>) ثم فعّل <strong>«قفل بعد الحفظ»</strong> — حفاظاً على محتواه.</li>
                         <li class="mb-1">عدّل <strong>مدير المشروع</strong> ما تبقى، ثم أرسل الوثيقة للمراجعة (أقفلت الأقسام كلها).</li>
                         <li class="mb-1">أضاف <strong>مسؤول المشروع</strong> ملاحظة عبر «إضافة ملاحظة»، ثم <strong>إدارة المشاريع</strong> اعتمدت الوثيقة نهائياً، وسُجل كل ذلك في سجل الاعتمادات والشريط الزمني.</li>
                     </ol>
@@ -146,8 +143,8 @@
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-printer me-1"></i> الطباعة وحفظ PDF</h5></div>
             <div class="p-3">
                 <ul class="small mb-0 ps-3">
-                    <li class="mb-1">من صفحة عرض أي وثيقة اضغط <span class="badge bg-dark">طباعة A4</span> (يفتح نسخة الطباعة في تبويب جديد).</li>
-                    <li class="mb-1">داخل صفحة الطباعة يوجد زر <span class="badge bg-primary">طباعة / حفظ PDF</span> — اختر «حفظ كـ PDF» من نافذة الطباعة.</li>
+                    <li class="mb-1">من صفحة عرض أي وثيقة اضغط <x-status-badge>طباعة A4</x-status-badge> (يفتح نسخة الطباعة في تبويب جديد).</li>
+                    <li class="mb-1">داخل صفحة الطباعة يوجد زر <x-status-badge tone="brand">طباعة / حفظ PDF</x-status-badge> — اختر «حفظ كـ PDF» من نافذة الطباعة.</li>
                     <li class="mb-1">النسخة المطبوعة تظهر بهوية مؤسسة الرواد: <strong>خلفية مائية كاملة لكل صفحة</strong>، عناوين برتقالية، وخط Tajawal — ولا تظهر أزرار الواجهة في الطباعة.</li>
                     <li class="mb-1">الوثيقة متعددة الصفحات: الخلفية تتكرر تلقائياً على كل صفحة، والهوامش تطبّق على المحتوى فقط.</li>
                     <li class="mb-0">الطباعة تُظهر <strong>أقسام الوثيقة وسجل الاعتمادات والتواقيع</strong> — المحتوى كما هو معبأ.</li>
@@ -176,8 +173,8 @@
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-x-circle me-1"></i> متى يحدث ماذا؟</h5></div>
             <div class="p-3 small">
                 <ul class="mb-0 ps-3">
-                    <li class="mb-1"><span class="badge bg-danger">رفض</span> الوثيقة → تعود <span class="badge bg-secondary">مسودة</span> مقفولة، ولا يفتحها <strong>إلا منشئها</strong>.</li>
-                    <li class="mb-1"><span class="badge bg-success">اعتماد</span> → الوثيقة ثابتة نهائياً؛ لا يُعدَّل عليها، وتظهر في الطباعة كمعتمدة.</li>
+                    <li class="mb-1"><x-status-badge tone="danger">رفض</x-status-badge> الوثيقة → تعود <x-status-badge>مسودة</x-status-badge> مقفولة، ولا يفتحها <strong>إلا منشئها</strong>.</li>
+                    <li class="mb-1"><x-status-badge tone="success">اعتماد</x-status-badge> → الوثيقة ثابتة نهائياً؛ لا يُعدَّل عليها، وتظهر في الطباعة كمعتمدة.</li>
                     <li class="mb-1">الحذف متاح <strong>للمسودات فقط</strong> (للمنشئ أو للمدير التنفيذي).</li>
                 </ul>
             </div>

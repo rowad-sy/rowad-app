@@ -3,11 +3,8 @@
 @section('title', 'المخازن')
 
 @section('logistics-content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>المخازن</h4>
-        <p>إدارة المخازن والمستودعات</p>
-    </div>
+<x-page-header :title="'المخازن'" :description="'إدارة المخازن والمستودعات'"
+               :breadcrumb="[['label' => 'اللوجستي'], ['label' => 'المخازن']]">
     <div class="d-flex gap-2">
         @canPermission('App\Models\Admin\Logistics\Warehouse', 'create')
         <a href="{{ route('admin.logistics.warehouses.create') }}" class="btn btn-primary">
@@ -25,12 +22,12 @@
             </label>
         </form>
     </div>
-</div>
+</x-page-header>
 
 <div class="table-container">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>الاسم</th>
                     <th>المركز</th>
@@ -45,32 +42,25 @@
                         <td>{{ $warehouse->center?->name ?? '—' }}</td>
                         <td>{{ Str::limit($warehouse->notes, 60) ?? '—' }}</td>
                         <td>
-                            <a href="{{ route('admin.logistics.warehouses.items', $warehouse) }}" class="btn btn-sm btn-outline-info">
+                            <a href="{{ route('admin.logistics.warehouses.items.index', $warehouse) }}" class="btn btn-sm btn-outline-info">
                                 <i class="bi bi-box-seam me-1"></i> عرض المحتويات
                             </a>
-                            <a href="{{ route('admin.logistics.warehouses.edit', $warehouse) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            @canPermission('App\Models\Admin\Logistics\Warehouse', 'edit')
+                            <a href="{{ route('admin.logistics.warehouses.edit', $warehouse) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                            @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Logistics\Warehouse'" :model-id="$warehouse->id" />
                             @canPermission('App\Models\Admin\Logistics\Warehouse', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.warehouses.destroy', $warehouse) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا المخزن؟')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="4" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا توجد مخازن
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="4" icon="bi-inbox" title="لا توجد مخازن" />
                 @endforelse
             </tbody>
         </table>

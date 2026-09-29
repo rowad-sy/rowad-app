@@ -24,20 +24,14 @@
     $locked = $plan->isLocked();
 @endphp
 
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>الخطة الإعلامية — {{ $plan->month_date->locale('ar')->translatedFormat('F Y') }}</h4>
-        <p>
-            <a href="{{ route('admin.media-plans.index') }}" class="text-decoration-none">الخطة الإعلامية</a>
-            / {{ $plan->month_date->locale('ar')->translatedFormat('F Y') }}
-            <span class="badge ms-2 bg-{{ $statusColors[$plan->status] ?? 'secondary' }}">{{ $statusLabel }}</span>
-        </p>
-    </div>
-    <div class="d-flex gap-2 align-items-center">
-        <x-audit-history :model="'App\Models\Admin\MediaPlan'" :model-id="$plan->id" />
-        @if (! $locked)
+@php $tone = (function ($c) { foreach (['success' => 'success', 'danger' => 'danger', 'warning' => 'warning', 'info' => 'info', 'primary' => 'brand'] as $k => $t) { if (str_contains((string) $c, $k)) return $t; } return 'neutral'; })($statusColors[$plan->status] ?? ''); @endphp
+<x-page-header :title="'الخطة الإعلامية — ' . $plan->month_date->locale('ar')->translatedFormat('F Y')"
+               :breadcrumb="[['label' => 'الخطة الإعلامية', 'url' => route('admin.media-plans.index')], ['label' => $plan->month_date->locale('ar')->translatedFormat('F Y')]]">
+    <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ $statusLabel }}</x-status-badge></div></x-slot:meta>
+    <x-audit-history :model="'App\Models\Admin\MediaPlan'" :model-id="$plan->id" />
+    @if (! $locked)
         @canPermission('App\Models\Admin\MediaPlan', 'edit')
-        <a href="{{ route('admin.media-plans.edit', $plan) }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i> تعديل</a>
+        <a href="{{ route('admin.media-plans.edit', $plan) }}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> تعديل</a>
         @endcanPermission
         @canPermission('App\Models\Admin\MediaPlan', 'delete')
         <form method="POST" action="{{ route('admin.media-plans.destroy', $plan) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف الخطة؟')">
@@ -45,10 +39,9 @@
             <button class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i> حذف</button>
         </form>
         @endcanPermission
-        @endif
-        <a href="{{ route('admin.media-plans.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
-    </div>
-</div>
+    @endif
+    <a href="{{ route('admin.media-plans.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> عودة</a>
+</x-page-header>
 
 @if ($locked && $plan->locked_at)
 <div class="alert alert-warning py-2 small">
@@ -249,7 +242,7 @@
                                                     <option value="executed" @selected($exStatus === 'executed')>نُفِّذت</option>
                                                     <option value="not_executed" @selected($exStatus === 'not_executed')>لم تُنفَّذ</option>
                                                 </select>
-                                                <button class="btn btn-sm btn-outline-success"><i class="bi bi-check-lg"></i></button>
+                                                <button class="btn btn-sm btn-outline-success" aria-label="موافقة" title="موافقة"><i class="bi bi-check-lg" aria-hidden="true"></i></button>
                                             </div>
                                             <input type="text" name="execution_note" class="form-control form-control-sm mt-1" placeholder="ملاحظة التنفيذ (اختياري)">
                                         </form>
@@ -261,14 +254,14 @@
                                     @canPermission('App\Models\Admin\MediaPlan', 'edit')
                                     <form method="POST" action="{{ route('admin.media-plans.events.destroy', $event) }}" onsubmit="return confirm('حذف هذه الفعالية؟')">
                                         @csrf @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                                     </form>
                                     @endcanPermission
                                 </td>
                                 @endif
                             </tr>
                         @empty
-                            <tr><td colspan="12" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-2"></i>لا توجد فعاليات في هذه الخطة</td></tr>
+                            <x-empty-row colspan="12" icon="bi-inbox" title="لا توجد فعاليات في هذه الخطة" />
                         @endforelse
                     </tbody>
                 </table>

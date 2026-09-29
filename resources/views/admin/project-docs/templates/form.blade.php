@@ -22,13 +22,8 @@ if (! function_exists('defaultDefinition')) {
 @section('content')
 @php $isEdit = isset($template); if (!$isEdit) { $template = new \App\Models\Admin\ProjectDocs\AnnexTemplate(['is_active' => true]); } @endphp
 
-<div class="page-header">
-    <h4>{{ $isEdit ? 'تعديل قالب الوثيقة' : 'قالب وثيقة جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.project-docs.templates.index') }}" class="text-decoration-none">القوالب</a>
-        / {{ $isEdit ? $template->title_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="$isEdit ? 'تعديل قالب الوثيقة' : 'قالب وثيقة جديد'"
+               :breadcrumb="[['label' => 'القوالب', 'url' => route('admin.project-docs.templates.index')], ['label' => $isEdit ? $template->title_ar : 'جديد']]" />
 
 @if ($isEdit)
 <div class="alert alert-info">

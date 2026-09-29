@@ -21,13 +21,8 @@ if (! function_exists('defaultMonthlyReportDefinition')) {
 @section('content')
 @php $isEdit = isset($template); if (!$isEdit) { $template = new \App\Models\Admin\MonthlyReports\MonthlyReportTemplate(['is_active' => true]); } @endphp
 
-<div class="page-header">
-    <h4>{{ $isEdit ? 'تعديل قالب تقرير شهري' : 'قالب تقرير شهري جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.monthly-reports.templates.index') }}" class="text-decoration-none">القوالب</a>
-        / {{ $isEdit ? $template->title_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="$isEdit ? 'تعديل قالب تقرير شهري' : 'قالب تقرير شهري جديد'"
+               :breadcrumb="[['label' => 'القوالب', 'url' => route('admin.monthly-reports.templates.index')], ['label' => $isEdit ? $template->title_ar : 'جديد']]" />
 
 @if ($isEdit)
 <div class="alert alert-info">
