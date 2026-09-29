@@ -11,13 +11,8 @@
     $level->loadMissing(['subjects', 'subjectInstructors']);
     $levelTypes = ['grade' => 'صف', 'level' => 'مستوى تدريب', 'childhood' => 'طفولة', 'kindergarten' => 'روضة', 'course' => 'دورة/دبلومة'];
 @endphp
-<div class="page-header">
-    <h4>{{ $isEdit ? 'تعديل المستوى/الصف' : 'إضافة مستوى/صف جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.students.levels.index') }}" class="text-decoration-none">المستويات والصفوف</a>
-        / {{ $isEdit ? $level->name_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="$isEdit ? 'تعديل المستوى/الصف' : 'إضافة مستوى/صف جديد'"
+               :breadcrumb="[['label' => 'المستويات والصفوف', 'url' => route('admin.students.levels.index')], ['label' => $isEdit ? $level->name_ar : 'جديد']]" />
 
 @if ($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -118,7 +113,7 @@
             <div class="subject-row card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <strong class="small">مادة #{{ $i + 1 }}</strong>
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-subject-btn"><i class="bi bi-trash"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-subject-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                 </div>
                 <div class="card-body py-3">
                     <div class="row g-3">
@@ -214,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="subject-row card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong class="small">مادة #<span class="row-num"></span></strong>
-                <button type="button" class="btn btn-sm btn-outline-danger remove-subject-btn"><i class="bi bi-trash"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-subject-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
             </div>
             <div class="card-body py-3">
                 <div class="row g-3">

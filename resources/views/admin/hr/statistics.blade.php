@@ -17,11 +17,8 @@
 @endpush
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>إحصائيات الموظفين</h4>
-        <p>نظرة شاملة على بيانات الموظفين</p>
-    </div>
+<x-page-header :title="'إحصائيات الموظفين'" :description="'نظرة شاملة على بيانات الموظفين'"
+               :breadcrumb="[['label' => 'الموارد البشرية'], ['label' => 'إحصائيات الموظفين']]">
     @if (array_filter($filters))
     <div>
         <a href="{{ route('admin.hr.employees.statistics') }}" class="btn btn-outline-secondary btn-sm">
@@ -29,7 +26,7 @@
         </a>
     </div>
     @endif
-</div>
+</x-page-header>
 
 {{-- ─── Filter Form ─── --}}
 <form method="GET" action="{{ route('admin.hr.employees.statistics') }}" class="mb-4">
@@ -179,7 +176,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light"><tr><th>المركز</th><th>العدد</th><th>النسبة</th></tr></thead>
+                    <thead><tr><th>المركز</th><th>العدد</th><th>النسبة</th></tr></thead>
                     <tbody>
                         @foreach ($centerStats as $cs)
                             <tr>
@@ -208,7 +205,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light"><tr><th>الإدارة</th><th>العدد</th><th>النسبة</th></tr></thead>
+                    <thead><tr><th>الإدارة</th><th>العدد</th><th>النسبة</th></tr></thead>
                     <tbody>
                         @foreach ($deptStats as $ds)
                             <tr>
@@ -241,7 +238,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 table-sm-custom">
-                    <thead class="table-light"><tr><th>المستند</th><th>مكتمل</th><th>غير مكتمل</th><th>نسبة الإنجاز</th></tr></thead>
+                    <thead><tr><th>المستند</th><th>مكتمل</th><th>غير مكتمل</th><th>نسبة الإنجاز</th></tr></thead>
                     <tbody>
                         @foreach ($docLabels as $i => $label)
                             <tr>

@@ -4,23 +4,19 @@
 
 @push('styles')
 <style>
-    .users-list { max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 6px; padding: 0.75rem; }
-    .users-list .form-check { padding: 0.35rem 0.5rem; margin: 0; border-radius: 4px; transition: background 0.1s; }
-    .users-list .form-check:hover { background: #f0f7ff; }
+    .users-list { max-height: 400px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 6px; padding: 0.75rem; }
+    .users-list .form-check { padding: 0.35rem 0.5rem 0.35rem 0.5rem; margin: 0; border-radius: 4px; display: flex; align-items: center; gap: 0.5rem; }
+    .users-list .form-check .form-check-input { float: none; margin: 0; }
+    .users-list .form-check:hover { background: var(--color-hover); }
     .users-list .form-check.hidden { display: none; }
-    .users-list .form-check small { color: #6c757d; }
-    .user-count { font-size: 0.85rem; color: #6c757d; }
+    .users-list .form-check small { color: var(--color-text-muted); }
+    .user-count { font-size: 0.85rem; color: var(--color-text-muted); }
 </style>
 @endpush
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($group) ? 'تعديل المجموعة' : 'إضافة مجموعة' }}</h4>
-    <p>
-        <a href="{{ route('admin.groups.index') }}" class="text-decoration-none">المجموعات</a>
-        / {{ isset($group) ? $group->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($group) ? 'تعديل المجموعة' : 'إضافة مجموعة'"
+               :breadcrumb="[['label' => 'المجموعات', 'url' => route('admin.groups.index')], ['label' => isset($group) ? $group->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">
@@ -48,12 +44,13 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">الأعضاء</label>
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <input type="text" class="form-control form-control-sm" id="userSearch" placeholder="بحث بالاسم أو البريد..." style="max-width:280px;" oninput="filterUsers(this.value)">
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllUsers(true)">تحديد الكل</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllUsers(false)">إلغاء التحديد</button>
-                        <span class="user-count" id="userCount"></span>
+                    <label class="form-label" for="userSearch">الأعضاء</label>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <input type="search" class="form-control form-control-sm" id="userSearch" placeholder="بحث بالاسم أو البريد..." style="max-width:280px;" oninput="filterUsers(this.value)">
+                        {{-- يعمل على المستخدمين الظاهرين حاليًا فقط (بعد البحث) --}}
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllUsers(true)">تحديد الظاهرين</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllUsers(false)">إلغاء تحديد الظاهرين</button>
+                        <span class="user-count" id="userCount" role="status" aria-live="polite"></span>
                     </div>
                     <div class="users-list" id="usersList">
                         @foreach ($users as $user)
@@ -71,9 +68,9 @@
                     </div>
                 </div>
 
-                <div class="d-flex gap-2">
+                <div class="d-grid d-sm-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg me-1"></i> حفظ
+                        <i class="bi bi-check-lg me-1" aria-hidden="true"></i> حفظ
                     </button>
                     <a href="{{ route('admin.groups.index') }}" class="btn btn-outline-secondary">إلغاء</a>
                 </div>

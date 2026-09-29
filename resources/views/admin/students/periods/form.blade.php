@@ -3,13 +3,8 @@
 @section('title', isset($period) ? 'تعديل فترة' : 'إضافة فترة')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($period) ? 'تعديل الفترة' : 'إضافة فترة جديدة' }}</h4>
-    <p>
-        <a href="{{ route('admin.students.periods.index') }}" class="text-decoration-none">الفترات</a>
-        / {{ isset($period) ? $period->name_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($period) ? 'تعديل الفترة' : 'إضافة فترة جديدة'"
+               :breadcrumb="[['label' => 'الفترات', 'url' => route('admin.students.periods.index')], ['label' => isset($period) ? $period->name_ar : 'جديد']]" />
 
 <form method="POST" action="{{ isset($period) ? route('admin.students.periods.update', $period) : route('admin.students.periods.store') }}">
     @csrf

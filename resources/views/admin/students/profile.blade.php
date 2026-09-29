@@ -5,31 +5,37 @@
 @push('styles')
 <style>
     .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
-    .info-item { padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 6px; }
-    .info-item .label { font-size: 0.75rem; color: #6c757d; display: block; }
+    .info-item { padding: 0.5rem 0.75rem; background: var(--color-surface-muted); border-radius: 6px; }
+    .info-item .label { font-size: 0.75rem; color: var(--color-text-muted); display: block; }
+    .info-item { min-width: 0; overflow-wrap: anywhere; }
     .info-item .value { font-size: 0.9rem; font-weight: 500; }
 </style>
 @endpush
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>{{ $student->first_name_ar }} {{ $student->last_name_ar }}</h4>
-        <p>
-            <a href="{{ route('admin.students.index') }}" class="text-decoration-none">الطلاب</a>
-            / {{ $student->student_code }}
-        </p>
-    </div>
-    <div class="d-flex gap-2">
-        <x-audit-history :model="'App\Models\Admin\Student\Student'" :model-id="$student->id" />
-        <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-outline-primary">
-            <i class="bi bi-pencil me-1"></i> تعديل
-        </a>
-        <a href="{{ route('admin.students.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-right me-1"></i> عودة
-        </a>
-    </div>
-</div>
+@php
+    $statusMap = ['active' => ['نشط', 'success'], 'inactive' => ['غير نشط', 'neutral'], 'graduated' => ['متخرج', 'brand'], 'suspended' => ['موقوف', 'warning']];
+    [$statusLabel, $statusTone] = $statusMap[$student->status] ?? [$student->status, 'neutral'];
+@endphp
+<x-page-header :title="$student->first_name_ar . ' ' . $student->last_name_ar"
+               :breadcrumb="[['label' => 'الطلاب', 'url' => route('admin.students.index')], ['label' => $student->first_name_ar . ' ' . $student->last_name_ar]]">
+    <x-slot:meta>
+        {{-- ملخص الهوية والحالة (بيانات موجودة في الملف نفسه) --}}
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <x-status-badge><i class="bi bi-person-vcard" aria-hidden="true"></i> <span class="ltr-cell d-inline-block">{{ $student->student_code }}</span></x-status-badge>
+            <x-status-badge :tone="$statusTone">{{ $statusLabel }}</x-status-badge>
+            @if ($student->center)<x-status-badge><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ $student->center->name }}</x-status-badge>@endif
+            @if ($student->cohort)<x-status-badge><i class="bi bi-people" aria-hidden="true"></i> {{ $student->cohort->name }}</x-status-badge>@endif
+        </div>
+    </x-slot:meta>
+    <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-primary">
+        <i class="bi bi-pencil me-1" aria-hidden="true"></i> تعديل
+    </a>
+    <x-audit-history :model="'App\Models\Admin\Student\Student'" :model-id="$student->id" />
+    <a href="{{ route('admin.students.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-right me-1" aria-hidden="true"></i> قائمة الطلاب
+    </a>
+</x-page-header>
 
 {{-- Alert for create-user success shows password --}}
 @if (session('success'))
@@ -45,9 +51,6 @@
         <div class="table-container">
             <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
                 <h5 class="mb-0"><i class="bi bi-person me-1"></i> بيانات الطالب</h5>
-                <span class="badge bg-{{ $student->status === 'active' ? 'success' : ($student->status === 'graduated' ? 'primary' : ($student->status === 'suspended' ? 'warning' : 'secondary')) }} fs-6">
-                    {{ $student->status === 'active' ? 'نشط' : ($student->status === 'inactive' ? 'غير نشط' : ($student->status === 'graduated' ? 'متخرج' : 'موقوف')) }}
-                </span>
             </div>
             <div class="p-3">
                 <div class="info-grid">
@@ -119,7 +122,7 @@
                         <span class="value">
                             @if ($student->projects->isNotEmpty())
                                 @foreach ($student->projects as $project)
-                                    <span class="badge bg-info me-1">{{ $project->name }}</span>
+                                    <x-status-badge tone="info" class="me-1">{{ $project->name }}</x-status-badge>
                                 @endforeach
                             @else
                                 {{ $student->project?->name ?? '—' }}
@@ -133,7 +136,7 @@
                 </div>
 
                 @if ($student->address)
-                    <div class="mt-2 p-2" style="background:#f8f9fa;border-radius:6px;">
+                    <div class="mt-2 p-2" style="background:var(--color-surface-muted);border-radius:6px;">
                         <small class="text-muted d-block">العنوان</small>
                         <span>{{ $student->address }}</span>
                     </div>
@@ -157,7 +160,7 @@
             <div class="p-3">
                 @if ($student->user)
                     <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="badge bg-success fs-6">مرتبط</span>
+                        <x-status-badge tone="success">مرتبط</x-status-badge>
                     </div>
                     <div class="info-grid" style="grid-template-columns:1fr;">
                         <div class="info-item">
@@ -172,9 +175,9 @@
                             <span class="label">الحالة</span>
                             <span class="value">
                                 @if ($student->user->is_active)
-                                    <span class="badge bg-success">نشط</span>
+                                    <x-status-badge tone="success">نشط</x-status-badge>
                                 @else
-                                    <span class="badge bg-secondary">موقوف</span>
+                                    <x-status-badge>موقوف</x-status-badge>
                                 @endif
                             </span>
                         </div>
@@ -203,7 +206,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>المشروع</th>
                             <th>المقرر</th>
@@ -224,11 +227,11 @@
                                 <td>{{ $enrollment->enrollment_date?->format('Y-m-d') ?? '—' }}</td>
                                 <td>
                                     @if ($enrollment->status === 'enrolled')
-                                        <span class="badge bg-success">مسجل</span>
+                                        <x-status-badge tone="success">مسجل</x-status-badge>
                                     @elseif ($enrollment->status === 'completed')
-                                        <span class="badge bg-primary">مكتمل</span>
+                                        <x-status-badge tone="brand">مكتمل</x-status-badge>
                                     @elseif ($enrollment->status === 'dropped')
-                                        <span class="badge bg-danger">منسحب</span>
+                                        <x-status-badge tone="danger">منسحب</x-status-badge>
                                     @else
                                         <span class="badge bg-secondary">{{ $enrollment->status }}</span>
                                     @endif
@@ -236,7 +239,7 @@
                                 <td>{{ $enrollment->grade ?? '—' }}</td>
                                 <td>
                                     @if ($enrollment->is_certificate_eligible)
-                                        <span class="badge bg-success">مؤهل</span>
+                                        <x-status-badge tone="success">مؤهل</x-status-badge>
                                     @else
                                         <span class="badge bg-secondary">—</span>
                                     @endif
@@ -248,12 +251,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
-                                <td colspan="7" class="text-center py-3 text-muted">
-                                    <i class="bi bi-inbox fs-4 d-block mb-1"></i>
-                                    لا يوجد تسجيلات
-                                </td>
-                            </tr>
+                            <x-empty-row colspan="7" icon="bi-inbox" title="لا يوجد تسجيلات" />
                         @endforelse
                     </tbody>
                 </table>
@@ -270,7 +268,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>رقم الشهادة</th>
                             <th>التصميم</th>
@@ -289,15 +287,13 @@
                                 <td>{{ $cert->issue_date?->format('Y-m-d') ?? '—' }}</td>
                                 <td>
                                     @if ($cert->is_verified)
-                                        <span class="badge bg-success">موثقة</span>
+                                        <x-status-badge tone="success">موثقة</x-status-badge>
                                     @else
-                                        <span class="badge bg-warning text-dark">غير موثقة</span>
+                                        <x-status-badge tone="warning">غير موثقة</x-status-badge>
                                     @endif
                                 </td>
                                 <td>
-                                    <a href="{{ route('admin.students.certificates.preview', $cert) }}" class="btn btn-sm btn-outline-primary" target="_blank">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
+                                    <a href="{{ route('admin.students.certificates.preview', $cert) }}" class="btn btn-sm btn-outline-primary" target="_blank" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
                                 </td>
                             </tr>
                         @endforeach
@@ -340,7 +336,7 @@
             </div>
             <div class="table-responsive" style="max-height:300px;">
                 <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>التاريخ</th>
                             <th>الحالة</th>
@@ -354,11 +350,11 @@
                                 <td>{{ $att->date?->format('Y-m-d') }}</td>
                                 <td>
                                     @if ($att->status === 'present')
-                                        <span class="badge bg-success">حاضر</span>
+                                        <x-status-badge tone="success">حاضر</x-status-badge>
                                     @elseif ($att->status === 'absent')
-                                        <span class="badge bg-danger">غائب</span>
+                                        <x-status-badge tone="danger">غائب</x-status-badge>
                                     @else
-                                        <span class="badge bg-warning text-dark">متعذر</span>
+                                        <x-status-badge tone="warning">متعذر</x-status-badge>
                                     @endif
                                 </td>
                                 <td>{{ $att->note ?? '—' }}</td>

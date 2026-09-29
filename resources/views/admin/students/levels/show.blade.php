@@ -3,19 +3,11 @@
 @section('title', $level->name_ar)
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>{{ $level->name_ar }}</h4>
-        <p>
-            <a href="{{ route('admin.students.levels.index') }}" class="text-decoration-none">المستويات والصفوف</a>
-            / {{ $level->name_ar }}
-        </p>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{{ route('admin.students.levels.edit', $level) }}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> تعديل</a>
-        <a href="{{ route('admin.students.levels.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> رجوع</a>
-    </div>
-</div>
+<x-page-header :title="$level->name_ar"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'المستويات والصفوف', 'url' => route('admin.students.levels.index')], ['label' => $level->name_ar]]">
+    <a href="{{ route('admin.students.levels.edit', $level) }}" class="btn btn-primary"><i class="bi bi-pencil me-1" aria-hidden="true"></i> تعديل</a>
+    <a href="{{ route('admin.students.levels.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1" aria-hidden="true"></i> رجوع</a>
+</x-page-header>
 
 <div class="card mb-4">
     <div class="card-body">
@@ -47,7 +39,7 @@
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-bordered align-middle">
-                <thead class="table-light">
+                <thead>
                     <tr>
                         <th>#</th>
                         <th>المادة</th>

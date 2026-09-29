@@ -3,14 +3,17 @@
 @section('title', 'الموافقات على طلبات الإجازات')
 
 @section('content')
-<div class="page-header">
-    <h4>الموافقات</h4>
-    <p>الموافقة على طلبات الإجازات أو رفضها</p>
-</div>
+<x-page-header title="الموافقات" description="طلبات الإجازات المستحقة لمراجعتك: وافق عليها أو ارفضها. سجل جميع الطلبات في صفحة «طلبات الإجازات»."
+               :breadcrumb="[['label' => 'الموارد البشرية'], ['label' => 'الموافقات']]">
+    <a href="{{ route('admin.hr.leave-requests.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-calendar-check me-1" aria-hidden="true"></i> سجل الطلبات
+    </a>
+</x-page-header>
 
 <div class="table-container">
+    <div class="table-responsive">
     <table class="table table-hover align-middle">
-        <thead class="table-light">
+        <thead>
             <tr>
                 <th>#</th>
                 <th>الموظف</th>
@@ -26,7 +29,7 @@
         <tbody>
             @forelse ($requests as $item)
                 <tr>
-                    <td>{{ $item->id }}</td>
+                    <td class="num">{{ $item->id }}</td>
                     <td>{{ $item->employee?->first_name_ar }} {{ $item->employee?->last_name_ar }}</td>
                     <td>
                         <span class="badge" style="background:{{ $item->leaveType?->color ?? '#6c757d' }}">
@@ -47,25 +50,24 @@
                             <form action="{{ route('admin.hr.leave-approvals.approve', $item) }}" method="POST" onsubmit="return confirm('الموافقة على الطلب؟')">
                                 @csrf
                                 <button class="btn btn-sm btn-success" title="موافقة">
-                                    <i class="bi bi-check-lg"></i> موافقة
+                                    <i class="bi bi-check-lg" aria-hidden="true"></i> موافقة
                                 </button>
                             </form>
                             <form action="{{ route('admin.hr.leave-approvals.reject', $item) }}" method="POST" onsubmit="return confirm('رفض الطلب؟')">
                                 @csrf
                                 <button class="btn btn-sm btn-danger" title="رفض">
-                                    <i class="bi bi-x-lg"></i> رفض
+                                    <i class="bi bi-x-lg" aria-hidden="true"></i> رفض
                                 </button>
                             </form>
                         </div>
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="9" class="text-center text-muted py-4">لا توجد طلبات بانتظار الموافقة</td>
-                </tr>
+                <x-empty-row colspan="9" icon="bi-check2-all" title="لا توجد طلبات بانتظار مراجعتك" />
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <div class="d-flex justify-content-center p-3">
         {{ $requests->links() }}

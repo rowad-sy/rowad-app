@@ -3,10 +3,8 @@
 @section('title', 'إصدار شهادات')
 
 @section('content')
-<div class="page-header">
-    <h4>إصدار شهادات</h4>
-    <p>تأكيد إصدار الشهادات للطلاب المحددين</p>
-</div>
+<x-page-header title="إصدار شهادات" description="تأكيد إصدار الشهادات للطلاب المحددين"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'الشهادات', 'url' => route('admin.students.certificates.index')], ['label' => 'إصدار']]" />
 
 <div class="row g-3">
     <div class="col-md-8">

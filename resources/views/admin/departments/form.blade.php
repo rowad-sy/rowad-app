@@ -3,13 +3,8 @@
 @section('title', isset($department) ? 'تعديل إدارة' : 'إضافة إدارة')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($department) ? 'تعديل الإدارة' : 'إضافة إدارة' }}</h4>
-    <p>
-        <a href="{{ route('admin.departments.index') }}" class="text-decoration-none">الإدارات</a>
-        / {{ isset($department) ? $department->name_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($department) ? 'تعديل الإدارة' : 'إضافة إدارة'"
+               :breadcrumb="[['label' => 'الإدارات', 'url' => route('admin.departments.index')], ['label' => isset($department) ? $department->name_ar : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-6">

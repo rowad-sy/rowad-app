@@ -22,7 +22,7 @@ class CenterController extends Controller
         $centers = Center::when($search, function ($q, $search) {
             return $q->where('name', 'like', "%{$search}%")
                 ->orWhere('address', 'like', "%{$search}%");
-        })->orderBy('name')->paginate(10);
+        })->orderBy('name')->paginate(10)->withQueryString();
 
         return view('admin.centers.index', compact('centers', 'search'));
     }

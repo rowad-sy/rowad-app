@@ -4,13 +4,8 @@
 
 @section('content')
 @php $isEdit = isset($cohort); if (!$isEdit) { $cohort = new \App\Models\Admin\Cohort(); } @endphp
-<div class="page-header">
-    <h4>{{ $isEdit ? 'تعديل الفوج' : 'إضافة فوج' }}</h4>
-    <p>
-        <a href="{{ route('admin.cohorts.index') }}" class="text-decoration-none">الأفواج</a>
-        / {{ $isEdit ? $cohort->name : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="$isEdit ? 'تعديل الفوج' : 'إضافة فوج'"
+               :breadcrumb="[['label' => 'الأفواج', 'url' => route('admin.cohorts.index')], ['label' => $isEdit ? $cohort->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-8">
@@ -79,9 +74,9 @@
                     <textarea name="notes" rows="3" class="form-control">{{ old('notes', $cohort->notes ?? '') }}</textarea>
                 </div>
 
-                <div class="d-flex gap-2">
+                <div class="d-grid d-sm-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg me-1"></i> حفظ
+                        <i class="bi bi-check-lg me-1" aria-hidden="true"></i> حفظ
                     </button>
                     <a href="{{ route('admin.cohorts.index') }}" class="btn btn-outline-secondary">إلغاء</a>
                 </div>

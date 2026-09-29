@@ -3,28 +3,30 @@
 @section('title', 'طلبات الإجازات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>طلبات الإجازات</h4>
-        <p>إدارة طلبات إجازات الموظفين</p>
-    </div>
+<x-page-header :title="'طلبات الإجازات'" :description="'إدارة طلبات إجازات الموظفين'"
+               :breadcrumb="[['label' => 'الموارد البشرية'], ['label' => 'طلبات الإجازات']]">
     @canPermission('App\Models\Admin\Hr\LeaveRequest', 'create')
     <a href="{{ route('admin.hr.leave-requests.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> طلب إجازة
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> طلب إجازة
     </a>
     @endcanPermission
-</div>
+    @canPermission('App\Models\Admin\Hr\LeaveRequest', 'edit')
+    {{-- الطلبات المستحقة لمراجعتك في صفحة مستقلة، وهذه الصفحة سجل عام بالطلبات --}}
+    <a href="{{ route('admin.hr.leave-approvals.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-check2-square me-1" aria-hidden="true"></i> الطلبات المستحقة لمراجعتي
+    </a>
+    @endcanPermission
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-4">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <input type="text" name="search" class="form-control" placeholder="بحث باسم الموظف..." value="{{ $search }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">الحالة</label>
-                <select name="status" class="form-select" onchange="this.form.submit()">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select">
                     <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
                     <option value="pending" {{ ($status ?? '') === 'pending' ? 'selected' : '' }}>قيد الانتظار</option>
                     <option value="approved" {{ ($status ?? '') === 'approved' ? 'selected' : '' }}>تمت الموافقة</option>
@@ -32,20 +34,14 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <button class="btn btn-outline-secondary w-100" type="submit">
-                    <i class="bi bi-search"></i> بحث
-                </button>
+                <label class="form-label">&nbsp;</label>
+                <x-per-page-selector :auto="false" :perPage="$perPage ?? 10" />
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">&nbsp;</label>
-                <x-per-page-selector :perPage="$perPage ?? 10" />
-            </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
+    <div class="table-responsive">
     <table class="table table-hover align-middle">
-        <thead class="table-light">
+        <thead>
             <tr>
                 <th>#</th>
                 <th>الموظف</th>
@@ -61,7 +57,7 @@
         <tbody>
             @forelse ($requests as $item)
                 <tr>
-                    <td>{{ $item->id }}</td>
+                    <td class="num">{{ $item->id }}</td>
                     <td>{{ $item->employee?->first_name_ar }} {{ $item->employee?->last_name_ar }}</td>
                     <td>
                         <span class="badge" style="background:{{ $item->leaveType?->color ?? '#6c757d' }}">
@@ -74,11 +70,11 @@
                     <td class="fw-bold">{{ $item->days_count }}</td>
                     <td>
                         @if ($item->status === 'pending')
-                            <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                            <x-status-badge tone="warning">قيد الانتظار</x-status-badge>
                         @elseif ($item->status === 'approved')
-                            <span class="badge bg-success">تمت الموافقة</span>
+                            <x-status-badge tone="success">تمت الموافقة</x-status-badge>
                         @elseif ($item->status === 'rejected')
-                            <span class="badge bg-danger">مرفوض</span>
+                            <x-status-badge tone="danger">مرفوض</x-status-badge>
                         @endif
                     </td>
                     <td>{{ $item->created_at->format('Y-m-d') }}</td>
@@ -89,21 +85,18 @@
                             <form action="{{ route('admin.hr.leave-requests.destroy', $item) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف الطلب؟')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger" title="حذف">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <button class="btn btn-sm btn-outline-danger" title="حذف" aria-label="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
                             @endcanPermission
                         @endif
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="9" class="text-center text-muted py-4">لا توجد طلبات إجازات</td>
-                </tr>
+                <x-empty-row colspan="9" icon="bi-calendar-check" title="لا توجد طلبات إجازات" />
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <div class="d-flex justify-content-between align-items-center p-3">
         <div class="text-muted small">إجمالي النتائج: {{ $requests->total() }}</div>

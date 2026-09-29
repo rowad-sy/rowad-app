@@ -12,13 +12,8 @@
     $oldLessons = old('lessons', $plan->lessons->map(fn ($l) => $l->toArray())->toArray());
     $oldLessons = is_array($oldLessons) ? $oldLessons : [];
 @endphp
-<div class="page-header">
-    <h4>{{ $isEdit ? 'تعديل الخطة التدريبية' : 'إنشاء خطة تدريبية جديدة' }}</h4>
-    <p>
-        <a href="{{ route('admin.students.training-plans.index') }}" class="text-decoration-none">الخطط التدريبية</a>
-        / {{ $isEdit ? $plan->name_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="$isEdit ? 'تعديل الخطة التدريبية' : 'إنشاء خطة تدريبية جديدة'"
+               :breadcrumb="[['label' => 'الخطط التدريبية', 'url' => route('admin.students.training-plans.index')], ['label' => $isEdit ? $plan->name_ar : 'جديد']]" />
 
 @if ($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -179,7 +174,7 @@
                             <input type="text" name="lessons[{{ $i }}][location]" class="form-control form-control-sm" placeholder="المكان" value="{{ $lesson['location'] ?? '' }}">
                         </div>
                         <div class="col-md-1 text-end">
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-lesson-btn"><i class="bi bi-trash"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-lesson-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </div>
                     </div>
                 </div>
@@ -250,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <input type="text" name="lessons[${lessonIndex}][location]" class="form-control form-control-sm" placeholder="المكان">
                     </div>
                     <div class="col-md-1 text-end">
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-lesson-btn"><i class="bi bi-trash"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-lesson-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </div>

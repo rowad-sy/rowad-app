@@ -3,43 +3,38 @@
 @section('title', 'الخطط التدريبية')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>الخطط التدريبية</h4>
-        <p>الخطط الدراسية الأسبوعية لكل مشروع (دورة من عدة أشهر) بأسماء الدروس لكل أسبوع</p>
-    </div>
+<x-page-header :title="'الخطط التدريبية'" :description="'الخطط الدراسية الأسبوعية لكل مشروع (دورة من عدة أشهر) بأسماء الدروس لكل أسبوع'"
+               :breadcrumb="[['label' => 'الطلاب'], ['label' => 'الخطط التدريبية']]">
     @canPermission('App\Models\Admin\Student\Course', 'create')
     <a href="{{ route('admin.students.training-plans.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إنشاء خطة تدريبية
     </a>
     @endcanPermission
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2 align-items-end">
+    <x-filter-bar>
             <div class="col-md-4">
-                <label class="form-label small mb-1">بحث</label>
+                <label class="form-label">بحث</label>
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث بالاسم..." value="{{ $search ?? '' }}">
                     <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 </div>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">المشروع</label>
-                <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <label class="form-label">المشروع</label>
+                <select name="project_id" class="form-select form-select-sm">
                     <option value="">الكل</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}" {{ (int)($projectId ?? '') === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
                     @endforeach
                 </select>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>اسم الخطة</th>
@@ -79,12 +74,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا توجد خطط تدريبية
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="8" icon="bi-inbox" title="لا توجد خطط تدريبية" />
                 @endforelse
             </tbody>
         </table>

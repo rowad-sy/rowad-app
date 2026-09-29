@@ -11,18 +11,12 @@
     $course->loadMissing(['periods', 'levels', 'subjects.exams', 'offerings']);
     $examTypes = ['pre' => 'قبلي', 'post' => 'بعدي', 'quiz' => 'دوري', 'final' => 'نهائي', 'other' => 'أخرى'];
 @endphp
-<div class="page-header">
-    <h4>{{ $isEdit ? 'تعديل المقرر' : 'إضافة مقرر جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.students.courses.index') }}" class="text-decoration-none">إدارة المقررات</a>
-        / {{ $isEdit ? $course->name_ar : 'جديد' }}
-        <span class="ms-2">
-            <a href="{{ route('admin.students.courses.help') }}" class="text-decoration-none small">
-                <i class="bi bi-question-circle"></i> معلومات ونصائح
-            </a>
-        </span>
-    </p>
-</div>
+<x-page-header :title="$isEdit ? 'تعديل المقرر' : 'إضافة مقرر جديد'"
+               :breadcrumb="[['label' => 'إدارة المقررات', 'url' => route('admin.students.courses.index')], ['label' => $isEdit ? $course->name_ar : 'جديد']]">
+    <a href="{{ route('admin.students.courses.help') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-question-circle me-1" aria-hidden="true"></i> معلومات ونصائح
+    </a>
+</x-page-header>
 
 @if ($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -142,7 +136,7 @@
                                 <input type="text" name="levels[{{ $i }}][code]" class="form-control form-control-sm" placeholder="رمز" value="{{ $level['code'] ?? '' }}">
                             </div>
                             <div class="col-md-1 text-end">
-                                <button type="button" class="btn btn-sm btn-outline-danger remove-level-btn"><i class="bi bi-trash"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-level-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </div>
                         </div>
                     </div>
@@ -170,7 +164,7 @@
             <div class="subject-row card mb-2">
                 <div class="card-header py-2 d-flex justify-content-between align-items-center">
                     <span class="small fw-bold"><i class="bi bi-journal-text me-1"></i> مادة {{ $i + 1 }}</span>
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-subject-btn"><i class="bi bi-trash"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-subject-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                 </div>
                 <div class="card-body py-2">
                     <div class="row g-2 align-items-center mb-2">
@@ -212,7 +206,7 @@
                                         <input type="number" step="0.5" min="0" name="subjects[{{ $i }}][exams][{{ $j }}][max_score]" class="form-control form-control-sm" placeholder="العلامة العليا" value="{{ $exam['max_score'] ?? '' }}">
                                     </div>
                                     <div class="col-md-2 text-end">
-                                        <button type="button" class="btn btn-sm btn-outline-danger remove-exam-btn"><i class="bi bi-trash"></i></button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-exam-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                                     </div>
                                 </div>
                             @endforeach
@@ -271,7 +265,7 @@
                             <input type="text" name="offerings[{{ $i }}][session_time]" class="form-control form-control-sm" placeholder="الوقت" value="{{ $offering['session_time'] ?? '' }}">
                         </div>
                         <div class="col-md-1 text-end">
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-offering-btn"><i class="bi bi-trash"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-offering-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </div>
                     </div>
                 </div>
@@ -317,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <input type="number" step="0.5" min="0" name="subjects[${si}][exams][${ei}][max_score]" class="form-control form-control-sm" placeholder="العلامة العليا">
             </div>
             <div class="col-md-2 text-end">
-                <button type="button" class="btn btn-sm btn-outline-danger remove-exam-btn"><i class="bi bi-trash"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-exam-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
             </div>
         </div>`;
     };
@@ -326,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="subject-row card mb-2">
             <div class="card-header py-2 d-flex justify-content-between align-items-center">
                 <span class="small fw-bold"><i class="bi bi-journal-text me-1"></i> مادة ${i + 1}</span>
-                <button type="button" class="btn btn-sm btn-outline-danger remove-subject-btn"><i class="bi bi-trash"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-subject-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
             </div>
             <div class="card-body py-2">
                 <div class="row g-2 align-items-center mb-2">
@@ -371,7 +365,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             <input type="text" name="levels[${i}][code]" class="form-control form-control-sm" placeholder="رمز">
                         </div>
                         <div class="col-md-1 text-end">
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-level-btn"><i class="bi bi-trash"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-level-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </div>
                     </div>
                 </div>
@@ -405,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <input type="text" name="offerings[${i}][session_time]" class="form-control form-control-sm" placeholder="الوقت">
                     </div>
                     <div class="col-md-1 text-end">
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-offering-btn"><i class="bi bi-trash"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-offering-btn" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </div>

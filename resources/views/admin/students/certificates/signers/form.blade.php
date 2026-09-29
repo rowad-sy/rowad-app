@@ -3,13 +3,8 @@
 @section('title', isset($signer) ? 'تعديل موقع' : 'إضافة موقع')
 
 @section('content')
-<div class="page-header">
-    <h4>{{ isset($signer) ? 'تعديل الموقع: ' . $signer->name_ar : 'إضافة موقع جديد' }}</h4>
-    <p>
-        <a href="{{ route('admin.students.certificates.signers.index') }}" class="text-decoration-none">الموقعون</a>
-        / {{ isset($signer) ? $signer->name_ar : 'جديد' }}
-    </p>
-</div>
+<x-page-header :title="isset($signer) ? 'تعديل الموقع: ' . $signer->name_ar : 'إضافة موقع جديد'"
+               :breadcrumb="[['label' => 'الموقعون', 'url' => route('admin.students.certificates.signers.index')], ['label' => isset($signer) ? $signer->name_ar : 'جديد']]" />
 
 <form method="POST" enctype="multipart/form-data"
       action="{{ isset($signer) ? route('admin.students.certificates.signers.update', $signer) : route('admin.students.certificates.signers.store') }}">

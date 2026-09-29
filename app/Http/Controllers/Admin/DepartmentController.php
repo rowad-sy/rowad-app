@@ -22,7 +22,7 @@ class DepartmentController extends Controller
         $departments = Department::when($search, function ($q, $search) {
             return $q->where('name_ar', 'like', "%{$search}%")
                 ->orWhere('name_en', 'like', "%{$search}%");
-        })->orderBy('name_ar')->paginate(10);
+        })->orderBy('name_ar')->paginate(10)->withQueryString();
 
         return view('admin.departments.index', compact('departments', 'search'));
     }

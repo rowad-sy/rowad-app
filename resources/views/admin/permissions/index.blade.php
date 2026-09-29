@@ -3,19 +3,15 @@
 @section('title', 'الصلاحيات')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>الصلاحيات</h4>
-        <p>إدارة صلاحيات المستخدمين والمجموعات</p>
-    </div>
+<x-page-header :title="'الصلاحيات'" :description="'إدارة صلاحيات المستخدمين والمجموعات'"
+               :breadcrumb="[['label' => 'الإدارة'], ['label' => 'الصلاحيات']]">
     <a href="{{ route('admin.permissions.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> إضافة صلاحية
     </a>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2">
+    <x-filter-bar>
             <div class="col-md-4">
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="بحث عن صلاحية..." value="{{ $search }}">
@@ -24,12 +20,11 @@
                     </button>
                 </div>
             </div>
-        </form>
-    </div>
+        </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>المستخدم / المجموعة</th>
                     <th>عدد النطاقات</th>
@@ -60,55 +55,46 @@
                             @endif
                             <td>
                                 @foreach ($scopeGroup['models'] as $model)
-                                    <code>{{ class_basename($model) }}</code>@if (!$loop->last), @endif
+                                    <span class="ltr-cell d-inline-block">{{ class_basename($model) }}</span>@if (!$loop->last), @endif
                                 @endforeach
                             </td>
                             <td>
                                 @if ($perm->center)
-                                    <span class="badge bg-primary badge-scope">{{ $perm->center->name }}</span>
+                                    <x-status-badge tone="brand">{{ $perm->center->name }}</x-status-badge>
                                 @else
-                                    <span class="badge bg-secondary badge-scope">جميع المراكز</span>
+                                    <x-status-badge>جميع المراكز</x-status-badge>
                                 @endif
                                 @if ($perm->project)
-                                    <span class="badge bg-success badge-scope">{{ $perm->project->name }}</span>
+                                    <x-status-badge tone="brand">{{ $perm->project->name }}</x-status-badge>
                                 @else
-                                    <span class="badge bg-secondary badge-scope">جميع المشاريع</span>
+                                    <x-status-badge>جميع المشاريع</x-status-badge>
                                 @endif
                                 @if ($perm->cohort)
-                                    <span class="badge bg-dark badge-scope">{{ $perm->cohort->name }}</span>
+                                    <x-status-badge tone="brand">{{ $perm->cohort->name }}</x-status-badge>
                                 @else
-                                    <span class="badge bg-secondary badge-scope">جميع الأفواج</span>
+                                    <x-status-badge>جميع الأفواج</x-status-badge>
                                 @endif
                             </td>
                             <td>
-                                @if ($scopeGroup['flags']['can_view']) <span class="badge bg-info">عرض</span> @endif
-                                @if ($scopeGroup['flags']['can_create']) <span class="badge bg-success">إضافة</span> @endif
-                                @if ($scopeGroup['flags']['can_edit']) <span class="badge bg-warning text-dark">تعديل</span> @endif
-                                @if ($scopeGroup['flags']['can_delete']) <span class="badge bg-danger">حذف</span> @endif
+                                @if ($scopeGroup['flags']['can_view']) <x-status-badge tone="info">عرض</x-status-badge> @endif
+                                @if ($scopeGroup['flags']['can_create']) <x-status-badge tone="success">إضافة</x-status-badge> @endif
+                                @if ($scopeGroup['flags']['can_edit']) <x-status-badge tone="warning">تعديل</x-status-badge> @endif
+                                @if ($scopeGroup['flags']['can_delete']) <x-status-badge tone="danger">حذف</x-status-badge> @endif
                             </td>
                             <td>
-                                <a href="{{ route('admin.permissions.edit', $perm) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
+                                <a href="{{ route('admin.permissions.edit', $perm) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                                 <x-audit-history :model="'App\Models\Admin\Permission'" :model-id="$perm->id" />
                                 <form method="POST" action="{{ route('admin.permissions.destroy', $perm) }}" class="d-inline"
                                       onsubmit="return confirm('سيتم حذف جميع صلاحيات هذا العنصر ضمن هذا النطاق. هل أنت متأكد؟')">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                                 </form>
                             </td>
                         </tr>
                     @endforeach
                 @empty
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                            لا توجد صلاحيات
-                        </td>
-                    </tr>
+                    <x-empty-row colspan="6" icon="bi-inbox" title="لا توجد صلاحيات" />
                 @endforelse
             </tbody>
         </table>

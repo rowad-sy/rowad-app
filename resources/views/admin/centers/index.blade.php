@@ -3,72 +3,62 @@
 @section('title', 'المراكز')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>المراكز</h4>
-        <p>إدارة المراكز التابعة للمؤسسة</p>
-    </div>
+<x-page-header title="المراكز" description="إدارة المراكز التابعة للمؤسسة"
+               :breadcrumb="[['label' => 'الإدارة'], ['label' => 'المراكز']]">
     <a href="{{ route('admin.centers.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> إضافة مركز
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> إضافة مركز
     </a>
-</div>
+</x-page-header>
 
 <div class="table-container">
-    <div class="p-3 border-bottom">
-        <form method="GET" class="row g-2">
-            <div class="col-md-4">
-                <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="بحث عن مركز..." value="{{ $search }}">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
+    <x-filter-bar>
+        <div class="col-12 col-md-4 filter-field">
+            <label class="form-label" for="f-search">بحث</label>
+            <input type="search" id="f-search" name="search" class="form-control" placeholder="اسم المركز..." value="{{ $search }}">
+        </div>
+    </x-filter-bar>
 
-    <table class="table table-hover align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>#</th>
-                <th>اسم المركز</th>
-                <th>العنوان</th>
-                <th>الهاتف</th>
-                <th>الإجراءات</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($centers as $center)
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
                 <tr>
-                    <td>{{ $center->id }}</td>
-                    <td class="fw-medium">{{ $center->name }}</td>
-                    <td>{{ $center->address ?? '—' }}</td>
-                    <td dir="ltr">{{ $center->phone ?? '—' }}</td>
-                    <td>
-                        <a href="{{ route('admin.centers.edit', $center) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <x-audit-history :model="'App\Models\Admin\Center'" :model-id="$center->id" />
-                        <form method="POST" action="{{ route('admin.centers.destroy', $center) }}" class="d-inline"
-                              onsubmit="return confirm('هل أنت متأكد من حذف هذا المركز؟')">
-                            @csrf
-                            @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    </td>
+                    <th>#</th>
+                    <th>اسم المركز</th>
+                    <th>العنوان</th>
+                    <th>الهاتف</th>
+                    <th>الإجراءات</th>
                 </tr>
-            @empty
-                <tr>
-                    <td colspan="5" class="text-center py-4 text-muted">
-                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                        لا توجد مراكز
-                    </td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @forelse ($centers as $center)
+                    <tr>
+                        <td class="num">{{ $center->id }}</td>
+                        <td class="fw-medium">{{ $center->name }}</td>
+                        <td>{{ $center->address ?? '—' }}</td>
+                        <td class="ltr-cell">{{ $center->phone ?? '—' }}</td>
+                        <td class="text-nowrap">
+                            <div class="row-actions">
+                                <a href="{{ route('admin.centers.edit', $center) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل {{ $center->name }}" title="تعديل">
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                </a>
+                                <x-audit-history :model="'App\Models\Admin\Center'" :model-id="$center->id" />
+                                <form method="POST" action="{{ route('admin.centers.destroy', $center) }}"
+                                      onsubmit="return confirm('هل أنت متأكد من حذف هذا المركز؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="btn btn-sm btn-outline-danger" aria-label="حذف {{ $center->name }}" title="حذف">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <x-empty-row colspan="5" title="لا توجد مراكز بعد" />
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 
     <div class="p-3">
         {{ $centers->links() }}

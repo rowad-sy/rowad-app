@@ -2,132 +2,156 @@
 
 @section('title', 'التايم شيت')
 
-@section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>التايم شيت</h4>
-        <p>سجل حضور وغياب الموظفين الشهري</p>
-    </div>
-    <a href="{{ route('admin.hr.timesheets.print', request()->query()) }}" class="btn btn-outline-primary" target="_blank">
-        <i class="bi bi-printer me-1"></i> طباعة
-    </a>
-</div>
+@push('styles')
+<style>
+    .ts-table { font-size: 0.85rem; }
+    .ts-table th, .ts-table td { text-align: center; white-space: nowrap; }
+    .ts-table th.ts-employee { text-align: start; white-space: normal; min-width: 150px; max-width: 200px; position: sticky; inset-inline-start: 0; z-index: 2; background: var(--color-card); }
+    .ts-table thead th.ts-employee { background: var(--color-surface-muted); }
+    .ts-table .ts-day { min-width: 34px; padding: 0.25rem 0.15rem; }
+    .ts-table .ts-dayname { display: block; font-size: 0.65rem; font-weight: 400; color: var(--color-text-muted); }
+    .ts-table .ts-weekend { background: var(--status-neutral-bg); }
+    .ts-table .ts-cell { font-weight: 700; }
+    .ts-table .ts-present { color: var(--status-success); background: var(--status-success-bg); }
+    .ts-table .ts-absent { color: var(--status-danger); background: var(--status-danger-bg); }
+    .ts-table .ts-excused { color: var(--status-warning); background: var(--status-warning-bg); }
+    .ts-table .ts-off { color: var(--status-neutral); background: var(--status-neutral-bg); }
+    .ts-table .ts-details { white-space: normal; min-width: 140px; text-align: start; }
+    .ts-table .ts-total { min-width: 56px; }
+    @media (max-width: 575.98px) { .ts-table th.ts-employee { min-width: 120px; max-width: 130px; } .ts-table .ts-employee .small { font-size: 0.72rem; } }
+</style>
+@endpush
 
-<div class="form-card mb-3">
-    <form method="GET" class="row g-2 align-items-end">
-        <div class="col-md-2">
-            <label class="form-label small mb-1">الشهر</label>
-            <input type="month" name="month" class="form-control" value="{{ $month }}" onchange="this.form.submit()">
+@section('content')
+@php
+    $hasFilter = $search || $centerId || $projectId || $departmentId;
+    $monthLabel = \Carbon\Carbon::parse($month . '-01')->locale('ar')->translatedFormat('F Y');
+@endphp
+<x-page-header title="التايم شيت" description="سجل حضور وغياب الموظفين الشهري"
+               :breadcrumb="[['label' => 'الموارد البشرية'], ['label' => 'التايم شيت']]">
+    <a href="{{ route('admin.hr.timesheets.print', request()->query()) }}" class="btn btn-outline-primary" target="_blank" rel="noopener">
+        <i class="bi bi-printer me-1" aria-hidden="true"></i> فتح للطباعة
+    </a>
+</x-page-header>
+
+<div class="table-container mb-3">
+    <x-filter-bar>
+        <div class="col-6 col-md-2 filter-field">
+            <label class="form-label" for="f-month">الشهر</label>
+            <input type="month" id="f-month" name="month" class="form-control" value="{{ $month }}">
         </div>
-        <div class="col-md-3">
-            <label class="form-label small mb-1">المركز</label>
-            <select name="center_id" class="form-select" onchange="this.form.submit()">
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-center_id">المركز</label>
+            <select id="f-center_id" name="center_id" class="form-select">
                 <option value="">الكل</option>
                 @foreach ($centers as $center)
                     <option value="{{ $center->id }}" {{ $centerId == $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
                 @endforeach
             </select>
         </div>
-        <div class="col-md-3">
-            <label class="form-label small mb-1">المشروع</label>
-            <select name="project_id" class="form-select" onchange="this.form.submit()">
+        <div class="col-6 col-md-3 filter-field">
+            <label class="form-label" for="f-project_id">المشروع</label>
+            <select id="f-project_id" name="project_id" class="form-select">
                 <option value="">الكل</option>
                 @foreach ($projects as $project)
                     <option value="{{ $project->id }}" {{ $projectId == $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
                 @endforeach
             </select>
         </div>
-        <div class="col-md-3">
-            <label class="form-label small mb-1">القسم</label>
-            <select name="department_id" class="form-select" onchange="this.form.submit()">
+        <div class="col-6 col-md-2 filter-field">
+            <label class="form-label" for="f-department_id">القسم</label>
+            <select id="f-department_id" name="department_id" class="form-select">
                 <option value="">الكل</option>
                 @foreach ($departments as $dept)
                     <option value="{{ $dept->id }}" {{ $departmentId == $dept->id ? 'selected' : '' }}>{{ $dept->name_ar }}</option>
                 @endforeach
             </select>
         </div>
-        <div class="col-md-2">
-            <label class="form-label small mb-1">بحث</label>
-            <input type="text" name="search" class="form-control" placeholder="اسم الموظف..." value="{{ $search }}">
+        <div class="col-12 col-md-2 filter-field">
+            <label class="form-label" for="f-search">بحث</label>
+            <input type="search" id="f-search" name="search" class="form-control" placeholder="اسم الموظف..." value="{{ $search }}">
         </div>
-        <div class="col-md-1">
-            <label class="form-label small mb-1">&nbsp;</label>
-            <button class="btn btn-outline-secondary w-100" type="submit">
-                <i class="bi bi-search"></i>
-            </button>
-        </div>
-    </form>
+    </x-filter-bar>
 </div>
 
-<div class="table-container">
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle" id="timesheet-table" style="font-size:0.85rem;">
-            <thead class="table-light">
-                <tr>
-                    <th rowspan="2" style="min-width:120px;">الموظف</th>
-                    <th rowspan="2" style="min-width:80px;">الكود</th>
-                    <th colspan="{{ \Carbon\Carbon::parse($month . '-01')->daysInMonth }}" class="text-center">
-                        {{ \Carbon\Carbon::parse($month . '-01')->locale('ar')->translatedFormat('F Y') }}
-                    </th>
-                    <th rowspan="2" style="min-width:50px;">حضور</th>
-                    <th rowspan="2" style="min-width:50px;">غياب</th>
-                </tr>
-                <tr>
-                    @for ($d = 1; $d <= \Carbon\Carbon::parse($month . '-01')->daysInMonth; $d++)
-                        @php
-                            $date = \Carbon\Carbon::parse(sprintf('%s-%02d', $month, $d));
-                            $isWeekend = $date->dayOfWeek === 5 || $date->dayOfWeek === 6;
-                        @endphp
-                        <th class="{{ $isWeekend ? 'text-muted bg-light' : '' }}" style="min-width:28px;font-size:0.75rem;padding:2px;">
-                            {{ $d }}
-                        </th>
-                    @endfor
-                </tr>
-            </thead>
-            <tbody id="timesheet-body">
-                <tr>
-                    <td colspan="100" class="text-center text-muted py-4">
-                        <i class="bi bi-hourglass-split me-2"></i>
-                        اختر الفلترة ثم اضغط بحث لعرض التايم شيت
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <x-status-badge tone="brand"><i class="bi bi-calendar3" aria-hidden="true"></i> الفترة: {{ $monthLabel }}</x-status-badge>
+    {{-- مفتاح الرموز: الحالة تُقرأ بالرمز والنص المتاح للقارئ وليس باللون وحده (يطابق رموز صفحة الطباعة) --}}
+    <span class="small text-muted">المفتاح: ✔ حاضر (يشمل اليوم غير المسجَّل، ويُحتسب حاضرًا افتراضيًا) · ✘ غائب · ع غياب بعذر · — عطلة الموظف</span>
+</div>
+
+@if ($hasFilter)
+    @php
+        $timesheets = $sheet['timesheets'];
+        $daysInMonth = $sheet['daysInMonth'];
+        $symbols = [
+            'present' => ['✔', 'حاضر', 'ts-present'],
+            'absent' => ['✘', 'غائب', 'ts-absent'],
+            'excused' => ['ع', 'غياب بعذر', 'ts-excused'],
+            'off' => ['—', 'عطلة', 'ts-off'],
+        ];
+        $headDays = [];
+        foreach (($timesheets[0]['daily'] ?? []) as $d) {
+            $headDays[] = $d + ['weekend' => in_array(\Carbon\Carbon::parse($d['date'])->dayOfWeek, [5, 6], true)];
+        }
+    @endphp
+    <div class="table-container">
+        @if (count($timesheets))
+            <div class="table-responsive" tabindex="0" role="region" aria-label="جدول التايم شيت لشهر {{ $monthLabel }}">
+                <table class="table table-bordered table-sm align-middle mb-0 ts-table">
+                    <caption class="visually-hidden">التايم شيت لشهر {{ $monthLabel }}: حالة كل يوم لكل موظف وإجماليات الحضور والغياب والغياب بعذر</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col" class="ts-employee">الموظف</th>
+                            @foreach ($headDays as $d)
+                                <th scope="col" class="ts-day {{ $d['weekend'] ? 'ts-weekend' : '' }}">
+                                    <span class="num">{{ $d['day'] }}</span>
+                                    <span class="ts-dayname">{{ $d['day_name'] }}</span>
+                                </th>
+                            @endforeach
+                            <th scope="col" class="ts-total">حضور</th>
+                            <th scope="col" class="ts-total">غياب</th>
+                            <th scope="col" class="ts-total">بعذر</th>
+                            <th scope="col" class="ts-details">ملخص الإجازات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($timesheets as $ts)
+                            <tr>
+                                <th scope="row" class="ts-employee">
+                                    <div class="fw-bold">{{ $ts['employee']->first_name_ar }} {{ $ts['employee']->last_name_ar }}</div>
+                                    <div class="small text-muted"><span class="ltr-cell d-inline-block">{{ $ts['employee']->employee_code }}</span>@if ($ts['position']) · {{ $ts['position'] }}@endif</div>
+                                    @if ($ts['employee']->center)<div class="small text-muted">{{ $ts['employee']->center->name }}</div>@endif
+                                </th>
+                                @foreach ($ts['daily'] as $day)
+                                    @php
+                                        $key = $day['is_off'] ? 'off' : (isset($symbols[$day['status']]) ? $day['status'] : null);
+                                        [$sym, $label, $cls] = $key ? $symbols[$key] : ['؟', 'غير معروف', 'ts-unknown'];
+                                    @endphp
+                                    <td class="ts-cell {{ $cls }}" title="{{ $day['day'] }} {{ $monthLabel }}: {{ $label }}{{ $key === 'present' && ! $day['recorded'] ? ' (افتراضي: غير مسجّل)' : '' }}">
+                                        <span aria-hidden="true">{{ $sym }}</span><span class="visually-hidden">{{ $day['day'] }}: {{ $label }}</span>
+                                    </td>
+                                @endforeach
+                                <td class="ts-total ts-present num fw-bold">{{ $ts['total_present'] }}</td>
+                                <td class="ts-total ts-absent num fw-bold">{{ $ts['total_absent'] }}</td>
+                                <td class="ts-total ts-excused num fw-bold">{{ $ts['total_excused'] }}</td>
+                                <td class="ts-details small">{{ $ts['leave_details'] ?: '—' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <x-empty-state icon="bi-search" title="لا يوجد موظفون نشطون يطابقون الفلاتر"
+                           hint="جرّب تعديل الفلاتر أو مسحها.">
+                <a href="{{ route('admin.hr.timesheets.index', ['month' => $month]) }}" class="btn btn-sm btn-outline-secondary mt-2">مسح الفلاتر</a>
+            </x-empty-state>
+        @endif
     </div>
-</div>
+@else
+    <div class="table-container">
+        <x-empty-state icon="bi-hourglass-split" title="اختر مركزًا أو مشروعًا أو قسمًا أو اسم موظف"
+                       hint="ثم اضغط «تطبيق» لعرض التايم شيت لشهر {{ $monthLabel }}." />
+    </div>
+@endif
 @endsection
-
-@push('scripts')
-<script>
-    // Load timesheet data via AJAX on filter change
-    function loadTimesheet() {
-        const params = new URLSearchParams(window.location.search);
-        params.set('employee_ids', ''); // clear selection
-        fetch('{{ route('admin.hr.timesheets.print') }}?' + params.toString(), {
-            headers: { 'Accept': 'text/html' }
-        })
-        .then(r => r.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newBody = doc.querySelector('#timesheet-body');
-            if (newBody) {
-                document.getElementById('timesheet-body').innerHTML = newBody.innerHTML;
-            }
-        })
-        .catch(() => {});
-    }
-
-    // Auto-load on page load if filters are set
-    @if ($search || $centerId || $projectId || $departmentId)
-    loadTimesheet();
-    @endif
-
-    // Reload when filters change
-    document.querySelectorAll('.form-card select, .form-card input').forEach(el => {
-        el.addEventListener('change', function() {
-            if (this.name !== 'month') return; // only month triggers auto-load
-        });
-    });
-</script>
-@endpush

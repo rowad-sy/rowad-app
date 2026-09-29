@@ -112,35 +112,31 @@
     <fieldset class="form-card mb-4">
         <legend class="section-title"><i class="bi bi-person" aria-hidden="true"></i> البيانات الشخصية</legend>
         <div class="row g-3">
-        <div class="col-md-6">
-            <label class="form-label" for="f-first_name_ar">الاسم AR <span class="text-danger" aria-hidden="true">*</span><span class="visually-hidden">(مطلوب)</span></label>
-            <div class="row g-2">
-                <div class="col-6">
+        <div class="col-md-3">
+                    <label class="form-label" for="f-first_name_ar">الاسم بالعربية <span class="text-danger" aria-hidden="true">*</span><span class="visually-hidden">(مطلوب)</span></label>
                     <input id="f-first_name_ar" type="text" name="first_name_ar" class="form-control @error('first_name_ar') is-invalid @enderror"
                            value="{{ old('first_name_ar', $student->first_name_ar ?? '') }}" placeholder="الاسم" required>
+                    @error('first_name_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                 </div>
-                <div class="col-6">
+                <div class="col-md-3">
+                    <label class="form-label" for="f-last_name_ar">اللقب بالعربية <span class="text-danger" aria-hidden="true">*</span><span class="visually-hidden">(مطلوب)</span></label>
                     <input id="f-last_name_ar" type="text" name="last_name_ar" class="form-control @error('last_name_ar') is-invalid @enderror"
                            value="{{ old('last_name_ar', $student->last_name_ar ?? '') }}" placeholder="اللقب" required>
+                    @error('last_name_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                 </div>
-            </div>
-            @error('first_name_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            @error('last_name_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-        </div>
 
-        <div class="col-md-6">
-            <label class="form-label" for="f-first_name_en">الاسم EN</label>
-            <div class="row g-2">
-                <div class="col-6">
+        <div class="col-md-3">
+                    <label class="form-label" for="f-first_name_en">الاسم بالإنجليزية</label>
                     <input id="f-first_name_en" type="text" name="first_name_en" class="form-control @error('first_name_en') is-invalid @enderror"
                            value="{{ old('first_name_en', $student->first_name_en ?? '') }}" placeholder="First Name" dir="ltr">
+                    @error('first_name_en') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                 </div>
-                <div class="col-6">
+                <div class="col-md-3">
+                    <label class="form-label" for="f-last_name_en">اللقب بالإنجليزية</label>
                     <input id="f-last_name_en" type="text" name="last_name_en" class="form-control @error('last_name_en') is-invalid @enderror"
                            value="{{ old('last_name_en', $student->last_name_en ?? '') }}" placeholder="Last Name" dir="ltr">
+                    @error('last_name_en') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                 </div>
-            </div>
-        </div>
 
         <div class="col-md-3">
             <label class="form-label" for="f-father_name">اسم الأب</label>
@@ -278,80 +274,54 @@
         </div>
     </fieldset>
 
-    <div class="form-card mb-4">
-        <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
-            <h5 class="mb-0"><i class="bi bi-journal-text me-1"></i> التسجيلات في المقررات</h5>
+    @php
+        // الصفوف من المُدخلات القديمة بعد فشل التحقق (بنفس المفاتيح لتطابق رسائل الأخطاء)، وإلا من قاعدة البيانات
+        $enrollRows = [];
+        if (is_array(old('enrollments'))) {
+            $enrollRows = old('enrollments');
+        } elseif (isset($student)) {
+            foreach ($student->enrollments as $i => $e) {
+                $enrollRows[$i] = ['course_id' => $e->course_id, 'period_id' => $e->period_id, 'enrollment_date' => $e->enrollment_date?->format('Y-m-d'), 'status' => $e->status, 'grade' => $e->grade];
+            }
+        }
+        $enrollIdx = $enrollRows ? (max(array_map('intval', array_keys($enrollRows))) + 1) : 0;
+    @endphp
+    <fieldset class="form-card mb-4">
+        <legend class="section-title"><i class="bi bi-journal-text" aria-hidden="true"></i> التسجيلات في المقررات</legend>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <span class="text-muted small">اختيارية: أضف صفًا لكل مقرر وفترة. تبقى الصفوف المُدخلة عند فشل التحقق.</span>
             <button type="button" class="btn btn-sm btn-outline-primary" onclick="addEnrollmentRow()">
-                <i class="bi bi-plus-lg"></i> إضافة تسجيل
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> إضافة تسجيل
             </button>
         </div>
-        <div class="p-3">
+        <div class="table-responsive">
             <table class="table table-bordered mb-0" id="enrollmentsTable">
-                <thead class="table-light">
+                <thead>
                     <tr>
-                        <th>المقرر <span class="text-danger">*</span></th>
-                        <th>الفترة <span class="text-danger">*</span></th>
-                        <th>تاريخ التسجيل</th>
-                        <th>الحالة</th>
-                        <th>الدرجة</th>
-                        <th></th>
+                        <th style="min-width:180px">المقرر <span class="text-danger" aria-hidden="true">*</span></th>
+                        <th style="min-width:160px">الفترة <span class="text-danger" aria-hidden="true">*</span></th>
+                        <th style="min-width:140px">تاريخ التسجيل</th>
+                        <th style="min-width:110px">الحالة</th>
+                        <th style="min-width:90px">الدرجة</th>
+                        <th><span class="visually-hidden">إجراءات</span></th>
                     </tr>
                 </thead>
                 <tbody>
-                    @php $enrollIdx = 0; @endphp
-                    @if (isset($student) && $student->enrollments->isNotEmpty())
-                        @foreach ($student->enrollments as $enrollment)
-                        <tr>
-                            <td>
-                                <select name="enrollments[{{ $enrollIdx }}][course_id]" class="form-select form-select-sm" required>
-                                    <option value="">— اختر —</option>
-                                    @foreach ($courses as $course)
-                                        <option value="{{ $course->id }}" data-project-id="{{ $course->project_id }}" {{ $enrollment->course_id == $course->id ? 'selected' : '' }}>{{ $course->name_ar }}</option>
-                                    @endforeach
-                                </select>
-                            </td>
-                            <td>
-                                <select name="enrollments[{{ $enrollIdx }}][period_id]" class="form-select form-select-sm" required>
-                                    <option value="">— اختر —</option>
-                                    @foreach ($periods as $period)
-                                        <option value="{{ $period->id }}" {{ $enrollment->period_id == $period->id ? 'selected' : '' }}>{{ $period->name_ar }} ({{ $period->year }})</option>
-                                    @endforeach
-                                </select>
-                            </td>
-                            <td>
-                                <input type="date" name="enrollments[{{ $enrollIdx }}][enrollment_date]" class="form-control form-control-sm"
-                                       value="{{ old('enrollments.' . $enrollIdx . '.enrollment_date', $enrollment->enrollment_date?->format('Y-m-d')) }}">
-                            </td>
-                            <td>
-                                <select name="enrollments[{{ $enrollIdx }}][status]" class="form-select form-select-sm">
-                                    <option value="enrolled" {{ $enrollment->status === 'enrolled' ? 'selected' : '' }}>مسجل</option>
-                                    <option value="completed" {{ $enrollment->status === 'completed' ? 'selected' : '' }}>مكتمل</option>
-                                    <option value="dropped" {{ $enrollment->status === 'dropped' ? 'selected' : '' }}>منسحب</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" name="enrollments[{{ $enrollIdx }}][grade]" class="form-control form-control-sm" min="0" max="100" step="0.01"
-                                       value="{{ old('enrollments.' . $enrollIdx . '.grade', $enrollment->grade) }}">
-                            </td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        @php $enrollIdx++; @endphp
-                        @endforeach
-                    @endif
-                    <tr class="no-enrollments-row {{ isset($student) && $student->enrollments->isNotEmpty() ? 'd-none' : '' }}">
-                        <td colspan="6" class="text-center text-muted py-3">
-                            <i class="bi bi-inbox d-block fs-4 mb-1"></i>
-                            لا يوجد تسجيلات. أضف تسجيلاً جديداً.
+                    @foreach ($enrollRows as $enrollI => $enrollRow)
+                        @include('admin.students._enrollment_row', ['idx' => $enrollI, 'row' => $enrollRow])
+                    @endforeach
+                    <tr class="no-enrollments-row {{ $enrollRows ? 'd-none' : '' }}">
+                        <td colspan="6">
+                            <x-empty-state icon="bi-inbox" title="لا توجد تسجيلات" hint="أضف تسجيلًا جديدًا عند الحاجة." />
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
-    </div>
+        <template id="enrollmentTemplate">
+            @include('admin.students._enrollment_row', ['idx' => '__IDX__', 'row' => []])
+        </template>
+    </fieldset>
 
     <div class="d-grid d-sm-flex gap-2 mt-2 mb-4">
         <button type="submit" class="btn btn-primary px-4">
@@ -364,11 +334,6 @@
 
 @push('scripts')
 <script>
-// بعد فشل التحقق: الانتقال إلى أول حقل به خطأ
-document.addEventListener('DOMContentLoaded', function () {
-    var bad = document.querySelector('.is-invalid');
-    if (bad) { bad.scrollIntoView({ block: 'center' }); bad.focus({ preventScroll: true }); }
-});
 let enrollIdx = {{ $enrollIdx ?? 0 }};
 
 function addEnrollmentRow() {
@@ -376,47 +341,23 @@ function addEnrollmentRow() {
     var noRow = tbody.querySelector('.no-enrollments-row');
     if (noRow) noRow.classList.add('d-none');
 
-    var html = `<tr>
-        <td>
-            <select name="enrollments[${enrollIdx}][course_id]" class="form-select form-select-sm" required>
-                <option value="">— اختر —</option>
-                @foreach ($courses as $course)
-                    <option value="{{ $course->id }}" data-project-id="{{ $course->project_id }}">{{ $course->name_ar }}</option>
-                @endforeach
-            </select>
-        </td>
-        <td>
-            <select name="enrollments[${enrollIdx}][period_id]" class="form-select form-select-sm" required>
-                <option value="">— اختر —</option>
-                @foreach ($periods as $period)
-                    <option value="{{ $period->id }}">{{ $period->name_ar }} ({{ $period->year }})</option>
-                @endforeach
-            </select>
-        </td>
-        <td>
-            <input type="date" name="enrollments[${enrollIdx}][enrollment_date]" class="form-control form-control-sm">
-        </td>
-        <td>
-            <select name="enrollments[${enrollIdx}][status]" class="form-select form-select-sm">
-                <option value="enrolled">مسجل</option>
-                <option value="completed">مكتمل</option>
-                <option value="dropped">منسحب</option>
-            </select>
-        </td>
-        <td>
-            <input type="number" name="enrollments[${enrollIdx}][grade]" class="form-control form-control-sm" min="0" max="100" step="0.01">
-        </td>
-        <td class="text-center">
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">
-                <i class="bi bi-trash"></i>
-            </button>
-        </td>
-    </tr>`;
-
-    tbody.insertAdjacentHTML('beforeend', html);
+    var tpl = document.getElementById('enrollmentTemplate').innerHTML.split('__IDX__').join(enrollIdx);
+    tbody.insertAdjacentHTML('beforeend', tpl);
     enrollIdx++;
+    var row = tbody.lastElementChild;
+    var first = row.querySelector('select');
+    if (first) first.focus();
     filterCoursesByProjects();
     filterCohorts();
+}
+
+function removeEnrollmentRow(btn) {
+    var tbody = btn.closest('tbody');
+    btn.closest('tr').remove();
+    if (!tbody.querySelector('tr:not(.no-enrollments-row)')) {
+        var noRow = tbody.querySelector('.no-enrollments-row');
+        if (noRow) noRow.classList.remove('d-none');
+    }
 }
 
 function filterCohorts() {

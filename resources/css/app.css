@@ -1012,3 +1012,16 @@ a.kpi:hover { border-color: var(--color-primary); color: var(--color-text-main);
 /* مجموعة حقول نموذج: legend بشكل عنوان قسم */
 legend.section-title { float: none; width: auto; padding: 0; margin-bottom: 1rem; }
 fieldset.form-card { min-width: 0; }
+
+
+/* رسائل التحقق: تُرسم من الخادم فقط عند وجود خطأ، فتظهر دائمًا ولو لم تكن مجاورة مباشرة للحقل (مثل الاسم واللقب) */
+.invalid-feedback { display: block; }
+.tab-error-flag { font-size: 0.7rem; }
+
+/* عناصر Bootstrap الفاتحة داخل الوضع الداكن */
+[data-theme="dark"] .bg-light.text-dark,
+[data-theme="dark"] .badge.bg-light { background-color: var(--color-surface-muted) !important; color: var(--color-text-main) !important; border-color: var(--color-border) !important; }
+[data-theme="dark"] .bg-light:not(.badge) { background-color: var(--color-surface-muted) !important; color: var(--color-text-main); }
+
+/* عناصر .visually-hidden (position:absolute) داخل الجداول العريضة كانت تسبّب تمريرًا أفقيًا للصفحة؛ نُقيّدها بحاوية التمرير */
+.table-responsive { position: relative; }
