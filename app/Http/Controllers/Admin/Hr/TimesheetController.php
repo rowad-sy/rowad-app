@@ -9,6 +9,7 @@ use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Hr\EmployeeAttendance;
 use App\Models\Admin\Hr\JobPosition;
 use App\Models\Admin\Hr\LeaveType;
+use App\Models\Admin\Hr\WorkSchedule;
 use App\Models\Admin\Project;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -105,7 +106,8 @@ class TimesheetController extends Controller
 
             for ($day = 1; $day <= $daysInMonth; $day++) {
                 $date = Carbon::parse(sprintf('%s-%02d-%02d', $year, $monthNum, $day));
-                $dayOfWeek = $date->dayOfWeek;
+                // day_of_week المخزَّن أسبوعه يبدأ السبت (انظر WorkSchedule::DAY_NAMES) وليس ترقيم Carbon
+                $dayOfWeek = WorkSchedule::indexForDate($date);
                 $dateKey = $date->format('Y-m-d');
                 $schedule = $schedules->get($dayOfWeek);
 

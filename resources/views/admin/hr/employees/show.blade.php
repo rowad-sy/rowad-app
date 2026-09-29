@@ -196,7 +196,7 @@
             </div>
             <div class="p-3">
                 @php
-                    $todaySchedule = $employee->workSchedules->where('day_of_week', now()->dayOfWeek)->first();
+                    $todaySchedule = $employee->workSchedules->where('day_of_week', \App\Models\Admin\Hr\WorkSchedule::indexForDate(now()))->first();
                 @endphp
                 @if ($todaySchedule)
                     @if ($todaySchedule->is_day_off)
