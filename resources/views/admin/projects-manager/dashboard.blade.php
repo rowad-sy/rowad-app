@@ -13,14 +13,55 @@
     </a>
 </x-page-header>
 
-@include('admin.partials._shortcuts_projects_manager')
-
-@if ($movementAwaitingReview->isNotEmpty() || $documentsUnderReview->isNotEmpty())
-{{-- تحتاج مراجعة: قوائم قيد المراجعة الحالية؛ الإجراء نفسه يتحقق منه النظام في صفحة السجل حسب صلاحياتك --}}
+@php
+    // الأولويات: إجراءات مستحقة للمستخدم (طلبات شراء محالة إليه للتوقيع) + قوائم مراجعة عامة قيد الانتظار
+    $generalReviewCount = $movementAwaitingReview->count() + $documentsUnderReviewCount;
+    $priorityTotal = $prAwaitingPm2Sign + $generalReviewCount;
+@endphp
+@if ($priorityTotal > 0)
 <section class="dash-section" aria-labelledby="attn-title">
-    <h2 class="section-title" id="attn-title">تحتاج مراجعة
-        <span class="count-pill is-attention">{{ $movementAwaitingReview->count() + $documentsUnderReview->count() }}</span>
+    <h2 class="section-title" id="attn-title">الأولويات
+        <span class="count-pill is-attention">{{ $priorityTotal }}</span>
     </h2>
+
+    @if ($prAwaitingPm2Sign > 0)
+    {{-- مستحقة لك: status = pm_approved ومحالة إليك (refer_to_pm2_id) — نفس شرط عدّاد «بموجودي للتوقيع» --}}
+    <div class="table-container attention-card mb-3">
+        <div class="p-3 border-bottom d-flex flex-wrap align-items-center gap-2">
+            <span class="fw-bold"><i class="bi bi-pen me-1" aria-hidden="true"></i> طلبات شراء بانتظار توقيعك</span>
+            <span class="count-pill is-attention section-title-pill">{{ $prAwaitingPm2Sign }}</span>
+            <a href="{{ route('admin.logistics.purchase-requests.index', ['status' => 'pm_approved']) }}" class="btn btn-sm btn-outline-primary ms-auto">عرض الطلبات بحالة «{{ \App\Models\Admin\Logistics\PurchaseRequest::STATUSES['pm_approved'] ?? 'pm_approved' }}»</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr><th>رقم الطلب</th><th>البنود</th><th>السعر المتوقع</th><th>المركز</th><th>المشروع</th><th>أنشأه</th><th><span class="visually-hidden">الإجراء</span></th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($awaitingMyPm2Requests as $request)
+                        <tr>
+                            <td><code>#{{ $request->id }}</code></td>
+                            <td>{{ $request->items->take(2)->pluck('description')->join('، ') ?: ($request->specifications ? Str::limit($request->specifications, 50) : '—') }}</td>
+                            <td class="num">{{ number_format($request->total_price, 2) }}</td>
+                            <td>{{ $request->center?->name ?? '—' }}</td>
+                            <td>{{ $request->project?->name ?? '—' }}</td>
+                            <td>{{ $request->user?->name ?? '—' }}</td>
+                            <td><a href="{{ route('admin.logistics.purchase-requests.show', $request) }}" class="btn btn-sm btn-primary">مراجعة وتوقيع</a></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @if ($prAwaitingPm2Sign > $awaitingMyPm2Requests->count())
+            <div class="p-2 small text-muted border-top">يُعرض أقدم {{ $awaitingMyPm2Requests->count() }} من {{ $prAwaitingPm2Sign }} طلبًا.</div>
+        @endif
+    </div>
+    @endif
+
+    @if ($generalReviewCount > 0)
+    {{-- قوائم مراجعة عامة (ليست بالضرورة موجّهة إليك)؛ الإجراء نفسه يتحقق منه النظام في صفحة السجل حسب صلاحياتك --}}
+    <h3 class="h6 text-muted fw-bold mb-2">قوائم قيد المراجعة (عامة)</h3>
+    @endif
 @if ($movementAwaitingReview->isNotEmpty())
 <x-fold title="خطط حركة قيد المراجعة" icon="bi-hourglass-split" :count="count($movementAwaitingReview)" open>
     <div class="table-container">
@@ -93,6 +134,9 @@
 @endif
 </section>
 @endif
+
+@include('admin.partials._shortcuts_projects_manager')
+
 
 {{-- ملخص عام --}}
 <div class="d-flex align-items-center gap-2 mb-3">

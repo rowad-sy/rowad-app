@@ -7,8 +7,7 @@
     <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
     <title>@yield('title', 'لوحة التحكم') | مؤسسة الرواد</title>
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700&display=swap" rel="stylesheet">
+    <link rel="preload" href="{{ asset('fonts/tajawal/tajawal-arabic-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
     @vite(['resources/js/app.js'])
     @stack('styles')
 </head>
@@ -710,6 +709,18 @@
 
             function store(fn) { try { return fn(); } catch (e) { return null; } }
 
+            // العناصر القابلة للتركيز فعليًا: ظاهرة وغير معطلة وبلا tabindex="-1"
+            function focusables() {
+                return Array.prototype.filter.call(
+                    sidebar.querySelectorAll('a[href], button, input, select, textarea, [tabindex]'),
+                    function (el) {
+                        if (el.disabled || el.getAttribute('tabindex') === '-1') return false;
+                        if (!el.getClientRects().length) return false;
+                        return window.getComputedStyle(el).visibility !== 'hidden';
+                    }
+                );
+            }
+
             function isOpenMobile() { return sidebar.classList.contains('mobile-open'); }
 
             function syncToggle() {
@@ -726,6 +737,11 @@
                     if (!label) return;
                     a.setAttribute('aria-label', label.textContent.trim());
                     if (rail) { a.setAttribute('title', label.textContent.trim()); } else { a.removeAttribute('title'); }
+                });
+                // في شريط الأيقونات تصبح عناوين الأقسام فواصل بصرية فقط: خارج ترتيب Tab وقارئات الشاشة
+                sidebar.querySelectorAll('.nav-section').forEach(function (h) {
+                    if (rail) { h.setAttribute('tabindex', '-1'); h.setAttribute('aria-hidden', 'true'); }
+                    else { h.removeAttribute('tabindex'); h.removeAttribute('aria-hidden'); }
                 });
                 sidebar.querySelectorAll('.nav-link.active').forEach(function (a) { a.setAttribute('aria-current', 'page'); });
             }
@@ -770,12 +786,14 @@
                 if (!isOpenMobile()) return;
                 if (e.key === 'Escape') { e.preventDefault(); closeMobile(); return; }
                 if (e.key === 'Tab') {
-                    // حصر التركيز داخل القائمة أثناء فتحها
-                    var f = sidebar.querySelectorAll('a[href], button:not([disabled])');
-                    if (!f.length) return;
-                    var first = f[0], last = f[f.length - 1];
-                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                    // حصر التركيز داخل القائمة: تُعاد الحسبة عند كل ضغطة لتغطية فتح الأقسام وطيها
+                    var f = focusables();
+                    if (!f.length) { e.preventDefault(); return; }
+                    var first = f[0], last = f[f.length - 1], cur = document.activeElement;
+                    var idx = f.indexOf(cur);
+                    if (idx === -1) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+                    else if (e.shiftKey && cur === first) { e.preventDefault(); last.focus(); }
+                    else if (!e.shiftKey && cur === last) { e.preventDefault(); first.focus(); }
                 }
             });
 

@@ -7,8 +7,7 @@
     <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
     <title>مؤسسة الرواد للتعاون والتنمية</title>
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700,800&display=swap" rel="stylesheet">
+    <link rel="preload" href="{{ asset('fonts/tajawal/tajawal-arabic-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
