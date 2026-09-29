@@ -153,8 +153,8 @@ test('employee dynamic rows have accessible names and templates carry them for n
 function fxSheetSetup(): array
 {
     $annual = LeaveType::create(['name_ar' => 'إجازة سنوية', 'annual_days' => 21, 'requires_approval' => true, 'color' => '#2E7D32', 'icon' => 'bi-sun', 'is_active' => true]);
-    // آذار 2026 يبدأ الأحد. جدول الدوام الافتراضي للموظف (يُنشأ تلقائيًا): الأحد(0) والسبت(6) عطلة ⇒ 9 أيام:
-    // الآحاد 1،8،15،22،29 والسبوت 7،14،21،28؛ فيبقى 22 يوم عمل.
+    // آذار 2026 يبدأ الأحد. جدول الدوام الافتراضي للموظف (يُنشأ تلقائيًا، 0=السبت ... 6=الجمعة): السبت والجمعة عطلة ⇒ 8 أيام:
+    // الجمع 6،13،20،27 والسبوت 7،14،21،28؛ فيبقى 23 يوم عمل.
     $a = fxEmployee('TS-A', ['first_name_ar' => 'ألف']);
     foreach ([['2026-03-02', 'absent', null], ['2026-03-03', 'excused', $annual->id], ['2026-03-04', 'present', null], ['2026-03-09', 'absent', null]] as [$d, $st, $lt]) {
         EmployeeAttendance::forceCreate(['employee_id' => $a->id, 'date' => $d, 'status' => $st, 'leave_type_id' => $lt]);
@@ -210,15 +210,15 @@ test('timesheet screen shows exact per-day states and totals for known attendanc
 
     expect(array_keys($screen))->toBe(['TS-A', 'TS-B']);
 
-    // الموظف A: 22 يوم عمل؛ غياب يومان (2 و9)، عذر واحد (3)، والباقي 19 حضورًا (يشمل غير المسجَّل)
-    expect($screen['TS-A'])->toMatchArray(['present' => 19, 'absent' => 2, 'excused' => 1])
+    // الموظف A: 23 يوم عمل؛ غياب يومان (2 و9)، عذر واحد (3)، والباقي 20 حضورًا (يشمل غير المسجَّل)
+    expect($screen['TS-A'])->toMatchArray(['present' => 20, 'absent' => 2, 'excused' => 1])
         ->and($screen['TS-A']['days'][2])->toBe('غائب')
         ->and($screen['TS-A']['days'][3])->toBe('غياب بعذر')
         ->and($screen['TS-A']['days'][4])->toBe('حاضر')
         ->and($screen['TS-A']['days'][5])->toBe('حاضر')            // غير مسجَّل ⇒ حاضر افتراضيًا (المعنى الحالي)
-        ->and($screen['TS-A']['days'][6])->toBe('حاضر')            // الجمعة يوم عمل في الجدول الافتراضي
-        ->and($screen['TS-A']['days'][1])->toBe('عطلة')            // الأحد
+        ->and($screen['TS-A']['days'][6])->toBe('عطلة')            // الجمعة
         ->and($screen['TS-A']['days'][7])->toBe('عطلة')            // السبت
+        ->and($screen['TS-A']['days'][1])->toBe('حاضر')            // الأحد يوم عمل
         ->and($screen['TS-A']['days'][9])->toBe('غائب');
     expect($screen['TS-A']['raw'])->toContain('إجازة سنوية: 1')           // تفصيل الغياب بعذر
         ->and($screen['TS-A']['raw'])->toContain('(افتراضي: غير مسجّل)');    // اليوم غير المسجَّل موسوم نصًا

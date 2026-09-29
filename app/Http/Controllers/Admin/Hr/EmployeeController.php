@@ -157,6 +157,9 @@ class EmployeeController extends Controller
             'department_id' => 'nullable|exists:departments,id',
             'project_id' => 'nullable|exists:projects,id',
             'notes' => 'nullable|string',
+            // التنبيهات والملاحظات إضافية فقط: لا معرّفات لموظف جديد
+            'warnings.*.id' => 'prohibited',
+            'notes_list.*.id' => 'prohibited',
         ]);
 
         $employee = Employee::create($validated);
@@ -205,6 +208,12 @@ class EmployeeController extends Controller
             'department_id' => 'nullable|exists:departments,id',
             'project_id' => 'nullable|exists:projects,id',
             'notes' => 'nullable|string',
+            // أي معرّف مرسل يجب أن يخص هذا الموظف (السجلات الموجودة لا تُعدَّل ولا تُنشأ من جديد من هذا النموذج)
+            'warnings.*.id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('hr_warnings', 'id')->where('employee_id', $employee->id)],
+            'notes_list.*.id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('hr_employee_notes', 'id')->where('employee_id', $employee->id)],
+        ], [
+            'warnings.*.id.exists' => 'التنبيه المحدد لا يخص هذا الموظف.',
+            'notes_list.*.id.exists' => 'الملاحظة المحددة لا تخص هذا الموظف.',
         ]);
 
         $employee->update($validated);
@@ -310,23 +319,39 @@ class EmployeeController extends Controller
             $employee->update($docUpdates);
         });
 
-        // Warnings
+        // Warnings — إضافية فقط: لا يُعاد إنشاء الموجود ولا يُعدَّل. الصف الذي يحمل id هو سجل موجود (تحقّقنا من انتمائه)
+        // فيُتجاهل، والصف المطابق تمامًا (تاريخ+سبب+مستوى) لتنبيه موجود لا يُكرَّر (يحمي من نماذج قديمة مفتوحة).
         if ($request->has('warnings')) {
             foreach ($request->input('warnings', []) as $warning) {
+                if (!empty($warning['id'])) {
+                    continue;
+                }
                 if (!empty($warning['date']) && !empty($warning['reason'])) {
+                    $level = $warning['level'] ?? 'verbal';
+                    $exists = $employee->warnings()
+                        ->whereDate('date', $warning['date'])
+                        ->where('reason', $warning['reason'])
+                        ->where('level', $level)
+                        ->exists();
+                    if ($exists) {
+                        continue;
+                    }
                     $employee->warnings()->create([
                         'date' => $warning['date'],
                         'reason' => $warning['reason'],
-                        'level' => $warning['level'] ?? 'verbal',
+                        'level' => $level,
                     ]);
                 }
             }
         }
 
-        // Notes
+        // Notes — إضافية فقط: تبقى الموجودة بصاحبها وتاريخها، ولا تُكرَّر ملاحظة مطابقة نصًا لموجودة
         if ($request->has('notes_list')) {
             foreach ($request->input('notes_list', []) as $note) {
-                if (!empty($note['note'])) {
+                if (!empty($note['id'])) {
+                    continue;
+                }
+                if (!empty($note['note']) && !$employee->notesRelation()->where('note', $note['note'])->exists()) {
                     $employee->notesRelation()->create([
                         'user_id' => auth()->id(),
                         'note' => $note['note'],

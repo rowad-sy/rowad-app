@@ -89,7 +89,7 @@ class UiE2ESeeder extends Seeder
         }
 
         // بيانات تايم شيت معروفة لآذار 2026 (اختبارات e2e): EMP-002 غياب يوم 2 وعذر يوم 3، وEMP-003 غياب يوم 31
-        // (الجدول الافتراضي: الأحد والسبت عطلة ⇒ 22 يوم عمل في هذا الشهر)
+        // (الجدول الافتراضي: الجمعة والسبت عطلة ⇒ 23 يوم عمل في هذا الشهر)
         foreach ([[1, '2026-03-02', 'absent', null], [1, '2026-03-03', 'excused', $annual->id], [2, '2026-03-31', 'absent', null]] as [$i, $d, $st, $lt]) {
             EmployeeAttendance::updateOrCreate(['employee_id' => $employees[$i]->id, 'date' => $d], ['status' => $st, 'leave_type_id' => $lt]);
         }
