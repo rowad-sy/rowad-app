@@ -105,6 +105,14 @@ class ProjectsManagerController extends Controller
             ->where('status', 'pm_approved')
             ->where('refer_to_pm2_id', auth()->id())
             ->count();
+        // نفس شرط العدّاد أعلاه (محالة إلى المستخدم الحالي وحالتها pm_approved) لعرض العناصر نفسها
+        $awaitingMyPm2Requests = (clone $prQuery)
+            ->with(['user', 'center', 'project', 'items'])
+            ->where('status', 'pm_approved')
+            ->where('refer_to_pm2_id', auth()->id())
+            ->orderBy('created_at')
+            ->limit(8)
+            ->get();
         $recentPurchaseRequests = (clone $prQuery)
             ->with(['user', 'center', 'project', 'items'])
             ->orderBy('created_at', 'desc')
@@ -125,7 +133,7 @@ class ProjectsManagerController extends Controller
             'movementStatusCounts', 'movementTotal', 'movementAwaitingReview',
             'mediaPlansTotal', 'mediaPlansThisMonth', 'recentMediaPlans',
             'documentsUnderReview', 'documentsUnderReviewCount', 'recentDocChanges',
-            'prStatusCounts', 'prTotal', 'prAwaitingPm2Sign', 'recentPurchaseRequests',
+            'prStatusCounts', 'prTotal', 'prAwaitingPm2Sign', 'awaitingMyPm2Requests', 'recentPurchaseRequests',
             'projectManagers', 'projectManagersCount'
         ));
     }

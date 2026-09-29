@@ -1,113 +1,52 @@
 @extends('admin.layouts.master')
 
-@section('title', 'الرئيسية')
+@section('title', 'التطبيقات')
 
 @section('content')
-<div class="page-header">
-    <h4>مؤسسة الرواد للتعاون والتنمية</h4>
-    <p>اختر أحد التطبيقات للبدء</p>
-</div>
+<x-page-header title="التطبيقات" description="اختر التطبيق الذي تريد العمل عليه" :breadcrumb="[['label' => 'التطبيقات']]" />
 
-<div class="row g-4">
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <a href="{{ route('admin.dashboard') }}" class="text-decoration-none">
-            <div class="card app-card app-card-admin">
-                <div class="card-body text-center">
-                    <div class="app-icon">
-                        <i class="bi bi-shield-lock"></i>
-                    </div>
-                    <h6 class="app-title">مسؤول الموقع</h6>
-                </div>
-            </div>
-        </a>
-    </div>
+@php
+    // الظهور حسب الصلاحيات كما كان سابقًا؛ الأوصاف نصوص ثابتة لا تعرض أعدادًا أو إشعارات
+    $apps = [
+        ['title' => 'مسؤول الموقع', 'desc' => 'مؤشرات النظام الأساسي والانتقال إلى أقسامه الإدارية.', 'icon' => 'bi-shield-lock', 'url' => route('admin.dashboard'), 'show' => true],
+        ['title' => 'الموارد البشرية', 'desc' => 'الموظفون والإجازات والحضور والتايم شيت.', 'icon' => 'bi-people', 'url' => route('admin.hr.employees.index'), 'show' => \App\Helpers\PermissionHelper::can(auth()->user(), 'App\Models\Admin\Hr\Employee', 'view')],
+        ['title' => 'الطلاب', 'desc' => 'الطلاب والمقررات والحضور والشهادات.', 'icon' => 'bi-mortarboard', 'url' => route('admin.students.index'), 'show' => \App\Helpers\PermissionHelper::can(auth()->user(), 'App\Models\Admin\Student\Student', 'view')],
+        ['title' => 'مدير المشاريع', 'desc' => 'متابعة المشاريع والمهام وخطط الحركة والوثائق.', 'icon' => 'bi-diagram-3-fill', 'url' => route('admin.projects-manager.dashboard'), 'show' => $canProjectsManager],
+        ['title' => 'إدارة المشاريع', 'desc' => 'الطلاب والفعاليات والأنشطة وطلبات الشراء ضمن نطاقك.', 'icon' => 'bi-diagram-3', 'url' => $canProjectManager ? route('admin.project-manager.dashboard') : route('admin.project-officer.dashboard'), 'show' => $canProjectManager || $canProjectOfficer],
+        ['title' => 'التقنية', 'desc' => 'التذاكر الفنية والمعدات والبريد الرسمي.', 'icon' => 'bi-gear', 'url' => route('admin.tech.issues.index'), 'show' => \App\Helpers\PermissionHelper::can(auth()->user(), 'App\Models\Admin\Tech\TechIssue', 'view')],
+    ];
+@endphp
 
-    @canPermission('App\Models\Admin\Hr\Employee', 'view')
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <a href="{{ route('admin.hr.employees.index') }}" class="text-decoration-none">
-            <div class="card app-card app-card-hr">
-                <div class="card-body text-center">
-                    <div class="app-icon">
-                        <i class="bi bi-people"></i>
-                    </div>
-                    <h6 class="app-title">الموارد البشرية</h6>
+<div class="row g-3">
+    @foreach ($apps as $app)
+        @if ($app['show'])
+        <div class="col-12 col-sm-6 col-lg-4 col-xxl-3">
+            <a href="{{ $app['url'] }}" class="app-tile">
+                <div class="app-tile-head">
+                    <span class="app-icon"><i class="bi {{ $app['icon'] }}" aria-hidden="true"></i></span>
+                    <i class="bi bi-arrow-left app-go" aria-hidden="true"></i>
                 </div>
-            </div>
-        </a>
-    </div>
-    @endcanPermission
+                <div>
+                    <h2 class="app-title">{{ $app['title'] }}</h2>
+                    <p class="app-desc">{{ $app['desc'] }}</p>
+                </div>
+            </a>
+        </div>
+        @endif
+    @endforeach
 
-    @canPermission('App\Models\Admin\Student\Student', 'view')
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <a href="{{ route('admin.students.index') }}" class="text-decoration-none">
-            <div class="card app-card app-card-students">
-                <div class="card-body text-center">
-                    <div class="app-icon">
-                        <i class="bi bi-mortarboard"></i>
-                    </div>
-                    <h6 class="app-title">الطلاب</h6>
-                </div>
+    {{-- الرعاية الصحية: لا توجد وجهة مطابقة بمعناها وصلاحياتها، فتُعرض غير متاحة بلا رابط --}}
+    <div class="col-12 col-sm-6 col-lg-4 col-xxl-3">
+        <div class="app-tile app-tile-disabled" aria-disabled="true">
+            <div class="app-tile-head">
+                <span class="app-icon"><i class="bi bi-heart-pulse" aria-hidden="true"></i></span>
+                <x-status-badge>غير متاح حاليًا</x-status-badge>
             </div>
-        </a>
-    </div>
-    @endcanPermission
-
-    @if ($canProjectsManager)
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <a href="{{ route('admin.projects-manager.dashboard') }}" class="text-decoration-none">
-            <div class="card app-card app-card-admin">
-                <div class="card-body text-center">
-                    <div class="app-icon">
-                        <i class="bi bi-diagram-3-fill"></i>
-                    </div>
-                    <h6 class="app-title">مدير المشاريع</h6>
-                </div>
+            <div>
+                <h2 class="app-title">الرعاية الصحية</h2>
+                <p class="app-desc">هذا التطبيق غير مفعّل بعد.</p>
             </div>
-        </a>
-    </div>
-    @endif
-
-    @if ($canProjectManager || $canProjectOfficer)
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <a href="{{ $canProjectManager ? route('admin.project-manager.dashboard') : route('admin.project-officer.dashboard') }}" class="text-decoration-none">
-            <div class="card app-card app-card-admin">
-                <div class="card-body text-center">
-                    <div class="app-icon">
-                        <i class="bi bi-diagram-3"></i>
-                    </div>
-                    <h6 class="app-title">إدارة المشاريع</h6>
-                </div>
-            </div>
-        </a>
-    </div>
-    @endif
-
-    @canPermission('App\Models\Admin\Tech\TechIssue', 'view')
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <a href="{{ route('admin.tech.issues.index') }}" class="text-decoration-none">
-            <div class="card app-card app-card-tech">
-                <div class="card-body text-center">
-                    <div class="app-icon">
-                        <i class="bi bi-gear"></i>
-                    </div>
-                    <h6 class="app-title">التقنية</h6>
-                </div>
-            </div>
-        </a>
-    </div>
-    @endcanPermission
-
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <a href="#" class="text-decoration-none">
-            <div class="card app-card app-card-health">
-                <div class="card-body text-center">
-                    <div class="app-icon">
-                        <i class="bi bi-heart-pulse"></i>
-                    </div>
-                    <h6 class="app-title">الرعاية الصحية</h6>
-                </div>
-            </div>
-        </a>
+        </div>
     </div>
 </div>
 @endsection

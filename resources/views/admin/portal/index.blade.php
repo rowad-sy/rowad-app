@@ -7,29 +7,27 @@
     <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
     <title>مؤسسة الرواد للتعاون والتنمية</title>
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700,800&display=swap" rel="stylesheet">
+    <link rel="preload" href="{{ asset('fonts/tajawal/tajawal-arabic-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
+    <a href="#portalMain" class="visually-hidden-focusable btn btn-primary btn-sm position-absolute" style="top:.5rem;right:.5rem;z-index:10">تخطي إلى المحتوى</a>
     <div class="portal-page">
-        <div class="portal-topbar">
+        <header class="portal-topbar">
+            <span class="text-muted small text-truncate">
+                <i class="bi bi-person-circle me-1" aria-hidden="true"></i>{{ auth()->user()->name }}
+            </span>
             <div class="d-flex align-items-center gap-2">
-                <span class="text-muted small">
-                    <i class="bi bi-person-circle me-1"></i>{{ auth()->user()->name }}
-                </span>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-light btn-sm theme-toggle-btn" type="button" title="تبديل الوضع">
-                    <i class="bi bi-moon-stars"></i>
+                <button class="btn btn-light btn-sm theme-toggle-btn" type="button" aria-label="تبديل الوضع الليلي/النهاري" title="تبديل الوضع الليلي/النهاري">
+                    <i class="bi bi-moon-stars" aria-hidden="true"></i>
                 </button>
-                <a href="{{ route('admin.dashboard') }}" class="btn btn-brand btn-sm">
-                    <i class="bi bi-speedometer2 me-1"></i> الذهاب إلى لوحة التحكم
+                <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-speedometer2 me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">لوحة التحكم</span>
                 </a>
             </div>
-        </div>
+        </header>
 
-        <div class="portal-hero">
+        <main class="portal-hero" id="portalMain">
             <div class="portal-orbit">
                 {{-- اللوغو في الدائرة الوسطية --}}
                 <div class="portal-center">
@@ -62,7 +60,12 @@
                     <span>الإحصائيات</span>
                 </a>
             </div>
-        </div>
+
+            {{-- الإجراء الأساسي: الدخول للعمل اليومي --}}
+            <a href="{{ route('admin.home') }}" class="btn btn-primary btn-lg portal-cta">
+                <i class="bi bi-grid-3x3-gap me-2" aria-hidden="true"></i>الدخول إلى التطبيقات
+            </a>
+        </main>
 
         <div class="text-center pb-4">
             <form method="POST" action="{{ route('logout') }}" class="d-inline">
