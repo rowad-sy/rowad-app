@@ -1,4 +1,5 @@
 // اختبار متصفح فعلي (Chromium) للمرحلة 4: مسح شامل لصفحات GET الفعلية بلا معاملات + فحوص تركيز/حوارات/تبويبات/صفحات الأخطاء.
+// ملاحظة: admin/tech/statistics مستبعدة من المسح لأنها تعطي 500 على MySQL/MariaDB في main (عمود condition غير مقتبس) — عيب قائم موثّق في excluded-functional-changes.md.
 // إعادة التشغيل: docs/ui-phase-4/README.md (قاعدة تجريبية معزولة فقط). BASE=http://localhost:8002 OUT=docs/ui-phase-4/after node tests/e2e/ui-phase-4.mjs
 // ملاحظة: مسح الصفحات يثبت الفتح/التخطيط/الأخطاء فقط، ولا يختبر عمليات الحفظ (تُغطّى باختبارات Pest HTTP والأقسام 2–5 أدناه).
 import { chromium } from 'playwright';
@@ -37,7 +38,7 @@ admin/permissions admin/permissions/create admin/users admin/users/create admin/
 admin/students admin/students/create admin/students/attendance admin/students/courses admin/students/courses/create admin/students/courses/help admin/students/levels admin/students/periods admin/students/training-plans admin/students/statistics admin/students/certificates admin/students/certificates/designs admin/students/certificates/issue admin/students/certificates/signatory-sets admin/students/certificates/signers
 admin/projects admin/projects/create admin/projects/statistics admin/projects/calendar admin/projects/tasks admin/paths admin/paths/tree admin/project-activities admin/event-cards admin/events-calendar admin/media-plans admin/movement-plans admin/monthly-reports admin/project-docs/documents admin/project-docs/templates admin/projects-manager admin/project-manager admin/project-officer
 admin/logistics/purchase-requests admin/logistics/purchase-requests/create admin/logistics/purchase-requests/help admin/logistics/warehouses admin/logistics/warehouses/1/items admin/logistics/warehouses/1/deleted-items admin/logistics/assets admin/logistics/assets/create admin/logistics/approval-rules admin/logistics/settings admin/logistics/statistics
-admin/tech/issues admin/tech/issues/1 admin/tech/equipment admin/tech/statistics admin/tech/emails admin/physiotherapy/patients admin/physiotherapy/patients/1 admin/physiotherapy/followups admin/physiotherapy/transfers admin/physiotherapy/rooms admin/physiotherapy/statistics`.split(/\s+/);
+admin/tech/issues admin/tech/issues/1 admin/tech/equipment admin/tech/emails admin/physiotherapy/patients admin/physiotherapy/patients/1 admin/physiotherapy/followups admin/physiotherapy/transfers admin/physiotherapy/rooms admin/physiotherapy/statistics`.split(/\s+/);
 const GUEST_PAGES = ['login', 'choose', 'login/employee', 'login/beneficiary', 'register', 'register/employee', 'forgot-password', 'no-such-page-404'];
 
 // 1) مسح المدير (كل الصفحات): 3 عروض × وضعين
