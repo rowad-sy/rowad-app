@@ -3,15 +3,9 @@
 @section('title', 'المعرفات الرئيسية')
 
 @section('content')
-<div class="page-header d-flex align-items-center justify-content-between">
-    <div>
-        <h4><i class="bi bi-share me-2 text-danger"></i>المعرفات الرئيسية</h4>
-        <p>حسابات ومنصات مؤسسة الرواد للتعاون والتنمية الرسمية</p>
-    </div>
-    <a href="{{ route('admin.portal') }}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-right me-1"></i> رجوع
-    </a>
-</div>
+<x-page-header title="المعرفات الرئيسية" description="حسابات ومنصات مؤسسة الرواد للتعاون والتنمية الرسمية" :breadcrumb="[['label' => 'البوابة', 'url' => route('admin.portal')], ['label' => 'المعرفات الرئيسية']]">
+    <a href="{{ route('admin.portal') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-right me-1"></i> رجوع</a>
+</x-page-header>
 
 <div class="text-center mb-4">
     <img src="{{ asset('images/logo.png') }}" alt="لوغو المؤسسة" style="width: 92px; height: 92px; object-fit: contain; background: #fff; border-radius: 22px; padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.10);">

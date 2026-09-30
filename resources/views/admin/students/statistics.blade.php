@@ -96,50 +96,10 @@
 
 {{-- ─── Summary Cards ─── --}}
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card stat-card-lg bg-primary text-white h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <div class="stat-icon bg-white bg-opacity-25"><i class="bi bi-mortarboard"></i></div>
-                <div>
-                    <small class="opacity-75">إجمالي الطلاب</small>
-                    <h3>{{ $totalStudents }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card-lg bg-success text-white h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <div class="stat-icon bg-white bg-opacity-25"><i class="bi bi-check-circle"></i></div>
-                <div>
-                    <small class="opacity-75">نشط</small>
-                    <h3>{{ $activeStudents }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card-lg bg-info text-white h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <div class="stat-icon bg-white bg-opacity-25"><i class="bi bi-journal-check"></i></div>
-                <div>
-                    <small class="opacity-75">متخرج</small>
-                    <h3>{{ $graduatedStudents }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card-lg bg-warning text-white h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <div class="stat-icon bg-white bg-opacity-25"><i class="bi bi-person-up"></i></div>
-                <div>
-                    <small class="opacity-75">مسجل في مقررات</small>
-                    <h3>{{ $totalEnrollments }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="col-6 col-md-3"><x-kpi label="إجمالي الطلاب" :value="$totalStudents" icon="bi-mortarboard" tone="brand" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="نشط" :value="$activeStudents" icon="bi-check-circle" tone="success" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="متخرج" :value="$graduatedStudents" icon="bi-journal-check" tone="info" /></div>
+    <div class="col-6 col-md-3"><x-kpi label="مسجل في مقررات" :value="$totalEnrollments" icon="bi-person-up" tone="warning" /></div>
 </div>
 
 {{-- ─── Gender + Status + Today Attendance (Row 1 Charts) ─── --}}

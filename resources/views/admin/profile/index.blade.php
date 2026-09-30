@@ -3,12 +3,7 @@
 @section('title', 'الملف الشخصي')
 
 @section('content')
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h4>الملف الشخصي</h4>
-        <p>عرض وتعديل معلومات حسابك</p>
-    </div>
-    <div class="d-flex gap-2">
+<x-page-header title="الملف الشخصي" description="عرض وتعديل معلومات حسابك">
         <x-audit-history :model="'App\Models\User'" :model-id="$user->id" />
         @if ($employee)
             <a href="{{ route('admin.hr.employees.show', $employee) }}" class="btn btn-outline-primary">
@@ -20,8 +15,7 @@
                 <i class="bi bi-mortarboard me-1"></i> الملف الدراسي
             </a>
         @endif
-    </div>
-</div>
+</x-page-header>
 
 @if ($user->must_change_password)
     <div class="alert alert-warning" role="alert">
@@ -73,7 +67,7 @@
             </h5>
 
             @if (($user->type === 'employee' || $user->type === 'super-admin') && $employee)
-            <div class="mb-3 p-3 rounded" style="background:#e8f4fd;">
+            <div class="mb-3 p-3 rounded" style="background:var(--status-info-bg);color:var(--color-text-main);">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <i class="bi bi-person-workspace text-primary"></i>
                     <span class="fw-bold">موظف</span>
@@ -94,7 +88,7 @@
             @endif
 
             @if ($user->type === 'student' && $student)
-            <div class="mb-3 p-3 rounded" style="background:#e8fde8;">
+            <div class="mb-3 p-3 rounded" style="background:var(--status-success-bg);color:var(--color-text-main);">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <i class="bi bi-mortarboard text-success"></i>
                     <span class="fw-bold">طالب</span>
@@ -115,7 +109,7 @@
             @endif
 
             @if ($user->type === 'beneficiary')
-            <div class="mb-3 p-3 rounded" style="background:#fff3cd;">
+            <div class="mb-3 p-3 rounded" style="background:var(--status-warning-bg);color:var(--color-text-main);">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <i class="bi bi-person-heart text-warning"></i>
                     <span class="fw-bold">مستفيد</span>
@@ -125,7 +119,7 @@
                 </a>
             </div>
             @elseif (($user->type === 'employee' || $user->type === 'super-admin') && !$employee)
-            <div class="mb-3 p-3 rounded" style="background:#e8f4fd;">
+            <div class="mb-3 p-3 rounded" style="background:var(--status-info-bg);color:var(--color-text-main);">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <i class="bi bi-shield-lock text-primary"></i>
                     <span class="fw-bold">مدير النظام</span>

@@ -3,10 +3,7 @@
 @section('title', 'تغيير كلمة المرور الإجباري')
 
 @section('content')
-<div class="page-header">
-    <h4>تغيير كلمة المرور</h4>
-    <p>يجب عليك تغيير كلمة المرور قبل المتابعة</p>
-</div>
+<x-page-header title="تغيير كلمة المرور" description="يجب عليك تغيير كلمة المرور قبل المتابعة" />
 
 <div class="row justify-content-center">
     <div class="col-md-6">
