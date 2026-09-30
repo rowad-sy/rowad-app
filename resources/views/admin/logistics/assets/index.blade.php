@@ -14,6 +14,7 @@
         <a href="{{ route('admin.logistics.export.assets') }}" class="btn btn-success">
             <i class="bi bi-file-earmark-excel me-1"></i> تصدير
         </a>
+        @canPermission('App\Models\Admin\Logistics\Asset', 'create')
         <form method="POST" action="{{ route('admin.logistics.import.assets') }}" enctype="multipart/form-data" class="d-inline">
             @csrf
             <label class="btn btn-outline-secondary mb-0">
@@ -21,6 +22,7 @@
                 <input type="file" name="file" accept=".xlsx,.xls,.csv" class="d-none" onchange="this.form.submit()">
             </label>
         </form>
+        @endcanPermission
     </div>
 </x-page-header>
 

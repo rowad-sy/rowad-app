@@ -175,6 +175,42 @@ await section('6', async () => {
   await ctx.close();
 });
 
+// 7) قوائم التقنية ضمن النطاق + أزرار تصدير/استيراد الأصول بحسابات مقيّد/عرض فقط/مخوّل (يتطلب ملف /tmp/claude-0/assets-import.xlsx أو IMPORT_FILE)
+await section('7', async () => {
+  const file = process.env.IMPORT_FILE || '/tmp/claude-0/assets-import.xlsx';
+  let { ctx, p } = await ctxFor('scoped@test.local');
+  await p.goto(BASE + '/admin/tech/issues');
+  let body = await p.textContent('body');
+  ok('مقيّد: قائمة التذاكر تعرض تذاكر مركزه فقط', body.includes('لا يعمل الإنترنت في المكتب') && !body.includes('طلب تثبيت برنامج'));
+  await p.goto(BASE + '/admin/tech/issues?center_id=2'); body = await p.textContent('body');
+  ok('مقيّد: فلتر مركز آخر لا يوسّع النطاق', !body.includes('طلب تثبيت برنامج'));
+  await p.goto(BASE + '/admin/tech/issues?search=' + encodeURIComponent('برنامج')); ok('مقيّد: البحث لا يكشف تذكرة مركز آخر', !(await p.textContent('body')).includes('طلب تثبيت برنامج'));
+  await p.goto(BASE + '/admin/tech/equipment'); body = await p.textContent('body');
+  ok('مقيّد: قائمة المعدات مقصورة على مركزه', body.includes('خادم الملفات') && !body.includes('طابعة الطابق الثاني'));
+  await p.goto(BASE + '/admin/logistics/assets');
+  ok('مقيّد: أزرار التصدير والاستيراد ظاهرة (يملك عرضًا وإنشاءً)', (await p.locator('a[href$="/export/assets"]').count()) === 1 && (await p.locator('form[action$="/import/assets"]').count()) === 1);
+  const ex = await p.request.get(BASE + '/admin/logistics/export/assets');
+  ok('مقيّد: التصدير يعمل (200 وملف xlsx)', ex.status() === 200 && (ex.headers()['content-type'] || '').includes('spreadsheet'), String(ex.status()));
+  await p.setInputFiles('form[action$="/import/assets"] input[type=file]', file); await p.waitForLoadState('load');
+  const flash = await p.textContent('body');
+  ok('مقيّد: الاستيراد يُرفض برسالة عربية تذكر الصف ولا يُحفظ شيء', flash.includes('الصف 2') && flash.includes('لم يُحفظ أي أصل'));
+  await ctx.close();
+  ({ ctx, p } = await ctxFor('readonly@test.local'));
+  await p.goto(BASE + '/admin/logistics/assets');
+  ok('عرض فقط: زر التصدير ظاهر وزر الاستيراد مخفي', (await p.locator('a[href$="/export/assets"]').count()) === 1 && (await p.locator('form[action$="/import/assets"]').count()) === 0);
+  const rx = await p.request.get(BASE + '/admin/logistics/export/assets'); ok('عرض فقط: التصدير مسموح (يملك العرض)', rx.status() === 200);
+  const ri = await p.request.post(BASE + '/admin/logistics/import/assets', { multipart: { file: { name: 'a.xlsx', mimeType: 'application/octet-stream', buffer: (await import('fs')).readFileSync(file) } } });
+  ok('عرض فقط: الاستيراد المباشر مرفوض من الخادم (403/419 بلا رمز CSRF يُعدّ رفضًا)', [403, 419].includes(ri.status()), String(ri.status()));
+  await ctx.close();
+  ({ ctx, p } = await ctxFor('ops@test.local'));
+  await p.goto(BASE + '/admin/tech/issues'); body = await p.textContent('body');
+  ok('مخوّل بلا نطاق: قائمة التذاكر تعرض كل المراكز', body.includes('لا يعمل الإنترنت في المكتب') && body.includes('طلب تثبيت برنامج'));
+  await p.goto(BASE + '/admin/logistics/assets'); await p.setInputFiles('form[action$="/import/assets"] input[type=file]', file); await p.waitForLoadState('load');
+  const f2 = await p.textContent('body');
+  ok('مخوّل: لا رفض صلاحية؛ الرد بالحد المعروف لتنسيق الملف الحالي دون كتابة', f2.includes('بيانات الملف لا تكفي') && !f2.includes('نطاق صلاحيات'));
+  await ctx.close();
+});
+
 await browser.close();
 console.log(results.join('\n'));
 console.log(`\n${results.filter((r) => r.startsWith('PASS')).length} passed, ${results.filter((r) => r.startsWith('FAIL')).length} failed`);

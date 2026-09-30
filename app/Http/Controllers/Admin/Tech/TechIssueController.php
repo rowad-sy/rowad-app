@@ -32,7 +32,7 @@ class TechIssueController extends Controller
         $centerId = $request->filled('center_id') ? $request->input('center_id') : (count($scope['center_ids']) === 1 ? $scope['center_ids'][0] : '');
         $projectId = $request->filled('project_id') ? $request->input('project_id') : (count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : '');
 
-        $issues = TechIssue::with(['center', 'project', 'reporter', 'assignee'])
+        $issues = RecordAccess::scopeQuery(TechIssue::with(['center', 'project', 'reporter', 'assignee']), TechIssue::class, 'view')
             ->when($search, function ($q, $search) {
                 return $q->where(function ($q) use ($search) {
                     $q->where('title', 'like', "%{$search}%")
@@ -43,8 +43,6 @@ class TechIssueController extends Controller
             ->when($priority && $priority !== 'all', fn ($q) => $q->where('priority', $priority))
             ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
-            ->when(!$scope['sees_all'] && !empty($scope['center_ids']), fn ($q) => $q->whereIn('center_id', $scope['center_ids']))
-            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), fn ($q) => $q->whereIn('project_id', $scope['project_ids']))
             ->orderBy('id', 'desc')
             ->paginate($perPage)
             ->appends($request->only(['search', 'status', 'priority', 'center_id', 'project_id', 'per_page']));

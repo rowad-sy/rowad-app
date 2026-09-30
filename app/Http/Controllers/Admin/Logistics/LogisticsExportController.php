@@ -9,7 +9,10 @@ use App\Http\Controllers\Controller;
 use App\Imports\Logistics\AssetImport;
 use App\Imports\Logistics\PurchaseRequestImport;
 use App\Imports\Logistics\WarehouseImport;
+use App\Imports\Logistics\AssetImportRejected;
+use App\Models\Admin\Logistics\Asset;
 use App\Services\AuditLogger;
+use App\Support\RecordAccess;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -71,18 +74,31 @@ class LogisticsExportController extends Controller
 
     public function exportAssets()
     {
+        abort_unless(RecordAccess::hasAny(auth()->user(), Asset::class, 'view'), 403);
+
         return Excel::download(AssetExport::all(), 'assets.xlsx');
     }
 
     public function importAssets(Request $request)
     {
+        abort_unless(RecordAccess::hasAny(auth()->user(), Asset::class, 'create'), 403);
+
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv',
         ]);
 
         $fileName = $request->file('file')->getClientOriginalName();
 
-        Excel::import(new AssetImport, $request->file('file'));
+        try {
+            Excel::import(new AssetImport, $request->file('file'));
+        } catch (AssetImportRejected $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        } catch (\Illuminate\Database\QueryException $e) {
+            // الكتابة ذرية (تراجع كامل) ولا يُسجَّل حدث نجاح
+            report($e);
+
+            return redirect()->back()->with('error', 'تعذّر الاستيراد: بيانات الملف لا تكفي لإنشاء الأصول (حقول مطلوبة في قاعدة البيانات مثل المركز والكود والنوع غير موجودة في تنسيق الملف الحالي). لم يُحفظ أي أصل.');
+        }
 
         AuditLogger::recordEvent(
             modelClass: \App\Models\User::class,

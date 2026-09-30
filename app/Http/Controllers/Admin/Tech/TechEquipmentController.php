@@ -31,7 +31,7 @@ class TechEquipmentController extends Controller
         $centerId = $request->filled('center_id') ? $request->input('center_id') : (count($scope['center_ids']) === 1 ? $scope['center_ids'][0] : '');
         $projectId = $request->filled('project_id') ? $request->input('project_id') : (count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : '');
 
-        $equipment = TechEquipment::with(['center', 'project'])
+        $equipment = RecordAccess::scopeQuery(TechEquipment::with(['center', 'project']), TechEquipment::class, 'view')
             ->when($search, function ($q, $search) {
                 return $q->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -42,8 +42,6 @@ class TechEquipmentController extends Controller
             ->when($condition && $condition !== 'all', fn ($q) => $q->where('condition', $condition))
             ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
-            ->when(!$scope['sees_all'] && !empty($scope['center_ids']), fn ($q) => $q->whereIn('center_id', $scope['center_ids']))
-            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), fn ($q) => $q->whereIn('project_id', $scope['project_ids']))
             ->orderBy('id', 'desc')
             ->paginate($perPage)
             ->appends($request->only(['search', 'type', 'condition', 'center_id', 'project_id', 'per_page']));

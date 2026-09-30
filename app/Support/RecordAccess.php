@@ -53,6 +53,20 @@ class RecordAccess
         return false;
     }
 
+    /** هل يملك المستخدم أي سجل صلاحية فعّال لهذه العملية (super-admin دائمًا)؟ للبوابات على مسارات لا سجل واحدًا فيها (تصدير/استيراد). */
+    public static function hasAny(?User $user, string $model, string $action): bool
+    {
+        if (! $user) {
+            return false;
+        }
+        if ($user->type === 'super-admin') {
+            return true;
+        }
+        $column = 'can_'.$action;
+
+        return self::permissions($user, $model)->contains(fn ($p) => $p->$column && $p->cohort_id === null);
+    }
+
     /** يرفض بـ403 إن لم يسمح الإذن+النطاق بالعملية على هذا السجل. */
     public static function authorize(string $model, string $action, ?int $centerId, ?int $projectId, ?int $recordId = null): void
     {

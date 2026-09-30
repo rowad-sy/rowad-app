@@ -12,6 +12,8 @@
 
 **جولة تصحيح PR #6 (صلاحيات):** نطاق السجل والإذن معًا في التقنية (تذاكر/معدات، بما فيها `respond`) وتفاصيل/قائمة/كتابة الأصول عبر `App\Support\RecordAccess`؛ التفاصيل والأدلة والقرارات غير المحسومة في `final-verification.md` القسم 7. لا migrations ولا تغيير مخطط/بيانات/صلاحيات مخزّنة. اختبارات: `tests/Feature/RecordScopeAuthorizationTest.php`، ومتصفح: `ONLY=6`.
 
+**جولة ثانية:** قوائم التقنية عبر `RecordAccess::scopeQuery`، وبوابات/نطاق تصدير واستيراد الأصول (`ScopedListsAndAssetTransferTest`، متصفح `ONLY=7` ويتطلب ملف xlsx: `IMPORT_FILE`). تنبيه: استيراد الأصول لا ينجح لأي مستخدم بسبب تنسيقه الحالي (عيب قائم موثّق).
+
 ## إعادة التشغيل على بيئة معزولة
 1. **sqlite (افتراضي الاختبارات):** `cp .env.example .env && php artisan key:generate && npm ci && npm run build && vendor/bin/pest` — 3 اختبارات MySQL-only تُتخطّى تلقائيًا.
 2. **MySQL/MariaDB تجريبي محلي:** أنشئ خادمًا محليًا مؤقتًا (مثال: `mariadb-install-db --no-defaults --datadir=/tmp/x/data` ثم `mariadbd --no-defaults --datadir=/tmp/x/data --socket=/tmp/x/m.sock --port=3307 --bind-address=127.0.0.1`) وقاعدة اسمها ينتهي بـ `_test`، ثم صدّر متغيرات البيئة **في الصدفة فقط** (لا تعدّل `.env`):
