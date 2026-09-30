@@ -1,28 +1,18 @@
-# المرحلة 4 (الأخيرة) — إغلاق النواقص والتحقق من الحفاظ على الوظائف
+# المرحلة 4 — تحسين الواجهات فقط (بعد إعادة الالتزام بالنطاق)
 
-الأساس: `main` بعد دمج PR #4 وPR #5 (تحقّقتُ أن التقاط 7436ac6 و99572ce موجودان في تاريخ `main` كما هما). التقرير الكامل: [`final-verification.md`](final-verification.md).
+**النطاق:** واجهات فقط. لا تغيير في الحسابات أو الحفظ أو الصلاحيات أو الاستيراد/التصدير أو الاستعلامات أو المسارات أو المتحكمات. الفرق مقابل `main` (`aafc4da`) يقتصر على قوالب Blade واختبارات ووثائق ولقطات.
 
-## ما نُفِّذ (بلا migrations وبلا تغيير في المخطط أو الاتصال)
-**إصلاحات وظيفية محدودة (commit مستقل `6fc7e34`):**
-- `logistics/assets/{id}`: المسار موجود ولا يوجد `AssetController::show` (500). أُضيف عرض قراءة فقط لحقول الأصل نفسها بصلاحية العرض القائمة، ورابط من اسم الأصل في القائمة. لا دورة عمل جديدة.
-- إحصائيات التقنية: العمود `condition` كلمة محجوزة في MySQL/MariaDB (500 هناك ولا يظهر على sqlite) — وُضع بين backticks (الاستعلام نفسه دلاليًا).
-- إحصائيات المهام: تسميات الأشهر كانت تستدعي `now()->month($m)` فتُغيّر التاريخ وتنزاح الأشهر عند الأيام 29–31؛ صارت `Carbon::create(2000, $m, 1)`.
+## ما بقي في هذا PR
+- الملف الشخصي وتغيير كلمة المرور الإلزامي والمعرّفات ولوحة المستفيد وسجل التدقيق (فلاتر مُسمّاة بزر «تطبيق» ومسح؛ **أسماء الحقول نفسها**) على المكونات المشتركة.
+- قالب أخطاء موحّد (403/404/419/500/503) بخط Tajawal المحلي مع «عودة» و«الذهاب للتطبيقات» ونموذج تسجيل الخروج (POST إلى المسار `logout` الموجود، للمصادَق عليه فقط).
+- إزالة روابط الخطوط الخارجية من قوالب الدخول والإعدادات؛ بطاقات إحصاء الطلاب على `x-kpi`.
+- اختبارات: `UiPhase4Test`، `UiPhase4PreservationTest` (يختبر سلوك `main` كما هو)، `MysqlOnlyStatisticsTest` (إحصاءات الطلاب والمهام؛ يُتخطّى على sqlite)، و`tests/e2e/ui-phase-4.mjs` (أقسام 1–5).
 
-**واجهات (commit `e25ab52`):** الملف الشخصي وتغيير كلمة المرور الإلزامي والمعرّفات ولوحة المستفيد وسجل التدقيق (فلاتر مُسمّاة بزر «تطبيق» ومسح) على المكونات المشتركة؛ قالب أخطاء موحّد (403/404/419/500/503) بخط Tajawal المحلي مع «العودة» و«الذهاب للتطبيقات» و**تسجيل الخروج** للمصادَق عليه فقط؛ إزالة روابط الخطوط الخارجية (bunny.net) من قوالب الدخول والإعدادات؛ بطاقات إحصاء الطلاب على `x-kpi`.
+## ما أُخرج من هذا PR وحُفظ للمراجعة
+تغييرات وظيفية/أمنية أُضيفت سابقًا في هذا الفرع (نطاق سجل الصلاحيات في التقنية والأصول، تصدير/استيراد الأصول، `respond` بصلاحية تعديل، `AssetController::show`، اقتباس عمود `condition`) **أُزيلت من هذا PR** وهي محفوظة كاملة في الفرع الأرشيفي `archive/ui-phase-4-functional-9cde4c1` (SHA `9cde4c1ae202df83737b3b1470022c284764bdad`) مع اختباراتها، لتسليمها لمسؤول النظام. لا تُتابَع ضمن هذه المهمة. انظر `excluded-functional-changes.md`.
 
-**جولة تصحيح PR #6 (صلاحيات):** نطاق السجل والإذن معًا في التقنية (تذاكر/معدات، بما فيها `respond`) وتفاصيل/قائمة/كتابة الأصول عبر `App\Support\RecordAccess`؛ التفاصيل والأدلة والقرارات غير المحسومة في `final-verification.md` القسم 7. لا migrations ولا تغيير مخطط/بيانات/صلاحيات مخزّنة. اختبارات: `tests/Feature/RecordScopeAuthorizationTest.php`، ومتصفح: `ONLY=6`.
+## إعادة التشغيل (بيئة معزولة فقط)
+`cp .env.example .env && php artisan key:generate && npm ci && npm run build && vendor/bin/pest`. المتصفح: قاعدة تجريبية معزولة + `php artisan db:seed --class=UiE2ESeeder --force` ثم `BASE=http://localhost:8002 node tests/e2e/ui-phase-4.mjs`. على sqlite تعطي `projects/statistics` و`students/statistics` 500 (دوال MySQL) وهو سلوك قائم.
 
-**جولة ثانية:** قوائم التقنية عبر `RecordAccess::scopeQuery`، وبوابات/نطاق تصدير واستيراد الأصول (`ScopedListsAndAssetTransferTest`، متصفح `ONLY=7` ويتطلب ملف xlsx: `IMPORT_FILE`). تنبيه: استيراد الأصول لا ينجح لأي مستخدم بسبب تنسيقه الحالي (عيب قائم موثّق).
-
-## إعادة التشغيل على بيئة معزولة
-1. **sqlite (افتراضي الاختبارات):** `cp .env.example .env && php artisan key:generate && npm ci && npm run build && vendor/bin/pest` — 3 اختبارات MySQL-only تُتخطّى تلقائيًا.
-2. **MySQL/MariaDB تجريبي محلي:** أنشئ خادمًا محليًا مؤقتًا (مثال: `mariadb-install-db --no-defaults --datadir=/tmp/x/data` ثم `mariadbd --no-defaults --datadir=/tmp/x/data --socket=/tmp/x/m.sock --port=3307 --bind-address=127.0.0.1`) وقاعدة اسمها ينتهي بـ `_test`، ثم صدّر متغيرات البيئة **في الصدفة فقط** (لا تعدّل `.env`):
-   `DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3307 DB_DATABASE=rowad_phase4_test DB_USERNAME=... DB_PASSWORD=...` ثم `vendor/bin/pest`.
-   `MysqlOnlyStatisticsTest` يرفض العمل إن لم يكن المضيف محليًا واسم القاعدة `*_test`. **تنبيه:** `RefreshDatabase` يعيد بناء القاعدة المتصلة؛ لا تشغّله مع أي اتصال غير معزول.
-3. **متصفح:** `php artisan migrate:fresh --force && php artisan db:seed --class=UiE2ESeeder --force && php artisan db:seed --class=UiE2EPhase3Seeder --force` (على قاعدة معزولة فقط) ثم `php artisan serve --port=8002` و`BASE=http://localhost:8002 OUT=docs/ui-phase-4/after node tests/e2e/ui-phase-4.mjs` (`ONLY=1,2,3,4,5` لاختيار الأقسام).
-   على sqlite تعطي `projects/statistics` و`students/statistics` 500 (دوال MySQL) — متوقع؛ استخدم الخطوة 2 لها.
-
-## المتطلبات التشغيلية بعد الدمج (لا تُنفَّذ ضمن هذه المهمة)
-- بناء الأصول: `npm ci && npm run build` (`public/build` غير مُتتبَّع). الخطوط في `public/fonts/tajawal` مُتتبَّعة.
-- `php artisan view:clear` (وإن كانت المسارات مخزّنة مؤقتًا: `php artisan route:clear` أو إعادة `route:cache` لأن مسار حذف مواد المخزن ووسيط `project-activities` تغيّرا في المرحلة 3).
-- **لا** migrations، **لا** seeders، **لا** تغيير في `.env` أو الاتصال. ملفات `UiE2E*Seeder` للاختبار فقط ولا يستدعيها التطبيق ولا `DatabaseSeeder`.
+## بعد الدمج
+`npm ci && npm run build` و`php artisan view:clear`. لا migrations ولا seeders ولا تغيير في `.env`.

@@ -4,15 +4,12 @@ namespace App\Exports\Logistics;
 
 use App\Exports\BaseExport;
 use App\Models\Admin\Logistics\Asset;
-use App\Support\RecordAccess;
 
 class AssetExport extends BaseExport
 {
     public static function all(): self
     {
-        // النطاق: فقط الأصول التي تسمح بها صلاحية العرض للمستخدم الحالي (RecordAccess). التحميل المسبق يقتصر على العلاقات
-        // الموجودة فعلًا في النموذج (room وassetCategory غير معرّفتين فكان التصدير يفشل بـ500)؛ الأعمدة والرؤوس كما هي.
-        $records = RecordAccess::scopeQuery(Asset::with(['center', 'project', 'recipient']), Asset::class, 'view')
+        $records = Asset::with(['center', 'project', 'room', 'recipient', 'assetCategory'])
             ->orderBy('created_at', 'desc')
             ->get();
 

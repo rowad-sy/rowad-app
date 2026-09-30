@@ -36,7 +36,7 @@ const ADMIN_PAGES = `admin admin/portal admin/dashboard admin/profile admin/iden
 admin/permissions admin/permissions/create admin/users admin/users/create admin/password/change admin/hr/attendances admin/hr/employees admin/hr/employees/create admin/hr/employees/statistics admin/hr/job-positions admin/hr/job-positions/create admin/hr/leave-approvals admin/hr/leave-policies admin/hr/leave-requests admin/hr/timesheets
 admin/students admin/students/create admin/students/attendance admin/students/courses admin/students/courses/create admin/students/courses/help admin/students/levels admin/students/periods admin/students/training-plans admin/students/statistics admin/students/certificates admin/students/certificates/designs admin/students/certificates/issue admin/students/certificates/signatory-sets admin/students/certificates/signers
 admin/projects admin/projects/create admin/projects/statistics admin/projects/calendar admin/projects/tasks admin/paths admin/paths/tree admin/project-activities admin/event-cards admin/events-calendar admin/media-plans admin/movement-plans admin/monthly-reports admin/project-docs/documents admin/project-docs/templates admin/projects-manager admin/project-manager admin/project-officer
-admin/logistics/purchase-requests admin/logistics/purchase-requests/create admin/logistics/purchase-requests/help admin/logistics/warehouses admin/logistics/warehouses/1/items admin/logistics/warehouses/1/deleted-items admin/logistics/assets admin/logistics/assets/1 admin/logistics/assets/create admin/logistics/approval-rules admin/logistics/settings admin/logistics/statistics
+admin/logistics/purchase-requests admin/logistics/purchase-requests/create admin/logistics/purchase-requests/help admin/logistics/warehouses admin/logistics/warehouses/1/items admin/logistics/warehouses/1/deleted-items admin/logistics/assets admin/logistics/assets/create admin/logistics/approval-rules admin/logistics/settings admin/logistics/statistics
 admin/tech/issues admin/tech/issues/1 admin/tech/equipment admin/tech/statistics admin/tech/emails admin/physiotherapy/patients admin/physiotherapy/patients/1 admin/physiotherapy/followups admin/physiotherapy/transfers admin/physiotherapy/rooms admin/physiotherapy/statistics`.split(/\s+/);
 const GUEST_PAGES = ['login', 'choose', 'login/employee', 'login/beneficiary', 'register', 'register/employee', 'forgot-password', 'no-such-page-404'];
 
@@ -134,80 +134,8 @@ await section('4', async () => {
 await section('5', async () => {
   const { ctx, p } = await ctxFor('admin@test.local');
   for (const [w, t] of [[390, 'light'], [1440, 'light'], [1440, 'dark']]) { await p.setViewportSize({ width: w, height: 900 });
-    for (const [n, path] of [['asset-show', 'admin/logistics/assets/1'], ['profile', 'admin/profile'], ['audit-logs', 'admin/audit-logs'], ['identities', 'admin/identities'], ['tasks-statistics', 'admin/projects/statistics'], ['students-statistics', 'admin/students/statistics']]) {
+    for (const [n, path] of [['profile', 'admin/profile'], ['audit-logs', 'admin/audit-logs'], ['identities', 'admin/identities'], ['tasks-statistics', 'admin/projects/statistics'], ['students-statistics', 'admin/students/statistics']]) {
       const r = await p.goto(BASE + '/' + path); await theme(p, t); if (r.status() === 200) await p.screenshot({ path: `${OUT}/${n}-${w}-${t}.png` }); } }
-  await ctx.close();
-});
-
-// 6) نطاق السجل والإذن في التقنية والأصول بمتصفح فعلي: عرض فقط، مقيّد بمركز، ومخوّل
-await section('6', async () => {
-  const stamp = Date.now().toString().slice(-6);
-  // عرض فقط
-  let { ctx, p } = await ctxFor('readonly@test.local');
-  let r = await p.goto(BASE + '/admin/tech/issues/1');
-  ok('عرض فقط: تُفتح تفاصيل التذكرة', r.status() === 200);
-  ok('عرض فقط: لا نموذج رد ولا رابط تعديل', (await p.locator('form[action*="/respond"]').count()) === 0 && (await p.locator('a[href$="/issues/1/edit"]').count()) === 0);
-  r = await p.goto(BASE + '/admin/tech/issues/1/edit'); ok('عرض فقط: رابط التعديل المباشر مرفوض من الخادم', r.status() === 403);
-  await ctx.close();
-  // مقيّد بمركز 1
-  ({ ctx, p } = await ctxFor('scoped@test.local'));
-  r = await p.goto(BASE + '/admin/tech/issues/1'); ok('مقيّد: تذكرة مركزه تُفتح', r.status() === 200);
-  ok('مقيّد: يظهر نموذج الرد ورابط التعديل داخل نطاقه', (await p.locator('form[action*="/respond"]').count()) === 1 && (await p.locator('a[href$="/issues/1/edit"]').count()) === 1);
-  await p.fill('textarea[name=admin_response]', 'رد E2E ' + stamp);
-  await p.selectOption('select[name=status]', 'in_progress');
-  await p.click('form[action*="/respond"] button[type=submit]'); await p.waitForLoadState('load');
-  ok('مقيّد: الرد المسموح يُحفظ ويظهر', (await p.textContent('body')).includes('رد E2E ' + stamp));
-  r = await p.goto(BASE + '/admin/tech/issues/2'); ok('مقيّد: تذكرة مركز آخر (مباشرة) مرفوضة 403', r.status() === 403);
-  ok('مقيّد: صفحة الرفض لا تكشف بيانات التذكرة', !(await p.textContent('body')).includes('طلب تثبيت برنامج'));
-  await p.goto(BASE + '/admin/tech/issues'); ok('مقيّد: القائمة لا تعرض تذكرة المركز الآخر', !(await p.textContent('body')).includes('طلب تثبيت برنامج'));
-  r = await p.goto(BASE + '/admin/logistics/assets/2'); ok('مقيّد: أصل مركز آخر مرفوض 403', r.status() === 403);
-  ok('مقيّد: لا كشف لبيانات الأصل المرفوض', !(await p.textContent('body')).includes('طاولة اجتماعات'));
-  await p.goto(BASE + '/admin/logistics/assets'); ok('مقيّد: قائمة الأصول تعرض أصل مركزه فقط', (await p.textContent('body')).includes('حاسوب محمول') && !(await p.textContent('body')).includes('طاولة اجتماعات'));
-  r = await p.goto(BASE + '/admin/logistics/assets/1'); ok('مقيّد: تفاصيل أصل مركزه تُفتح', r.status() === 200);
-  await p.screenshot({ path: `${OUT}/scoped-asset-show-1440-light.png` });
-  await ctx.close();
-  // مخوّل بلا نطاق
-  ({ ctx, p } = await ctxFor('ops@test.local'));
-  r = await p.goto(BASE + '/admin/tech/issues/2'); ok('مخوّل: تفاصيل تذكرة أي مركز تُفتح', r.status() === 200);
-  await p.fill('textarea[name=admin_response]', 'رد المخوّل ' + stamp); await p.click('form[action*="/respond"] button[type=submit]'); await p.waitForLoadState('load');
-  ok('مخوّل: الرد والتعديل المسموحان يعملان', (await p.textContent('body')).includes('رد المخوّل ' + stamp));
-  r = await p.goto(BASE + '/admin/logistics/assets/2'); ok('مخوّل: أصل أي مركز يُعرض', r.status() === 200);
-  await ctx.close();
-});
-
-// 7) قوائم التقنية ضمن النطاق + أزرار تصدير/استيراد الأصول بحسابات مقيّد/عرض فقط/مخوّل (يتطلب ملف /tmp/claude-0/assets-import.xlsx أو IMPORT_FILE)
-await section('7', async () => {
-  const file = process.env.IMPORT_FILE || '/tmp/claude-0/assets-import.xlsx';
-  let { ctx, p } = await ctxFor('scoped@test.local');
-  await p.goto(BASE + '/admin/tech/issues');
-  let body = await p.textContent('body');
-  ok('مقيّد: قائمة التذاكر تعرض تذاكر مركزه فقط', body.includes('لا يعمل الإنترنت في المكتب') && !body.includes('طلب تثبيت برنامج'));
-  await p.goto(BASE + '/admin/tech/issues?center_id=2'); body = await p.textContent('body');
-  ok('مقيّد: فلتر مركز آخر لا يوسّع النطاق', !body.includes('طلب تثبيت برنامج'));
-  await p.goto(BASE + '/admin/tech/issues?search=' + encodeURIComponent('برنامج')); ok('مقيّد: البحث لا يكشف تذكرة مركز آخر', !(await p.textContent('body')).includes('طلب تثبيت برنامج'));
-  await p.goto(BASE + '/admin/tech/equipment'); body = await p.textContent('body');
-  ok('مقيّد: قائمة المعدات مقصورة على مركزه', body.includes('خادم الملفات') && !body.includes('طابعة الطابق الثاني'));
-  await p.goto(BASE + '/admin/logistics/assets');
-  ok('مقيّد: أزرار التصدير والاستيراد ظاهرة (يملك عرضًا وإنشاءً)', (await p.locator('a[href$="/export/assets"]').count()) === 1 && (await p.locator('form[action$="/import/assets"]').count()) === 1);
-  const ex = await p.request.get(BASE + '/admin/logistics/export/assets');
-  ok('مقيّد: التصدير يعمل (200 وملف xlsx)', ex.status() === 200 && (ex.headers()['content-type'] || '').includes('spreadsheet'), String(ex.status()));
-  await p.setInputFiles('form[action$="/import/assets"] input[type=file]', file); await p.waitForLoadState('load');
-  const flash = await p.textContent('body');
-  ok('مقيّد: الاستيراد يُرفض برسالة عربية تذكر الصف ولا يُحفظ شيء', flash.includes('الصف 2') && flash.includes('لم يُحفظ أي أصل'));
-  await ctx.close();
-  ({ ctx, p } = await ctxFor('readonly@test.local'));
-  await p.goto(BASE + '/admin/logistics/assets');
-  ok('عرض فقط: زر التصدير ظاهر وزر الاستيراد مخفي', (await p.locator('a[href$="/export/assets"]').count()) === 1 && (await p.locator('form[action$="/import/assets"]').count()) === 0);
-  const rx = await p.request.get(BASE + '/admin/logistics/export/assets'); ok('عرض فقط: التصدير مسموح (يملك العرض)', rx.status() === 200);
-  const ri = await p.request.post(BASE + '/admin/logistics/import/assets', { multipart: { file: { name: 'a.xlsx', mimeType: 'application/octet-stream', buffer: (await import('fs')).readFileSync(file) } } });
-  ok('عرض فقط: الاستيراد المباشر مرفوض من الخادم (403/419 بلا رمز CSRF يُعدّ رفضًا)', [403, 419].includes(ri.status()), String(ri.status()));
-  await ctx.close();
-  ({ ctx, p } = await ctxFor('ops@test.local'));
-  await p.goto(BASE + '/admin/tech/issues'); body = await p.textContent('body');
-  ok('مخوّل بلا نطاق: قائمة التذاكر تعرض كل المراكز', body.includes('لا يعمل الإنترنت في المكتب') && body.includes('طلب تثبيت برنامج'));
-  await p.goto(BASE + '/admin/logistics/assets'); await p.setInputFiles('form[action$="/import/assets"] input[type=file]', file); await p.waitForLoadState('load');
-  const f2 = await p.textContent('body');
-  ok('مخوّل: لا رفض صلاحية؛ الرد بالحد المعروف لتنسيق الملف الحالي دون كتابة', f2.includes('بيانات الملف لا تكفي') && !f2.includes('نطاق صلاحيات'));
   await ctx.close();
 });
 

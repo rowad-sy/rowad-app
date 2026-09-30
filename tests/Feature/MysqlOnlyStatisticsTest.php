@@ -60,14 +60,3 @@ test('task statistics (MONTH()) groups by start month and the page renders real 
     $y = $this->actingAs($admin)->get(route('admin.projects.statistics', ['year' => 2026]))->assertOk();
     expect($y->viewData('total'))->toBe(3)->and($y->viewData('byMonth')->all())->toBe([3 => 2, 7 => 1]);
 });
-
-test('tech statistics groups equipment by the reserved word column `condition` (needs quoting on MySQL/MariaDB), on MySQL', function () {
-    $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
-    $c = Center::create(['name' => 'مركز']);
-    foreach (['a', 'a', 'b', 'd'] as $i => $cond) {
-        \App\Models\Admin\Tech\TechEquipment::create(['name' => "معدة $i", 'center_id' => $c->id, 'type' => 'خادم', 'condition' => $cond]);
-    }
-    $res = $this->actingAs($admin)->get(route('admin.tech.statistics'))->assertOk();
-    $res->assertViewHas('totalEquipment', 4);
-    expect(array_sum($res->viewData('conditionData')))->toBe(4)->and(max($res->viewData('conditionData')))->toBe(2);
-});

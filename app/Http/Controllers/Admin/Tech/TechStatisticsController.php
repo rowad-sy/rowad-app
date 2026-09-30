@@ -97,7 +97,7 @@ class TechStatisticsController extends Controller
 
         // Equipment condition distribution
         $conditionStats = (clone $equipmentQuery)
-            ->selectRaw("`condition`, COUNT(*) as total")
+            ->selectRaw("condition, COUNT(*) as total")
             ->groupBy('condition')
             ->pluck('total', 'condition');
         $conditionMap = ['a' => 'ممتاز', 'b' => 'جيد', 'c' => 'متوسط', 'd' => 'سيئ', 'e' => 'تالف'];

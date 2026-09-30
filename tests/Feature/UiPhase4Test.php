@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Admin\Center;
-use App\Models\Admin\Logistics\Asset;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
 use App\Models\User;
@@ -13,30 +12,6 @@ function p4User(array $models, array $flags = [], array $scope = []): User
 
     return $u;
 }
-
-test('asset details page shows the stored fields read-only with the existing view permission, and edit link only with edit', function () {
-    $c = Center::create(['name' => 'مركز الأصول']);
-    $p = Project::create(['name' => 'مشروع الأصول']);
-    $asset = Asset::create(['asset_code' => 'AST-77', 'name' => 'جهاز عرض', 'type' => 'أجهزة', 'center_id' => $c->id, 'project_id' => $p->id, 'room_number' => '5', 'status' => 'جيد', 'notes' => "سطر1\nسطر2 <b>x</b>"]);
-
-    $viewer = p4User([Asset::class]);
-    $r = $this->actingAs($viewer)->get(route('admin.logistics.assets.show', $asset))->assertOk()
-        ->assertSee('AST-77')->assertSee('جهاز عرض')->assertSee('مركز الأصول')->assertSee('مشروع الأصول')->assertSee('جيد')
-        ->assertDontSee(route('admin.logistics.assets.edit', $asset), false)->assertDontSee('<b>x</b>', false);
-    $editor = p4User([Asset::class], ['can_edit' => true]);
-    $this->actingAs($editor)->get(route('admin.logistics.assets.show', $asset))->assertOk()->assertSee(route('admin.logistics.assets.edit', $asset), false);
-
-    // بلا صلاحية عرض على الأصول: مرفوض من الخادم
-    $none = p4User([Project::class]);
-    $this->actingAs($none)->get(route('admin.logistics.assets.show', $asset))->assertForbidden();
-    app('auth')->forgetGuards();
-    $this->get(route('admin.logistics.assets.show', $asset))->assertRedirect();
-});
-
-test('asset list links each name to its details page', function () {
-    $asset = Asset::create(['asset_code' => 'AST-1', 'name' => 'ماسح ضوئي', 'type' => 'أجهزة', 'status' => 'جيد', 'center_id' => Center::create(['name' => 'م'])->id]);
-    $this->actingAs(p4User([Asset::class]))->get(route('admin.logistics.assets.index'))->assertOk()->assertSee(route('admin.logistics.assets.show', $asset), false);
-});
 
 test('error pages render with the shared layout, local Tajawal via app css, and a logout form only for signed-in users', function () {
     $guest = $this->get('/no-such-page-here');

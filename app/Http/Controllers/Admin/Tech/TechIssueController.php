@@ -8,7 +8,6 @@ use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Project;
 use App\Models\Admin\Tech\TechIssue;
 use App\Models\User;
-use App\Support\RecordAccess;
 use Illuminate\Http\Request;
 
 class TechIssueController extends Controller
@@ -17,7 +16,7 @@ class TechIssueController extends Controller
     {
         $this->middleware('permission:App\Models\Admin\Tech\TechIssue,view')->only(['index', 'show']);
         $this->middleware('permission:App\Models\Admin\Tech\TechIssue,create')->only(['create', 'store']);
-        $this->middleware('permission:App\Models\Admin\Tech\TechIssue,edit')->only(['edit', 'update', 'respond']);
+        $this->middleware('permission:App\Models\Admin\Tech\TechIssue,edit')->only(['edit', 'update']);
         $this->middleware('permission:App\Models\Admin\Tech\TechIssue,delete')->only(['destroy']);
     }
 
@@ -32,7 +31,7 @@ class TechIssueController extends Controller
         $centerId = $request->filled('center_id') ? $request->input('center_id') : (count($scope['center_ids']) === 1 ? $scope['center_ids'][0] : '');
         $projectId = $request->filled('project_id') ? $request->input('project_id') : (count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : '');
 
-        $issues = RecordAccess::scopeQuery(TechIssue::with(['center', 'project', 'reporter', 'assignee']), TechIssue::class, 'view')
+        $issues = TechIssue::with(['center', 'project', 'reporter', 'assignee'])
             ->when($search, function ($q, $search) {
                 return $q->where(function ($q) use ($search) {
                     $q->where('title', 'like', "%{$search}%")
@@ -43,6 +42,8 @@ class TechIssueController extends Controller
             ->when($priority && $priority !== 'all', fn ($q) => $q->where('priority', $priority))
             ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->when(!$scope['sees_all'] && !empty($scope['center_ids']), fn ($q) => $q->whereIn('center_id', $scope['center_ids']))
+            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), fn ($q) => $q->whereIn('project_id', $scope['project_ids']))
             ->orderBy('id', 'desc')
             ->paginate($perPage)
             ->appends($request->only(['search', 'status', 'priority', 'center_id', 'project_id', 'per_page']));
@@ -80,7 +81,6 @@ class TechIssueController extends Controller
         $validated['reported_by'] = auth()->id();
         $validated['status'] = 'open';
 
-        RecordAccess::authorizeTarget(TechIssue::class, 'create', $validated['center_id'] ?? null, $validated['project_id'] ?? null);
         TechIssue::create($validated);
 
         return redirect()->route('admin.tech.issues.index')
@@ -89,14 +89,12 @@ class TechIssueController extends Controller
 
     public function show(TechIssue $issue)
     {
-        RecordAccess::authorize(TechIssue::class, 'view', $issue->center_id, $issue->project_id, $issue->id);
         $issue->load(['center', 'project', 'reporter', 'assignee']);
         return view('admin.tech.issues.show', compact('issue'));
     }
 
     public function edit(TechIssue $issue)
     {
-        RecordAccess::authorize(TechIssue::class, 'edit', $issue->center_id, $issue->project_id, $issue->id);
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
@@ -106,7 +104,6 @@ class TechIssueController extends Controller
 
     public function update(Request $request, TechIssue $issue)
     {
-        RecordAccess::authorize(TechIssue::class, 'edit', $issue->center_id, $issue->project_id, $issue->id);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -117,7 +114,6 @@ class TechIssueController extends Controller
             'status' => 'required|in:open,in_progress,completed,blocked',
         ]);
 
-        RecordAccess::authorizeTarget(TechIssue::class, 'edit', $validated['center_id'] ?? null, $validated['project_id'] ?? null, $issue->id);
         $issue->update($validated);
 
         return redirect()->route('admin.tech.issues.index')
@@ -126,7 +122,6 @@ class TechIssueController extends Controller
 
     public function destroy(TechIssue $issue)
     {
-        RecordAccess::authorize(TechIssue::class, 'delete', $issue->center_id, $issue->project_id, $issue->id);
         $issue->delete();
 
         return redirect()->route('admin.tech.issues.index')
@@ -135,7 +130,6 @@ class TechIssueController extends Controller
 
     public function respond(Request $request, TechIssue $issue)
     {
-        RecordAccess::authorize(TechIssue::class, 'edit', $issue->center_id, $issue->project_id, $issue->id);
         $validated = $request->validate([
             'admin_response' => 'required|string',
             'status' => 'required|in:open,in_progress,completed,blocked',

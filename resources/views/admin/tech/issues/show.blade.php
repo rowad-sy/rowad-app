@@ -84,7 +84,6 @@
         </div>
     </div>
 
-    @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Tech\TechIssue', 'edit', $issue->center_id, $issue->project_id, $issue->id))
     <div class="col-md-4">
         <div class="form-card">
             <h5 class="mb-3">الرد على التذكرة</h5>
@@ -117,13 +116,12 @@
 
             <hr>
 
-            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Tech\TechIssue', 'edit', $issue->center_id, $issue->project_id, $issue->id))
+            @canPermission('App\Models\Admin\Tech\TechIssue', 'edit')
             <a href="{{ route('admin.tech.issues.edit', $issue) }}" class="btn btn-outline-primary w-100">
                 <i class="bi bi-pencil me-1"></i> تعديل التذكرة
             </a>
-            @endif
+            @endcanPermission
         </div>
     </div>
-    @endif
 </div>
 @endsection

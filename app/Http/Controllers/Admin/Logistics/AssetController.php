@@ -7,14 +7,13 @@ use App\Models\Admin\Center;
 use App\Models\Admin\Logistics\Asset;
 use App\Models\Admin\Project;
 use App\Models\User;
-use App\Support\RecordAccess;
 use Illuminate\Http\Request;
 
 class AssetController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\Logistics\Asset,view')->only(['index', 'show']);
+        $this->middleware('permission:App\Models\Admin\Logistics\Asset,view')->only(['index']);
         $this->middleware('permission:App\Models\Admin\Logistics\Asset,create')->only(['create', 'store']);
         $this->middleware('permission:App\Models\Admin\Logistics\Asset,edit')->only(['edit', 'update']);
         $this->middleware('permission:App\Models\Admin\Logistics\Asset,delete')->only(['destroy']);
@@ -22,7 +21,7 @@ class AssetController extends Controller
 
     public function index(Request $request)
     {
-        $query = RecordAccess::scopeQuery(Asset::with(['center', 'project', 'recipient']), Asset::class, 'view');
+        $query = Asset::with(['center', 'project', 'recipient']);
 
         if ($request->filled('type')) {
             $query->where('type', $request->type);
@@ -52,15 +51,6 @@ class AssetController extends Controller
         return view('admin.logistics.assets.index', compact('assets', 'types', 'statuses', 'centers', 'projects'));
     }
 
-    /** عرض قراءة فقط لبيانات الأصل نفسها: صلاحية العرض ونطاق مركز/مشروع هذا الأصل يُفحصان قبل تحميل العلاقات. */
-    public function show(Asset $asset)
-    {
-        RecordAccess::authorize(Asset::class, 'view', $asset->center_id, $asset->project_id, $asset->id);
-        $asset->load(['center', 'project', 'recipient']);
-
-        return view('admin.logistics.assets.show', compact('asset'));
-    }
-
     public function create()
     {
         $centers = Center::orderBy('name')->get();
@@ -84,7 +74,6 @@ class AssetController extends Controller
             'recipient_id' => 'nullable|exists:users,id',
         ]);
 
-        RecordAccess::authorizeTarget(Asset::class, 'create', $validated['center_id'] ?? null, $validated['project_id'] ?? null);
         Asset::create($validated);
 
         return redirect()->route('admin.logistics.assets.index')
@@ -93,7 +82,6 @@ class AssetController extends Controller
 
     public function edit(Asset $asset)
     {
-        RecordAccess::authorize(Asset::class, 'edit', $asset->center_id, $asset->project_id, $asset->id);
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $users = User::orderBy('name')->get();
@@ -103,7 +91,6 @@ class AssetController extends Controller
 
     public function update(Request $request, Asset $asset)
     {
-        RecordAccess::authorize(Asset::class, 'edit', $asset->center_id, $asset->project_id, $asset->id);
         $validated = $request->validate([
             'asset_code' => ['required', 'string', 'max:255', \Illuminate\Validation\Rule::unique('logistics_assets', 'asset_code')->ignore($asset->id)],
             'name' => 'required|string|max:255',
@@ -116,7 +103,6 @@ class AssetController extends Controller
             'recipient_id' => 'nullable|exists:users,id',
         ]);
 
-        RecordAccess::authorizeTarget(Asset::class, 'edit', $validated['center_id'] ?? null, $validated['project_id'] ?? null, $asset->id);
         $asset->update($validated);
 
         return redirect()->route('admin.logistics.assets.index')
@@ -125,7 +111,6 @@ class AssetController extends Controller
 
     public function destroy(Asset $asset)
     {
-        RecordAccess::authorize(Asset::class, 'delete', $asset->center_id, $asset->project_id, $asset->id);
         $asset->delete();
 
         return redirect()->route('admin.logistics.assets.index')

@@ -111,18 +111,18 @@
                         <td class="small">{{ $issue->created_at->locale('ar')->translatedFormat('d M Y') }}</td>
                         <td>
                             <a href="{{ route('admin.tech.issues.show', $issue) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
-                            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Tech\TechIssue', 'edit', $issue->center_id, $issue->project_id, $issue->id))
+                            @canPermission('App\Models\Admin\Tech\TechIssue', 'edit')
                             <a href="{{ route('admin.tech.issues.edit', $issue) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
-                            @endif
+                            @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Tech\TechIssue'" :model-id="$issue->id" />
-                            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Tech\TechIssue', 'delete', $issue->center_id, $issue->project_id, $issue->id))
+                            @canPermission('App\Models\Admin\Tech\TechIssue', 'delete')
                             <form method="POST" action="{{ route('admin.tech.issues.destroy', $issue) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذه التذكرة؟')">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
-                            @endif
+                            @endcanPermission
                         </td>
                     </tr>
                 @empty

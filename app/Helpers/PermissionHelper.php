@@ -143,7 +143,7 @@ class PermissionHelper
     /*
      * الحصول على جميع صلاحيات المستخدم (المباشرة + من المجموعات)
      */
-    public static function getUserPermissions(User $user, string $modelName): Collection
+    private static function getUserPermissions(User $user, string $modelName): Collection
     {
         // صلاحيات المستخدم المباشرة
         $directPermissions = Permission::where('user_id', $user->id)

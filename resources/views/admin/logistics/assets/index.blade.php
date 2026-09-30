@@ -14,7 +14,6 @@
         <a href="{{ route('admin.logistics.export.assets') }}" class="btn btn-success">
             <i class="bi bi-file-earmark-excel me-1"></i> تصدير
         </a>
-        @canPermission('App\Models\Admin\Logistics\Asset', 'create')
         <form method="POST" action="{{ route('admin.logistics.import.assets') }}" enctype="multipart/form-data" class="d-inline">
             @csrf
             <label class="btn btn-outline-secondary mb-0">
@@ -22,7 +21,6 @@
                 <input type="file" name="file" accept=".xlsx,.xls,.csv" class="d-none" onchange="this.form.submit()">
             </label>
         </form>
-        @endcanPermission
     </div>
 </x-page-header>
 
@@ -80,7 +78,7 @@
                 @forelse ($assets ?? [] as $asset)
                     <tr>
                         <td><code>{{ $asset->asset_code }}</code></td>
-                        <td class="fw-medium"><a href="{{ route('admin.logistics.assets.show', $asset) }}" class="text-decoration-none">{{ $asset->name }}</a></td>
+                        <td class="fw-medium">{{ $asset->name }}</td>
                         <td>{{ $asset->type }}</td>
                         <td>{{ $asset->center?->name ?? '—' }}</td>
                         <td>{{ $asset->project?->name ?? '—' }}</td>
@@ -98,18 +96,18 @@
                         </td>
                         <td>{{ $asset->recipient?->name ?? '—' }}</td>
                         <td>
-                            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Logistics\Asset', 'edit', $asset->center_id, $asset->project_id, $asset->id))
+                            @canPermission('App\Models\Admin\Logistics\Asset', 'edit')
                             <a href="{{ route('admin.logistics.assets.edit', $asset) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
-                            @endif
+                            @endcanPermission
                             <x-audit-history :model="'App\Models\Admin\Logistics\Asset'" :model-id="$asset->id" />
-                            @if (\App\Support\RecordAccess::allows(auth()->user(), 'App\Models\Admin\Logistics\Asset', 'delete', $asset->center_id, $asset->project_id, $asset->id))
+                            @canPermission('App\Models\Admin\Logistics\Asset', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.assets.destroy', $asset) }}" class="d-inline"
                                   onsubmit="return confirm('هل أنت متأكد من حذف هذا الأصل؟')">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-sm btn-outline-danger" aria-label="حذف" title="حذف"><i class="bi bi-trash" aria-hidden="true"></i></button>
                             </form>
-                            @endif
+                            @endcanPermission
                         </td>
                     </tr>
                 @empty

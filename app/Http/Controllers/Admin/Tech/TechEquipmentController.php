@@ -7,7 +7,6 @@ use App\Models\Admin\Center;
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Project;
 use App\Models\Admin\Tech\TechEquipment;
-use App\Support\RecordAccess;
 use Illuminate\Http\Request;
 
 class TechEquipmentController extends Controller
@@ -31,7 +30,7 @@ class TechEquipmentController extends Controller
         $centerId = $request->filled('center_id') ? $request->input('center_id') : (count($scope['center_ids']) === 1 ? $scope['center_ids'][0] : '');
         $projectId = $request->filled('project_id') ? $request->input('project_id') : (count($scope['project_ids']) === 1 ? $scope['project_ids'][0] : '');
 
-        $equipment = RecordAccess::scopeQuery(TechEquipment::with(['center', 'project']), TechEquipment::class, 'view')
+        $equipment = TechEquipment::with(['center', 'project'])
             ->when($search, function ($q, $search) {
                 return $q->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -42,6 +41,8 @@ class TechEquipmentController extends Controller
             ->when($condition && $condition !== 'all', fn ($q) => $q->where('condition', $condition))
             ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->when(!$scope['sees_all'] && !empty($scope['center_ids']), fn ($q) => $q->whereIn('center_id', $scope['center_ids']))
+            ->when(!$scope['sees_all'] && !empty($scope['project_ids']), fn ($q) => $q->whereIn('project_id', $scope['project_ids']))
             ->orderBy('id', 'desc')
             ->paginate($perPage)
             ->appends($request->only(['search', 'type', 'condition', 'center_id', 'project_id', 'per_page']));
@@ -77,7 +78,6 @@ class TechEquipmentController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        RecordAccess::authorizeTarget(TechEquipment::class, 'create', $validated['center_id'] ?? null, $validated['project_id'] ?? null);
         TechEquipment::create($validated);
 
         return redirect()->route('admin.tech.equipment.index')
@@ -86,14 +86,12 @@ class TechEquipmentController extends Controller
 
     public function show(TechEquipment $equipment)
     {
-        RecordAccess::authorize(TechEquipment::class, 'view', $equipment->center_id, $equipment->project_id, $equipment->id);
         $equipment->load(['center', 'project']);
         return view('admin.tech.equipment.show', compact('equipment'));
     }
 
     public function edit(TechEquipment $equipment)
     {
-        RecordAccess::authorize(TechEquipment::class, 'edit', $equipment->center_id, $equipment->project_id, $equipment->id);
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
 
@@ -102,7 +100,6 @@ class TechEquipmentController extends Controller
 
     public function update(Request $request, TechEquipment $equipment)
     {
-        RecordAccess::authorize(TechEquipment::class, 'edit', $equipment->center_id, $equipment->project_id, $equipment->id);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:100',
@@ -114,7 +111,6 @@ class TechEquipmentController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        RecordAccess::authorizeTarget(TechEquipment::class, 'edit', $validated['center_id'] ?? null, $validated['project_id'] ?? null, $equipment->id);
         $equipment->update($validated);
 
         return redirect()->route('admin.tech.equipment.index')
@@ -123,7 +119,6 @@ class TechEquipmentController extends Controller
 
     public function destroy(TechEquipment $equipment)
     {
-        RecordAccess::authorize(TechEquipment::class, 'delete', $equipment->center_id, $equipment->project_id, $equipment->id);
         $equipment->delete();
 
         return redirect()->route('admin.tech.equipment.index')
