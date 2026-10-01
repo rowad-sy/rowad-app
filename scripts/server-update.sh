@@ -1,67 +1,53 @@
 #!/usr/bin/env bash
-# تحديث الواجهة على السيرفر تلقائيًا: يسحب آخر main (fast-forward فقط) ثم يبني الأصول (npm run build) بنسخة Node من nodenv
-# ثم يمسح كاش العروض. مخصص للتشغيل من Plesk (Scheduled Tasks) كل بضع دقائق أو يدويًا.
+# تحديث أصول الواجهة (public/build) على السيرفر تلقائيًا دون أن يكون مجلد الموقع مستودع git.
+# يسحب فرع deploy (يحتوي على public/build المبني جاهزًا عبر GitHub Actions) إلى مجلد منفصل خارج الموقع
+# ثم ينسخ public/build فقط إلى الموقع. لا يحتاج Node ولا npm على السيرفر.
 #
 # السلامة:
-#  - لا يلمس قاعدة البيانات ولا .env ولا storage ولا vendor، ولا يشغّل migrate أو composer.
-#  - سحب fast-forward فقط: إن وُجدت تعديلات محلية متعارضة يتوقف ويسجّل خطأ دون كتابة فوقها.
-#  - البناء يحتفظ بنسخة public/build_old ويستعيدها إن فشل البناء.
-#  - قفل (flock) يمنع تشغيلين متداخلين، وسجل في storage/logs/server-update.log.
+#  - لا يلمس قاعدة البيانات ولا .env ولا storage ولا vendor ولا أي كود، ولا يشغّل migrate أو composer.
+#  - يكتب فقط داخل public/build (مع نسخة public/build_old للتراجع) ثم php artisan view:clear.
+#  - قفل (flock) يمنع تشغيلين متداخلين، والسجل في storage/logs/server-update.log.
 #
-# الاستخدام:   bash scripts/server-update.sh            (يبني فقط إن تغيّر الكود أو غاب build)
-#              bash scripts/server-update.sh --force    (يبني دائمًا)
+# الإعداد (مرة واحدة):  REPO_URL=https://github.com/rowad-sy/rowad-app.git
+#   إن كان المستودع خاصًا استخدم رابطًا فيه توكن قراءة فقط:  https://<TOKEN>@github.com/rowad-sy/rowad-app.git
+# الاستخدام:  bash scripts/server-update.sh [--force]
 set -u
 
 APP_DIR="${APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-BRANCH="${BRANCH:-main}"
-NODE_VERSION="${NODE_VERSION:-24}"
+REPO_URL="${REPO_URL:-https://github.com/rowad-sy/rowad-app.git}"
+BRANCH="${BRANCH:-deploy}"
+CACHE_DIR="${CACHE_DIR:-$HOME/rowad-deploy-cache}"
 PHP_BIN="${PHP_BIN:-php}"
 LOG="$APP_DIR/storage/logs/server-update.log"
 FORCE=0; [ "${1:-}" = "--force" ] && FORCE=1
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG"; }
+mkdir -p "$(dirname "$LOG")" "$APP_DIR/storage/framework"
 cd "$APP_DIR" || exit 1
-mkdir -p "$(dirname "$LOG")"
 
 exec 9>"$APP_DIR/storage/framework/server-update.lock"
 flock -n 9 || { log "تخطّي: تشغيل آخر قيد التنفيذ"; exit 0; }
 
-export NODENV_VERSION="$NODE_VERSION"
-export PATH="$HOME/.nodenv/shims:$HOME/.nodenv/bin:$PATH"
-
-if [ ! -d .git ]; then log "خطأ: $APP_DIR ليس مستودع git"; exit 1; fi
-
-OLD_HEAD="$(git rev-parse HEAD)"
-if ! git fetch --quiet origin "$BRANCH" 2>>"$LOG"; then log "خطأ: تعذّر git fetch"; exit 1; fi
-NEW_HEAD="$(git rev-parse "origin/$BRANCH")"
-
-if [ "$OLD_HEAD" != "$NEW_HEAD" ]; then
-  log "تحديث الكود: ${OLD_HEAD:0:7} -> ${NEW_HEAD:0:7}"
-  if ! git merge --ff-only "origin/$BRANCH" >>"$LOG" 2>&1; then
-    log "خطأ: تعذّر fast-forward (تعديلات محلية متعارضة؟). لم يُغيَّر شيء. راجع: git status"
-    exit 1
-  fi
-  CHANGED=1
+if [ ! -d "$CACHE_DIR/.git" ]; then
+  log "أول تشغيل: استنساخ $BRANCH"
+  rm -rf "$CACHE_DIR"
+  git clone --quiet --depth 1 --branch "$BRANCH" "$REPO_URL" "$CACHE_DIR" >>"$LOG" 2>&1 || { log "خطأ: تعذّر الاستنساخ (المستودع خاص؟ استخدم REPO_URL مع توكن)"; exit 1; }
 else
-  CHANGED=0
+  git -C "$CACHE_DIR" fetch --quiet --depth 1 origin "$BRANCH" >>"$LOG" 2>&1 || { log "خطأ: تعذّر fetch"; exit 1; }
+  git -C "$CACHE_DIR" reset --quiet --hard FETCH_HEAD
 fi
 
-if [ "$FORCE" -eq 0 ] && [ "$CHANGED" -eq 0 ] && [ -f public/build/manifest.json ]; then
+NEW="$(git -C "$CACHE_DIR" rev-parse --short HEAD)"
+SRC="$CACHE_DIR/public/build"
+[ -f "$SRC/manifest.json" ] || { log "خطأ: فرع $BRANCH لا يحتوي public/build/manifest.json"; exit 1; }
+
+if [ "$FORCE" -eq 0 ] && [ -f public/build/.deployed-from ] && [ "$(cat public/build/.deployed-from)" = "$NEW" ]; then
   exit 0   # لا جديد
 fi
 
-log "بدء بناء الأصول (node $(node -v 2>/dev/null))"
-if ! command -v npm >/dev/null 2>&1; then log "خطأ: npm غير متاح (تحقق من nodenv/NODE_VERSION)"; exit 1; fi
-
-rm -rf public/build_old
-[ -d public/build ] && cp -a public/build public/build_old
-
-if npm ci --no-audit --no-fund >>"$LOG" 2>&1 && npm run build >>"$LOG" 2>&1 && [ -f public/build/manifest.json ]; then
-  "$PHP_BIN" artisan view:clear >>"$LOG" 2>&1
-  log "نجح البناء: $(ls public/build/assets | wc -l) ملف أصول"
-else
-  log "فشل البناء — استعادة النسخة السابقة"
-  rm -rf public/build
-  [ -d public/build_old ] && mv public/build_old public/build
-  exit 1
-fi
+rm -rf public/build_old public/build_new
+cp -a "$SRC" public/build_new && echo "$NEW" > public/build_new/.deployed-from || { log "خطأ: فشل النسخ"; rm -rf public/build_new; exit 1; }
+[ -d public/build ] && mv public/build public/build_old
+mv public/build_new public/build
+"$PHP_BIN" artisan view:clear >>"$LOG" 2>&1
+log "تم تحديث public/build إلى $NEW ($(ls public/build/assets | wc -l) ملف أصول)"
