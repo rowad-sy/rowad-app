@@ -1,0 +1,47 @@
+name: build-deploy-branch
+
+# عند كل دمج في main: يبني الأصول (npm run build) ويدفع فرعًا باسم `deploy` = محتوى main + public/build الجاهز.
+# السيرفر (Plesk ← Git) يسحب فرع deploy فقط، فلا حاجة لـ Node على السيرفر ولا لبناء يدوي.
+# لا يلمس قاعدة البيانات ولا .env ولا أي أسرار؛ يستخدم GITHUB_TOKEN الافتراضي.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-deploy-branch
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install and build assets
+        run: |
+          npm ci
+          npm run build
+          test -f public/build/manifest.json
+
+      - name: Publish deploy branch (main + public/build)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B deploy
+          # public/build مُتجاهَل في .gitignore: نُدرجه بالقوة في هذا الفرع فقط
+          git add -f public/build
+          git commit -m "build assets for ${GITHUB_SHA::7}" 
+          git push --force origin deploy
