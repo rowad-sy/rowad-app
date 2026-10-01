@@ -1381,3 +1381,35 @@ td form.d-inline .btn-sm { vertical-align: baseline; }
     @keyframes confirm-pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
     .confirm-modal.show .confirm-icon { animation: confirm-pop 0.45s 0.08s cubic-bezier(.2,.9,.25,1.2) both; }
 }
+
+/* ---------- الشارات (badges): حبوب ناعمة بلون الدلالة وإطار شفاف خفيف ---------- */
+.badge:not(.position-absolute), .badge-status {
+    --b-tone: var(--status-neutral);
+    --b-bg: var(--status-neutral-bg);
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.3;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--b-tone) 22%, transparent);
+}
+.badge:not(.position-absolute) { padding: 0.32em 0.75em; font-size: 0.75rem; }
+.badge-status { padding: 0.3rem 0.7rem; background: var(--b-bg); color: var(--b-tone); }
+.badge-status.is-success { --b-tone: var(--status-success); --b-bg: var(--status-success-bg); }
+.badge-status.is-warning { --b-tone: var(--status-warning); --b-bg: var(--status-warning-bg); }
+.badge-status.is-danger  { --b-tone: var(--status-danger);  --b-bg: var(--status-danger-bg); }
+.badge-status.is-info    { --b-tone: var(--status-info);    --b-bg: var(--status-info-bg); }
+.badge-status.is-brand   { --b-tone: var(--color-primary-text); --b-bg: var(--color-primary-soft); }
+/* شارات Bootstrap الممتلئة تتحوّل إلى ناعمة بنفس دلالة اللون (العدادات المطلقة الموضع تبقى ممتلئة) */
+.badge:not(.position-absolute).bg-success, .badge:not(.position-absolute).bg-success-subtle { --b-tone: var(--status-success); --b-bg: var(--status-success-bg); }
+.badge:not(.position-absolute).bg-danger,  .badge:not(.position-absolute).bg-danger-subtle  { --b-tone: var(--status-danger);  --b-bg: var(--status-danger-bg); }
+.badge:not(.position-absolute).bg-warning, .badge:not(.position-absolute).bg-warning-subtle { --b-tone: var(--status-warning); --b-bg: var(--status-warning-bg); }
+.badge:not(.position-absolute).bg-info,    .badge:not(.position-absolute).bg-info-subtle    { --b-tone: var(--status-info);    --b-bg: var(--status-info-bg); }
+.badge:not(.position-absolute).bg-primary, .badge:not(.position-absolute).bg-primary-subtle { --b-tone: var(--color-primary-text); --b-bg: var(--color-primary-soft); }
+.badge:not(.position-absolute).bg-secondary, .badge:not(.position-absolute).bg-secondary-subtle { --b-tone: var(--status-neutral); --b-bg: var(--status-neutral-bg); }
+.badge:not(.position-absolute):is(.bg-success, .bg-danger, .bg-warning, .bg-info, .bg-primary, .bg-secondary,
+    .bg-success-subtle, .bg-danger-subtle, .bg-warning-subtle, .bg-info-subtle, .bg-primary-subtle, .bg-secondary-subtle) {
+    background-color: var(--b-bg) !important;
+    color: var(--b-tone) !important;
+}
+/* خلية الإجراءات: الأزرار في سطر واحد بدل التفافها في شبكة */
+td:has(> .btn-sm) { white-space: nowrap; }
