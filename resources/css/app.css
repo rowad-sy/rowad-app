@@ -669,35 +669,71 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
 }
 
 /* ---------- شجرة المسارات ---------- */
-.tree-node { border: 1px solid var(--color-border); border-radius: 0.9rem; background: var(--color-card); margin-bottom: 0.9rem; overflow: hidden; }
+/* عبارة الترحيب بتأثير الكتابة */
+.tree-tagline {
+    display: flex; align-items: center; justify-content: center; min-height: 3.2rem; margin-bottom: 1.1rem;
+    font-size: clamp(1.15rem, 3.4vw, 1.7rem); font-weight: 800; letter-spacing: 0.01em;
+    background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.tree-tagline .tagline-text { white-space: pre-wrap; }
+.tree-tagline .tagline-caret {
+    display: inline-block; width: 3px; height: 1.2em; margin-inline-start: 0.25rem; border-radius: 2px;
+    background: var(--color-primary); animation: tree-caret 0.9s steps(1) infinite;
+}
+.tree-tagline.is-done .tagline-caret { animation: tree-caret-fade 0.6s 1.2s forwards; }
+@keyframes tree-caret { 50% { opacity: 0; } }
+@keyframes tree-caret-fade { to { opacity: 0; } }
+
+/* الشجرة: عقد قابلة للطي بحركة سلسة وخطوط وصل */
+.tree-node {
+    border: 1px solid var(--color-border); border-radius: 0.9rem; background: var(--color-card); margin-bottom: 0.9rem; overflow: hidden;
+    opacity: 0; transform: translateY(14px);
+    animation: tree-rise 0.5s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: calc(var(--i, 0) * 90ms);
+}
+@keyframes tree-rise { to { opacity: 1; transform: none; } }
 .tree-branch-head {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.85rem 1.1rem;
-    cursor: pointer;
-    user-select: none;
-    background: var(--color-badge-bg);
-    font-weight: 800;
+    display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.85rem 1.1rem; cursor: pointer; user-select: none;
+    background: var(--color-badge-bg); font-weight: 800; border: 0; color: inherit; text-align: start; font-family: inherit; font-size: inherit;
+    transition: background 0.2s;
 }
-.tree-branch-head .tree-arrow { transition: transform 0.2s; font-size: 0.8rem; }
-.tree-node.collapsed .tree-arrow { transform: rotate(-90deg); }
-.tree-node.collapsed .tree-children { display: none; }
-.tree-children { padding: 0.4rem 0.6rem 0.6rem; }
+.tree-branch-head:hover { background: var(--color-hover); }
+.tree-branch-head:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.tree-branch-head .tree-arrow { transition: transform 0.3s cubic-bezier(.2,.7,.2,1); font-size: 0.8rem; }
+.tree-node.collapsed .tree-arrow { transform: rotate(90deg); }
+[dir="rtl"] .tree-node.collapsed .tree-arrow { transform: rotate(90deg); }
+/* الطيّ بتحريك ارتفاع الصف (grid) بدل display:none */
+.tree-collapse { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.38s cubic-bezier(.2,.7,.2,1); }
+.tree-node.collapsed .tree-collapse { grid-template-rows: 0fr; }
+.tree-collapse > .tree-children { overflow: hidden; min-height: 0; transition: opacity 0.3s, visibility 0s 0s; }
+.tree-node.collapsed .tree-collapse > .tree-children { opacity: 0; visibility: hidden; transition: opacity 0.25s, visibility 0s 0.38s; }
+.tree-children { position: relative; padding: 0; }
+.tree-children-inner { position: relative; padding: 0.4rem 0.6rem 0.6rem; padding-inline-start: 1.7rem; }
+/* خط وصل عمودي مع تفرعات نحو كل مشروع */
+.tree-children-inner::before {
+    content: ''; position: absolute; inset-inline-start: 1rem; top: 0.5rem; bottom: 1.1rem; width: 2px; border-radius: 2px;
+    background: linear-gradient(180deg, var(--color-primary), var(--color-border));
+    transform-origin: top; animation: tree-grow 0.6s ease-out both; animation-delay: calc(var(--i, 0) * 90ms + 200ms);
+}
+@keyframes tree-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .tree-leaf {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.6rem;
-    text-decoration: none;
-    color: var(--color-text-main);
-    transition: background 0.15s;
+    position: relative; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 0.6rem;
+    text-decoration: none; color: var(--color-text-main); transition: background 0.15s, transform 0.2s;
+    opacity: 0; transform: translateX(14px); animation: tree-leaf-in 0.45s cubic-bezier(.2,.7,.2,1) forwards;
+    animation-delay: calc(var(--i, 0) * 90ms + 250ms + var(--j, 0) * 70ms);
 }
-.tree-leaf:hover { background: var(--color-hover); color: var(--color-primary-dark); }
-.tree-leaf .tree-leaf-name { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.92rem; }
+[dir="rtl"] .tree-leaf { transform: translateX(14px); }
+@keyframes tree-leaf-in { to { opacity: 1; transform: none; } }
+.tree-leaf::after {
+    content: ''; position: absolute; inset-inline-start: -0.72rem; top: 50%; width: 0.65rem; height: 2px; background: var(--color-border);
+    transition: background 0.2s, width 0.2s;
+}
+.tree-leaf:hover { background: var(--color-hover); color: var(--color-primary-dark); transform: translateX(-3px); }
+.tree-leaf:hover::after { background: var(--color-primary); width: 0.85rem; }
+.tree-leaf:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.tree-leaf .tree-leaf-name { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.92rem; min-width: 0; overflow-wrap: anywhere; }
 .tree-leaf .bi-diagram-2 { color: var(--color-primary); }
+.tree-leaf .tree-leaf-name .small { white-space: nowrap; unicode-bidi: isolate; }
 .tree-count-badge {
     background: var(--color-primary);
     color: #fff;
@@ -705,6 +741,12 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
     font-size: 0.7rem;
     font-weight: 700;
     padding: 0.1rem 0.55rem;
+}
+@media (prefers-reduced-motion: reduce) {
+    .tree-node, .tree-leaf { animation: none; opacity: 1; transform: none; }
+    .tree-children-inner::before { animation: none; }
+    .tree-collapse, .tree-collapse > .tree-children, .tree-branch-head .tree-arrow, .tree-leaf { transition: none; }
+    .tree-tagline .tagline-caret { animation: none; opacity: 0; }
 }
 
 /* ---------- الخط الزمني للفعاليات ---------- */
