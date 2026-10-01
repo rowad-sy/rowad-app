@@ -1211,3 +1211,9 @@ fieldset.form-card { min-width: 0; }
     padding-inline: 1.5rem;
     padding-bottom: 1rem;
 }
+.kpi .kpi-hint { white-space: nowrap; }
+@media (max-width: 575.98px) {
+    .kpi.has-icon { gap: 0.6rem; padding: 0.85rem 0.8rem; }
+    .kpi .kpi-icon { width: 2.3rem; height: 2.3rem; border-radius: 0.7rem; font-size: 1.1rem; }
+    .kpi .kpi-hint { font-size: 0.72rem; }
+}
