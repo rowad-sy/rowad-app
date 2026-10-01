@@ -28,6 +28,9 @@
         </header>
 
         <main class="portal-hero" id="portalMain">
+            <div class="portal-tagline" id="portalTagline" data-text="نعمل معًا ... نرقى معًا" role="heading" aria-level="1" aria-label="نعمل معًا ... نرقى معًا">
+                <span class="tagline-text" aria-hidden="true"></span><span class="tagline-caret" aria-hidden="true"></span>
+            </div>
             <div class="portal-orbit">
                 {{-- اللوغو في الدائرة الوسطية --}}
                 <div class="portal-center">
@@ -35,27 +38,27 @@
                     <div class="portal-center-title">مؤسسة الرُّؤاد<br>للتعاون والتنمية</div>
                 </div>
 
-                <a href="https://www.alrowadngo.sy/wp-content/uploads/2026/06/profile-2026.pdf" target="_blank" rel="noopener" class="portal-btn" style="--angle:-90deg">
+                <a href="https://www.alrowadngo.sy/wp-content/uploads/2026/06/profile-2026.pdf" target="_blank" rel="noopener" class="portal-btn" style="--angle:0deg; --n:0">
                     <span class="portal-btn-icon"><i class="bi bi-journal-text"></i></span>
                     <span>الملف التعريفي</span>
                 </a>
 
-                <a href="{{ route('admin.identities') }}" class="portal-btn" style="--angle:-18deg">
+                <a href="{{ route('admin.identities') }}" class="portal-btn" style="--angle:72deg; --n:1">
                     <span class="portal-btn-icon"><i class="bi bi-share-fill"></i></span>
                     <span>المعرفات الرئيسية</span>
                 </a>
 
-                <a href="{{ route('admin.events-calendar') }}" class="portal-btn" style="--angle:54deg">
+                <a href="{{ route('admin.events-calendar') }}" class="portal-btn" style="--angle:144deg; --n:2">
                     <span class="portal-btn-icon"><i class="bi bi-calendar3"></i></span>
                     <span>الفعاليات</span>
                 </a>
 
-                <a href="{{ route('admin.paths.tree') }}" class="portal-btn" style="--angle:126deg">
+                <a href="{{ route('admin.paths.tree') }}" class="portal-btn" style="--angle:216deg; --n:3">
                     <span class="portal-btn-icon"><i class="bi bi-diagram-3-fill"></i></span>
                     <span>المسارات والمشاريع</span>
                 </a>
 
-                <a href="https://app.powerbi.com/view?r=eyJrIjoiN2U0ZTIwMTQtODRlNS00Mzg2LWI4YjMtMDFhMWY0YzdhMzVlIiwidCI6IjZlYjI4YmIwLTQ3MDQtNGQwOS05MGMzLTY4NGQ1YTFhMWVlYiIsImMiOjl9" target="_blank" rel="noopener" class="portal-btn" style="--angle:198deg">
+                <a href="https://app.powerbi.com/view?r=eyJrIjoiN2U0ZTIwMTQtODRlNS00Mzg2LWI4YjMtMDFhMWY0YzdhMzVlIiwidCI6IjZlYjI4YmIwLTQ3MDQtNGQwOS05MGMzLTY4NGQ1YTFhMWVlYiIsImMiOjl9" target="_blank" rel="noopener" class="portal-btn" style="--angle:288deg; --n:4">
                     <span class="portal-btn-icon"><i class="bi bi-bar-chart-line-fill"></i></span>
                     <span>الإحصائيات</span>
                 </a>
@@ -76,5 +79,18 @@
             </form>
         </div>
     </div>
+<script>
+    (function () {
+        var box = document.getElementById('portalTagline');
+        if (!box) return;
+        var text = box.dataset.text, out = box.querySelector('.tagline-text');
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { out.textContent = text; box.classList.add('is-done'); return; }
+        var i = 0;
+        setTimeout(function type() {
+            out.textContent = text.slice(0, ++i);
+            if (i < text.length) { setTimeout(type, 85 + Math.random() * 60); } else { box.classList.add('is-done'); }
+        }, 300);
+    })();
+</script>
 </body>
 </html>
