@@ -3,6 +3,7 @@ window.bootstrap = bootstrap;
 import '../css/app.css';
 import './charts';
 import './table-cards';
+import './confirm-modal';
 import QRCode from 'qrcode';
 window.QRCode = QRCode;
 import './forms';
