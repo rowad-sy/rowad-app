@@ -1280,3 +1280,136 @@ fieldset.form-card { min-width: 0; }
     color: var(--color-primary);
     background: color-mix(in srgb, var(--color-primary) 14%, transparent);
 }
+
+/* ---------- الأزرار والإجراءات والنوافذ المنبثقة ---------- */
+.btn {
+    border-radius: 0.6rem;
+    font-weight: 600;
+    transition: transform 0.12s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+.btn:not(:disabled):not(.disabled):active { transform: translateY(1px) scale(0.985); }
+.btn-primary:not(:disabled):hover { box-shadow: 0 6px 16px color-mix(in srgb, var(--color-primary) 38%, transparent); transform: translateY(-1px); }
+.btn-danger:not(:disabled):hover { box-shadow: 0 6px 16px color-mix(in srgb, var(--status-danger) 35%, transparent); transform: translateY(-1px); }
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; box-shadow: none; }
+.btn.disabled, .btn:disabled { opacity: 0.55; }
+.btn-sm { border-radius: 0.5rem; }
+/* أزرار الإجراءات داخل الجداول: أزرار «ناعمة» بلون الدلالة (برتقالي/أزرق/أخضر/أحمر/رمادي) وخلفية خفيفة تقوى عند المرور */
+td .btn-sm,
+.row-actions .btn-sm {
+    --tone: var(--color-text-muted);
+    color: var(--tone);
+    background: color-mix(in srgb, var(--tone) 9%, transparent);
+    border: 1px solid transparent;
+    padding: 0.3rem 0.55rem;
+    line-height: 1.2;
+}
+td .btn-sm.btn-outline-primary, td .btn-sm.btn-outline-brand, td .btn-sm.btn-primary { --tone: var(--color-primary); }
+td .btn-sm.btn-outline-info { --tone: var(--status-info); }
+td .btn-sm.btn-outline-success, td .btn-sm.btn-success { --tone: var(--status-success); }
+td .btn-sm.btn-outline-danger, td .btn-sm.btn-danger { --tone: var(--status-danger); }
+td .btn-sm.btn-outline-warning, td .btn-sm.btn-warning { --tone: var(--status-warning); }
+td .btn-sm.btn-outline-secondary, td .btn-sm.btn-secondary { --tone: var(--color-text-muted); }
+/* الأزرار الممتلئة داخل الجدول تبقى ناعمة أيضًا للحفاظ على هدوء الصفوف */
+td .btn-sm.btn-primary, td .btn-sm.btn-success, td .btn-sm.btn-danger, td .btn-sm.btn-warning, td .btn-sm.btn-secondary {
+    color: var(--tone); background: color-mix(in srgb, var(--tone) 13%, transparent);
+}
+td .btn-sm:hover, td .btn-sm:focus-visible, .row-actions .btn-sm:hover {
+    color: var(--tone);
+    background: color-mix(in srgb, var(--tone) 20%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 35%, transparent);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--tone) 22%, transparent);
+}
+td .btn-sm:active { transform: scale(0.94); box-shadow: none; }
+/* زر الأيقونة وحدها: مربع متساوٍ */
+td .btn-sm:has(> i:only-child), .row-actions .btn-sm:has(> i:only-child) {
+    width: 2rem; height: 2rem; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+td .btn-sm i { display: inline-block; transition: transform 0.15s ease; }
+td .btn-sm:hover i { transform: scale(1.15); }
+td .btn-sm:has(> i:only-child) + .btn-sm, td .btn-sm:has(> i:only-child) + form,
+td form + .btn-sm, td form + form { margin-inline-start: 0.2rem; }
+td form.d-inline .btn-sm { vertical-align: baseline; }
+
+/* بقية الأزرار: مخطّطة تتعبّأ بلون ناعم، وممتلئة بتدرّج خفيف */
+.btn-outline-secondary { --bs-btn-color: var(--color-text-main); --bs-btn-border-color: var(--color-border); --bs-btn-hover-bg: var(--color-hover); --bs-btn-hover-border-color: var(--color-text-muted); --bs-btn-hover-color: var(--color-text-main); --bs-btn-active-bg: var(--color-hover); --bs-btn-active-color: var(--color-text-main); }
+.btn-outline-danger { --bs-btn-color: var(--status-danger); --bs-btn-border-color: color-mix(in srgb, var(--status-danger) 55%, transparent); --bs-btn-hover-bg: var(--status-danger); --bs-btn-hover-border-color: var(--status-danger); --bs-btn-hover-color: #fff; }
+.btn-outline-success { --bs-btn-color: var(--status-success); --bs-btn-border-color: color-mix(in srgb, var(--status-success) 55%, transparent); --bs-btn-hover-bg: var(--status-success); --bs-btn-hover-border-color: var(--status-success); --bs-btn-hover-color: #fff; }
+.btn-outline-info { --bs-btn-color: var(--status-info); --bs-btn-border-color: color-mix(in srgb, var(--status-info) 55%, transparent); --bs-btn-hover-bg: var(--status-info); --bs-btn-hover-border-color: var(--status-info); --bs-btn-hover-color: #fff; }
+.btn-outline-warning { --bs-btn-color: var(--status-warning); --bs-btn-border-color: color-mix(in srgb, var(--status-warning) 55%, transparent); --bs-btn-hover-bg: var(--status-warning); --bs-btn-hover-border-color: var(--status-warning); --bs-btn-hover-color: #fff; }
+.btn-success { --bs-btn-bg: var(--status-success); --bs-btn-border-color: var(--status-success); --bs-btn-hover-bg: color-mix(in srgb, var(--status-success) 85%, #000); --bs-btn-hover-border-color: color-mix(in srgb, var(--status-success) 85%, #000); }
+.btn-success:not(:disabled):hover { box-shadow: 0 6px 16px color-mix(in srgb, var(--status-success) 35%, transparent); transform: translateY(-1px); }
+.btn-lg { border-radius: 0.75rem; padding: 0.7rem 1.4rem; }
+.btn i.bi { transition: transform 0.15s ease; }
+.btn:not(:disabled):hover > i.bi:first-child:not(:only-child) { transform: translateX(-2px); }
+.btn-group > .btn { border-radius: 0; }
+.btn-group > .btn:first-child { border-start-start-radius: 0.6rem; border-end-start-radius: 0.6rem; }
+.btn-group > .btn:last-child { border-start-end-radius: 0.6rem; border-end-end-radius: 0.6rem; }
+
+/* القوائم المنسدلة */
+.dropdown-menu { border-radius: 0.8rem; box-shadow: var(--shadow-pop); padding: 0.4rem; }
+.dropdown-item { border-radius: 0.5rem; padding: 0.45rem 0.7rem; }
+@media (prefers-reduced-motion: no-preference) {
+    @keyframes dd-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+    .dropdown-menu.show { animation: dd-in 0.16s ease both; }
+}
+
+/* النوافذ المنبثقة */
+.modal-backdrop.show { opacity: 1; background: rgba(15, 17, 23, 0.55); backdrop-filter: blur(3px); }
+.modal-content { border-radius: 1rem; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28); overflow: hidden; }
+.modal-header { border-bottom-color: var(--color-border); background: color-mix(in srgb, var(--color-primary) 5%, var(--color-card)); }
+.modal-header .modal-title { font-weight: 700; }
+.modal-footer { border-top-color: var(--color-border); }
+@media (prefers-reduced-motion: no-preference) {
+    .modal.fade .modal-dialog { transform: translateY(18px) scale(0.94); opacity: 0; transition: transform 0.28s cubic-bezier(.2,.9,.25,1.15), opacity 0.2s ease; }
+    .modal.show .modal-dialog { transform: none; opacity: 1; }
+}
+
+/* نافذة التأكيد */
+.confirm-modal .modal-dialog { max-width: 400px; }
+.confirm-modal .modal-body { padding: 1.75rem 1.5rem 1.5rem; }
+.confirm-modal .confirm-icon {
+    width: 3.6rem; height: 3.6rem; margin: 0 auto 1rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+    color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+.confirm-modal.is-danger .confirm-icon { color: var(--status-danger); background: var(--status-danger-bg); }
+.confirm-modal .confirm-msg { font-size: 1.02rem; font-weight: 600; margin-bottom: 1.4rem; line-height: 1.7; }
+.confirm-modal .btn { min-width: 6.5rem; }
+@media (prefers-reduced-motion: no-preference) {
+    @keyframes confirm-pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+    .confirm-modal.show .confirm-icon { animation: confirm-pop 0.45s 0.08s cubic-bezier(.2,.9,.25,1.2) both; }
+}
+
+/* ---------- الشارات (badges): حبوب ناعمة بلون الدلالة وإطار شفاف خفيف ---------- */
+.badge:not(.position-absolute), .badge-status {
+    --b-tone: var(--status-neutral);
+    --b-bg: var(--status-neutral-bg);
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.3;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--b-tone) 22%, transparent);
+}
+.badge:not(.position-absolute) { padding: 0.32em 0.75em; font-size: 0.75rem; }
+.badge-status { padding: 0.3rem 0.7rem; background: var(--b-bg); color: var(--b-tone); }
+.badge-status.is-success { --b-tone: var(--status-success); --b-bg: var(--status-success-bg); }
+.badge-status.is-warning { --b-tone: var(--status-warning); --b-bg: var(--status-warning-bg); }
+.badge-status.is-danger  { --b-tone: var(--status-danger);  --b-bg: var(--status-danger-bg); }
+.badge-status.is-info    { --b-tone: var(--status-info);    --b-bg: var(--status-info-bg); }
+.badge-status.is-brand   { --b-tone: var(--color-primary-text); --b-bg: var(--color-primary-soft); }
+/* شارات Bootstrap الممتلئة تتحوّل إلى ناعمة بنفس دلالة اللون (العدادات المطلقة الموضع تبقى ممتلئة) */
+.badge:not(.position-absolute).bg-success, .badge:not(.position-absolute).bg-success-subtle { --b-tone: var(--status-success); --b-bg: var(--status-success-bg); }
+.badge:not(.position-absolute).bg-danger,  .badge:not(.position-absolute).bg-danger-subtle  { --b-tone: var(--status-danger);  --b-bg: var(--status-danger-bg); }
+.badge:not(.position-absolute).bg-warning, .badge:not(.position-absolute).bg-warning-subtle { --b-tone: var(--status-warning); --b-bg: var(--status-warning-bg); }
+.badge:not(.position-absolute).bg-info,    .badge:not(.position-absolute).bg-info-subtle    { --b-tone: var(--status-info);    --b-bg: var(--status-info-bg); }
+.badge:not(.position-absolute).bg-primary, .badge:not(.position-absolute).bg-primary-subtle { --b-tone: var(--color-primary-text); --b-bg: var(--color-primary-soft); }
+.badge:not(.position-absolute).bg-secondary, .badge:not(.position-absolute).bg-secondary-subtle { --b-tone: var(--status-neutral); --b-bg: var(--status-neutral-bg); }
+.badge:not(.position-absolute):is(.bg-success, .bg-danger, .bg-warning, .bg-info, .bg-primary, .bg-secondary,
+    .bg-success-subtle, .bg-danger-subtle, .bg-warning-subtle, .bg-info-subtle, .bg-primary-subtle, .bg-secondary-subtle) {
+    background-color: var(--b-bg) !important;
+    color: var(--b-tone) !important;
+}
+/* خلية الإجراءات: الأزرار في سطر واحد بدل التفافها في شبكة */
+td:has(> .btn-sm) { white-space: nowrap; }
