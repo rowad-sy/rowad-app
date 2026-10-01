@@ -89,10 +89,39 @@
         .auth-divider { text-align: center; margin: 1.25rem 0; position: relative; }
         .auth-divider::before { content: ''; position: absolute; top: 50%; right: 0; left: 0; height: 1px; background: var(--color-border); }
         .auth-divider span { background: var(--color-card); padding: 0 0.75rem; position: relative; color: var(--color-text-muted); font-size: 0.8rem; }
+        /* لمسة بصرية: بقع متحركة بطيئة، دخول البطاقة، شريط لوني علوي، وعبارة المؤسسة */
+        .auth-page::before, .auth-page::after {
+            content: ""; position: fixed; border-radius: 50%; filter: blur(2px); opacity: 0.35; pointer-events: none;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55), rgba(255,255,255,0));
+        }
+        .auth-page::before { width: 340px; height: 340px; top: -90px; right: -70px; }
+        .auth-page::after { width: 260px; height: 260px; bottom: -60px; left: -50px; }
+        .auth-page { overflow: hidden; }
+        [data-theme="dark"] .auth-page::before, [data-theme="dark"] .auth-page::after { opacity: 0.08; }
+        .auth-wrap { width: 100%; max-width: 440px; position: relative; z-index: 1; }
+        .auth-card { overflow: hidden; }
+        .auth-card::before {
+            content: ""; position: absolute; top: 0; inset-inline: 0; height: 4px;
+            background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end));
+        }
+        .auth-logo::after { content: ""; position: absolute; inset: -6px; border-radius: 26px; border: 2px solid rgba(243,112,33,0.35); }
+        .auth-logo { position: relative; }
+        .auth-tagline { text-align: center; margin-top: 1.1rem; color: rgba(255,255,255,0.92); font-weight: 700; letter-spacing: 0.02em; text-shadow: 0 1px 8px rgba(0,0,0,0.18); }
+        [data-theme="dark"] .auth-tagline { color: var(--color-text-muted); text-shadow: none; }
+        @media (prefers-reduced-motion: no-preference) {
+            @keyframes auth-rise { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
+            @keyframes auth-float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(18px, 14px); } }
+            @keyframes auth-ring { 0%, 100% { opacity: 0.35; transform: scale(1); } 50% { opacity: 0.9; transform: scale(1.06); } }
+            .auth-card { animation: auth-rise 0.55s cubic-bezier(.2,.8,.2,1) both; }
+            .auth-page::before { animation: auth-float 14s ease-in-out infinite; }
+            .auth-page::after { animation: auth-float 18s ease-in-out infinite reverse; }
+            .auth-logo::after { animation: auth-ring 3.2s ease-in-out infinite; }
+        }
         .alert-session { border-radius: 0.5rem; font-size: 0.85rem; padding: 0.5rem 0.75rem; }
     </style>
 </head>
 <body class="auth-page">
+    <div class="auth-wrap">
     <div class="auth-card">
         <button class="btn btn-light btn-sm theme-toggle-btn auth-theme-toggle" type="button" title="الوضع الليلي/النهاري">
             <i class="bi bi-moon-stars"></i>
@@ -120,6 +149,8 @@
         @endif
 
         {{ $slot }}
+    </div>
+    <div class="auth-tagline">نعمل معًا ... نرقى معًا</div>
     </div>
     @stack('scripts')
     @fluxScripts
