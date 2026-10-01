@@ -531,16 +531,40 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
     padding: 1rem;
     position: relative;
 }
+@property --orbit-r { syntax: '<length>'; inherits: true; initial-value: 0px; }
+
+/* عبارة الترحيب بتأثير الكتابة أعلى المدار */
+.portal-tagline {
+    display: flex; align-items: center; justify-content: center; min-height: 2.8rem; margin: 0 0 0.6rem;
+    font-size: clamp(1.15rem, 3.2vw, 1.75rem); font-weight: 800;
+    background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.portal-tagline .tagline-text { white-space: pre-wrap; }
+.portal-tagline .tagline-caret { display: inline-block; width: 3px; height: 1.2em; margin-inline-start: 0.25rem; border-radius: 2px; background: var(--color-primary); animation: portal-caret 0.9s steps(1) infinite; }
+.portal-tagline.is-done .tagline-caret { animation: portal-caret-fade 0.6s 1.4s forwards; }
+@keyframes portal-caret { 50% { opacity: 0; } }
+@keyframes portal-caret-fade { to { opacity: 0; } }
+
 .portal-orbit {
+    --radius: 240px;
     position: relative;
     width: min(660px, 94vw);
-    height: min(660px, 94vw);
-    max-height: 620px;
+    height: min(640px, 94vw);
     margin: 0 auto;
 }
+/* حلقة المدار المتقطعة تدور ببطء خلف الأزرار */
+.portal-orbit::before {
+    content: ''; position: absolute; top: 50%; left: 50%; width: calc(var(--radius) * 2); height: calc(var(--radius) * 2);
+    margin: calc(var(--radius) * -1); border-radius: 50%; border: 2px dashed var(--color-border);
+    animation: portal-ring-in 0.9s ease-out both, portal-spin 90s linear 0.9s infinite;
+}
+@keyframes portal-ring-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+@keyframes portal-spin { to { transform: rotate(360deg); } }
 
-.portal-cta { margin-top: 1.5rem; min-width: min(320px, 90vw); font-weight: 700; }
+.portal-cta { margin-top: 1.5rem; min-width: min(320px, 90vw); font-weight: 700; animation: portal-fade-up 0.6s 1.3s both; }
 .portal-topbar > .text-truncate { max-width: 55vw; }
+@keyframes portal-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
 /* اللوغو في دائرة وسطية */
 .portal-center {
@@ -561,7 +585,15 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
     gap: 0.25rem;
     padding: 1.5rem;
     z-index: 2;
+    animation: portal-center-in 0.8s cubic-bezier(.2,.9,.3,1.2) both;
 }
+@keyframes portal-center-in { from { opacity: 0; scale: 0.3; } to { opacity: 1; scale: 1; } }
+/* نبضة هادئة حول الشعار */
+.portal-center::after {
+    content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 3px solid var(--color-primary); opacity: 0;
+    animation: portal-pulse 3.2s ease-out 1.6s infinite; pointer-events: none;
+}
+@keyframes portal-pulse { 0% { opacity: 0.55; transform: scale(1); } 100% { opacity: 0; transform: scale(1.28); } }
 .portal-center img {
     width: 55%;
     height: 55%;
@@ -574,18 +606,18 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
     line-height: 1.3;
 }
 
-/* الأزرار: شكل مشطوف الحواف (غير مدوّر) حول الدائرة */
+/* الأزرار: شكل مشطوف الحواف؛ الإطار يُرسم بطبقة خلفية لأن clip-path يقصّ الحدود */
 .portal-btn {
-    --size: min(150px, 30vw);
+    --size: min(140px, 30vw);
+    --orbit-r: var(--radius);
     position: absolute;
     top: 50%;
     left: 50%;
     width: var(--size);
     height: var(--size);
     margin: calc(var(--size) / -2);
-    transform: rotate(var(--angle)) translateY(calc(var(--radius) * -1)) rotate(calc(var(--angle) * -1));
-    background: var(--color-card);
-    border: 1.5px solid var(--color-border);
+    transform: rotate(var(--angle)) translateY(calc(var(--orbit-r) * -1)) rotate(calc(var(--angle) * -1));
+    background: var(--color-border);
     clip-path: polygon(22% 0, 100% 0, 100% 78%, 78% 100%, 0 100%, 0 22%);
     display: flex;
     flex-direction: column;
@@ -598,8 +630,15 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
     font-size: 0.82rem;
     text-align: center;
     padding: 0.6rem;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    transition: background-color 0.2s ease, filter 0.2s ease;
     z-index: 1;
+    animation: portal-spread 0.95s cubic-bezier(.2,.8,.2,1) both;
+    animation-delay: calc(0.45s + var(--n, 0) * 0.12s);
+}
+@keyframes portal-spread { from { --orbit-r: 0px; opacity: 0; scale: 0.4; } 60% { opacity: 1; } to { opacity: 1; scale: 1; } }
+.portal-btn::before {
+    content: ''; position: absolute; inset: 1.5px; background: var(--color-card); z-index: -1;
+    clip-path: polygon(22% 0, 100% 0, 100% 78%, 78% 100%, 0 100%, 0 22%); transition: background-color 0.2s ease;
 }
 .portal-btn .portal-btn-icon {
     width: 52px;
@@ -611,26 +650,36 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
     font-size: 1.6rem;
     color: var(--color-primary-text);
     background: var(--color-primary-soft);
+    transition: background-color 0.2s ease, transform 0.25s ease;
+    animation: portal-bob 4s ease-in-out infinite; animation-delay: calc(1.5s + var(--n, 0) * 0.4s);
 }
+@keyframes portal-bob { 50% { transform: translateY(-4px); } }
 .portal-btn:hover, .portal-btn:focus-visible {
-    background: var(--color-primary-soft);
+    background: var(--color-primary);
     color: var(--color-text-main);
-    box-shadow: inset 0 0 0 3px var(--color-primary);
     outline: none;
 }
+.portal-btn:hover::before, .portal-btn:focus-visible::before { background: var(--color-primary-soft); }
 .portal-btn:hover .portal-btn-icon, .portal-btn:focus-visible .portal-btn-icon {
     background: var(--color-primary);
     color: var(--color-on-primary);
+    animation: none; transform: scale(1.12);
 }
 @media (min-width: 720px) {
-    .portal-orbit { --radius: 260px; }
+    .portal-orbit { --radius: 240px; }
 }
 /* الجوال والأجهزة الضيقة: شبكة مقروءة بدل المدار */
 @media (max-width: 719.98px) {
-    .portal-orbit { width: 100%; height: auto; max-height: none; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem; }
+    .portal-orbit { width: 100%; height: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem; }
+    .portal-orbit::before { display: none; }
     .portal-center { position: static; transform: none; grid-column: 1 / -1; margin: 0 auto 0.5rem; width: 150px; height: 150px; }
-    .portal-btn { --size: auto; position: static; margin: 0; transform: none; width: 100%; height: auto; min-height: 104px; clip-path: polygon(14% 0, 100% 0, 100% 86%, 86% 100%, 0 100%, 0 14%); }
+    .portal-btn { --size: auto; position: static; margin: 0; transform: none; width: 100%; height: auto; min-height: 104px; clip-path: polygon(14% 0, 100% 0, 100% 86%, 86% 100%, 0 100%, 0 14%); animation: portal-fade-up 0.5s both; animation-delay: calc(0.4s + var(--n, 0) * 0.1s); }
+    .portal-btn::before { clip-path: polygon(14% 0, 100% 0, 100% 86%, 86% 100%, 0 100%, 0 14%); }
     .portal-btn:last-child:nth-child(even) { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .portal-orbit::before, .portal-center, .portal-btn, .portal-cta, .portal-center::after, .portal-btn .portal-btn-icon { animation: none; }
+    .portal-tagline .tagline-caret { animation: none; opacity: 0; }
 }
 
 /* التقويم */
