@@ -13,6 +13,24 @@
 <body>
     <a href="#portalMain" class="visually-hidden-focusable btn btn-primary btn-sm position-absolute" style="top:.5rem;right:.5rem;z-index:10">تخطي إلى المحتوى</a>
     <div class="portal-page">
+        <div class="portal-bg" aria-hidden="true">
+            <i class="bi bi-heart-pulse" style="--x:8%;--y:14%;--s:2.6rem;--k:0"></i>
+            <i class="bi bi-people" style="--x:86%;--y:12%;--s:3.2rem;--k:1"></i>
+            <i class="bi bi-house-heart" style="--x:14%;--y:70%;--s:3rem;--k:2"></i>
+            <i class="bi bi-mortarboard" style="--x:82%;--y:72%;--s:2.8rem;--k:3"></i>
+            <i class="bi bi-balloon-heart" style="--x:50%;--y:6%;--s:2.2rem;--k:4"></i>
+            <i class="bi bi-tree" style="--x:92%;--y:44%;--s:2.4rem;--k:5"></i>
+            <i class="bi bi-droplet" style="--x:5%;--y:40%;--s:2.2rem;--k:6"></i>
+            <i class="bi bi-basket" style="--x:68%;--y:90%;--s:2.4rem;--k:7"></i>
+            <i class="bi bi-bandaid d-none d-md-block" style="--x:30%;--y:88%;--s:2.2rem;--k:8"></i>
+            <i class="bi bi-chat-heart d-none d-md-block" style="--x:24%;--y:28%;--s:2.0rem;--k:9"></i>
+            <i class="bi bi-globe-europe-africa d-none d-md-block" style="--x:74%;--y:30%;--s:2.6rem;--k:10"></i>
+            <i class="bi bi-book d-none d-md-block" style="--x:40%;--y:76%;--s:2.0rem;--k:11"></i>
+            <i class="bi bi-hand-thumbs-up d-none d-md-block" style="--x:58%;--y:82%;--s:2.0rem;--k:12"></i>
+            <i class="bi bi-flower1 d-none d-md-block" style="--x:95%;--y:86%;--s:2.2rem;--k:13"></i>
+            <i class="bi bi-lightbulb d-none d-md-block" style="--x:3%;--y:88%;--s:2.0rem;--k:14"></i>
+            <i class="bi bi-sun d-none d-md-block" style="--x:96%;--y:8%;--s:2.4rem;--k:15"></i>
+        </div>
         <header class="portal-topbar">
             <span class="text-muted small text-truncate">
                 <i class="bi bi-person-circle me-1" aria-hidden="true"></i>{{ auth()->user()->name }}

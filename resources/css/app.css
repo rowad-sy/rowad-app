@@ -371,6 +371,16 @@ body.sidebar-locked { overflow: hidden; }
     border-bottom-color: var(--color-border);
 }
 .table td .num, .num { font-variant-numeric: tabular-nums; }
+/* تحسين قراءة الجداول: أرقام متساوية العرض، صفوف مخطّطة خفيفة، وشريط لوني عند التحويم */
+.table td, .table th { font-variant-numeric: tabular-nums; }
+.table-hover > tbody > tr:nth-child(even) > * { background-color: color-mix(in srgb, var(--color-surface-muted) 55%, transparent); }
+.table-hover > tbody > tr { transition: background-color 0.15s ease; }
+.table-hover > tbody > tr:hover > * { background-color: var(--color-hover); box-shadow: none; }
+.table-hover > tbody > tr:hover > :first-child { box-shadow: inset -3px 0 0 var(--color-primary); }
+[dir="rtl"] .table-hover > tbody > tr:hover > :first-child { box-shadow: inset -3px 0 0 var(--color-primary); }
+.table > tbody > tr > td:first-child, .table > tbody > tr > th:first-child { font-weight: 600; }
+.table > thead th { letter-spacing: 0.01em; }
+@media (prefers-reduced-motion: reduce) { .table-hover > tbody > tr { transition: none; } }
 .ltr-cell { direction: ltr; unicode-bidi: plaintext; text-align: right; }
 
 .page-header { margin-bottom: 1.5rem; }
@@ -510,6 +520,7 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
 
 /* ---------- صفحة البوابة (بعد الدخول) ---------- */
 .portal-page {
+    position: relative; overflow: hidden;
     min-height: 100vh;
     background: var(--color-bg-main);
     display: flex;
@@ -531,6 +542,20 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
     padding: 1rem;
     position: relative;
 }
+/* أيقونات العمل الإنساني في الخلفية: خفيفة جدًا وتطفو ببطء */
+.portal-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.portal-bg > i {
+    position: absolute; left: var(--x); top: var(--y); font-size: var(--s); line-height: 1;
+    color: var(--color-primary); opacity: 0.075; transform: translate(-50%, -50%);
+    animation: portal-bg-float calc(7s + var(--k) * 0.6s) ease-in-out calc(var(--k) * -1.3s) infinite alternate, portal-bg-in 1.4s ease-out both;
+    animation-delay: calc(var(--k) * -1.3s), calc(0.3s + var(--k) * 0.08s);
+}
+[data-theme="dark"] .portal-bg > i { opacity: 0.1; }
+@keyframes portal-bg-float { from { translate: 0 -8px; rotate: -4deg; } to { translate: 0 10px; rotate: 5deg; } }
+@keyframes portal-bg-in { from { opacity: 0; } }
+.portal-topbar, .portal-hero, .portal-page > .text-center { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .portal-bg > i { animation: none; } }
+
 @property --orbit-r { syntax: '<length>'; inherits: true; initial-value: 0px; }
 
 /* عبارة الترحيب بتأثير الكتابة أعلى المدار */
