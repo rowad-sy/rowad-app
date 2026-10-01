@@ -182,7 +182,8 @@ a:hover { color: var(--color-primary-dark); }
 }
 
 .sidebar .brand {
-    padding: 0.9rem 1.25rem;
+    min-height: 3.5rem;
+    padding: 0.5rem 1.25rem;
     font-size: 1.05rem;
     font-weight: 700;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -250,7 +251,7 @@ a:hover { color: var(--color-primary-dark); }
 /* الوضع المصغّر (شريط أيقونات): الأقسام تبقى متاحة، والتسميات تظهر عبر tooltip وaria-label */
 @media (min-width: 769px) {
     .sidebar.collapsed { width: var(--sidebar-rail-width); }
-    .sidebar.collapsed .brand { justify-content: center; padding: 0.9rem 0; }
+    .sidebar.collapsed .brand { justify-content: center; padding: 0.5rem 0; }
     .sidebar.collapsed .brand-text,
     .sidebar.collapsed .nav-link span,
     .sidebar.collapsed .section-arrow,
@@ -319,6 +320,20 @@ body.sidebar-locked { overflow: hidden; }
     align-items: center;
     justify-content: center;
     padding: 0;
+}
+/* وصلة منحنية بين الشريط العلوي والقائمة الجانبية: زاوية مقعّرة بلون القائمة (سطح المكتب فقط) */
+@media (min-width: 769px) {
+    :root { --shell-radius: 28px; }
+    .navbar-top::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: var(--shell-radius);
+        height: var(--shell-radius);
+        pointer-events: none;
+        background: radial-gradient(circle at 0 100%, transparent calc(var(--shell-radius) - 0.5px), var(--color-sidebar) var(--shell-radius));
+    }
 }
 .navbar-top .topbar-context { min-width: 0; }
 .navbar-top .topbar-date { white-space: nowrap; }
@@ -1042,6 +1057,41 @@ a.kpi:hover { border-color: var(--color-primary); color: var(--color-text-main);
 .kpi.tone-info    .kpi-value { color: var(--status-info); }
 .kpi.tone-brand   .kpi-value { color: var(--color-primary-text); }
 
+/* تحسين بصري للمؤشرات: أيقونة داخل شارة ملوّنة، رفع ناعم عند المرور، ودخول متدرّج */
+.kpi { --kpi-accent: var(--color-primary); overflow: hidden; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.kpi.tone-success { --kpi-accent: var(--status-success); }
+.kpi.tone-warning { --kpi-accent: var(--status-warning); }
+.kpi.tone-danger  { --kpi-accent: var(--status-danger); }
+.kpi.tone-info    { --kpi-accent: var(--status-info); }
+.kpi::before {
+    content: ""; position: absolute; top: 0; inset-inline: 0; height: 3px;
+    background: var(--kpi-accent); opacity: 0.85;
+}
+.kpi.has-icon { flex-direction: row; align-items: center; gap: 0.9rem; padding: 1rem 1.1rem; }
+.kpi .kpi-icon {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.9rem; height: 2.9rem; border-radius: 0.9rem; font-size: 1.35rem;
+    color: var(--kpi-accent);
+    background: color-mix(in srgb, var(--kpi-accent) 14%, transparent);
+}
+.kpi .kpi-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.kpi .kpi-label { font-weight: 600; }
+.kpi .kpi-hint { display: flex; align-items: center; gap: 0.3rem; }
+.kpi .kpi-hint i { font-size: 0.75rem; transition: transform 0.18s ease; }
+a.kpi:hover .kpi-hint i { transform: translateX(-3px); }
+a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+.kpi .kpi-hint { transition: color 0.18s ease; }
+a.kpi:hover .kpi-hint { color: var(--kpi-accent); }
+@media (prefers-reduced-motion: no-preference) {
+    @keyframes kpi-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .kpi { animation: kpi-in 0.4s ease both; }
+    .row > :nth-child(2) > .kpi { animation-delay: 0.05s; }
+    .row > :nth-child(3) > .kpi { animation-delay: 0.1s; }
+    .row > :nth-child(4) > .kpi { animation-delay: 0.15s; }
+    .row > :nth-child(n+5) > .kpi { animation-delay: 0.2s; }
+}
+
 /* قسم قابل للطي بعنوان وعدد (details/summary دلالي) */
 .fold {
     background: var(--color-card);
@@ -1141,3 +1191,92 @@ fieldset.form-card { min-width: 0; }
 
 /* عناصر .visually-hidden (position:absolute) داخل الجداول العريضة كانت تسبّب تمريرًا أفقيًا للصفحة؛ نُقيّدها بحاوية التمرير */
 .table-responsive { position: relative; }
+
+/* شريط حفظ ثابت أسفل النماذج الطويلة: يبقى أزرار «حفظ/إلغاء» ظاهرة أثناء التمرير */
+.form-card > form > :last-child:has(> button.btn-primary[type="submit"]):has(> a.btn-outline-secondary),
+.card-body > form > :last-child:has(> button.btn-primary[type="submit"]):has(> a.btn-outline-secondary) {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin-inline: -1rem;
+    padding: 0.75rem 1rem;
+    background: color-mix(in srgb, var(--color-card) 94%, transparent);
+    backdrop-filter: blur(6px);
+    border-top: 1px solid var(--color-border);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.form-card > form > :last-child:has(> button.btn-primary[type="submit"]):has(> a.btn-outline-secondary) {
+    margin-inline: -1.5rem;
+    margin-bottom: -1.5rem;
+    padding-inline: 1.5rem;
+    padding-bottom: 1rem;
+}
+.kpi .kpi-hint { white-space: nowrap; }
+@media (max-width: 575.98px) {
+    .kpi.has-icon { gap: 0.6rem; padding: 0.85rem 0.8rem; }
+    .kpi .kpi-icon { width: 2.3rem; height: 2.3rem; border-radius: 0.7rem; font-size: 1.1rem; }
+    .kpi .kpi-hint { font-size: 0.72rem; }
+}
+
+/* ---------- جداول كبطاقات على الجوال ---------- */
+@media (max-width: 575.98px) {
+    .table-responsive > .table.table-cards { border: 0; }
+    .table-responsive > .table.table-cards > thead {
+        position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); /* مخفي بصريًا ومتاح لقارئ الشاشة */
+    }
+    .table-responsive > .table.table-cards,
+    .table-responsive > .table.table-cards > tbody { display: block; }
+    .table-responsive > .table.table-cards > tbody > tr {
+        display: block;
+        margin-bottom: 0.75rem;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        padding: 0.25rem 0.9rem;
+    }
+    .table-responsive > .table.table-cards > tbody > tr > td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.5rem 0;
+        border: 0;
+        border-bottom: 1px dashed var(--color-border);
+        text-align: end;
+        background: transparent;
+        box-shadow: none;
+    }
+    .table-responsive > .table.table-cards > tbody > tr > td:last-child { border-bottom: 0; }
+    .table-responsive > .table.table-cards > tbody > tr > td[data-label]::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        max-width: 45%;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--color-text-muted);
+        text-align: start;
+    }
+    .table-responsive > .table.table-cards > tbody > tr > td:not([data-label]):empty { display: none; }
+    .table-responsive > .table.table-cards > tbody > tr.card-span { display: table; width: 100%; }
+}
+
+/* ---------- بطاقات الرسوم البيانية ---------- */
+.table-container:has(canvas) { overflow: hidden; transition: box-shadow 0.18s ease, border-color 0.18s ease; }
+.table-container:has(canvas):hover { box-shadow: var(--shadow-pop); }
+.table-container:has(canvas) > .border-bottom {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: color-mix(in srgb, var(--color-primary) 5%, var(--color-card));
+    border-bottom-color: var(--color-border) !important;
+    position: relative;
+}
+.table-container:has(canvas) > .border-bottom::before {
+    content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--color-primary);
+}
+.table-container:has(canvas) > .border-bottom h6 { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; }
+.table-container:has(canvas) > .border-bottom h6 > i {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.8rem; height: 1.8rem; margin: 0 !important; border-radius: 0.55rem;
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
