@@ -20,6 +20,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # أسرار الرفع التلقائي (اختيارية): إن لم تُضبط يُتخطّى الرفع ويبقى فرع deploy فقط
+    env:
+      SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+      SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+      SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+      SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      APP_DIR: ${{ secrets.DEPLOY_APP_DIR }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -45,3 +52,36 @@ jobs:
           git add -f public/build
           git commit -m "build assets for ${GITHUB_SHA::7}" 
           git push --force origin deploy
+
+      # ───── رفع تلقائي لـ public/build إلى السيرفر (يعمل فقط إن ضُبطت الأسرار) ─────
+      # يرفع إلى public/build_new ثم يبدّل المجلدين (الاحتفاظ بالقديم في build_old للتراجع) ويمسح كاش العروض.
+      # لا يلمس الكود ولا قاعدة البيانات ولا .env.
+      - name: Upload build to server
+        if: env.SSH_HOST != '' && env.SSH_KEY != ''
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT || 22 }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          source: "public/build/*"
+          target: "${{ env.APP_DIR || 'httpdocs' }}/public/build_new"
+          strip_components: 2
+          rm: true
+
+      - name: Swap build and clear view cache
+        if: env.SSH_HOST != '' && env.SSH_KEY != ''
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT || 22 }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ env.APP_DIR || 'httpdocs' }}"
+            test -f public/build_new/manifest.json
+            rm -rf public/build_old
+            [ -d public/build ] && mv public/build public/build_old
+            mv public/build_new public/build
+            php artisan view:clear
