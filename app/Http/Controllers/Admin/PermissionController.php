@@ -88,6 +88,7 @@ class PermissionController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateMatrix($request);
+        $this->guardGrant($validated);
         $scope = $this->scopeFromRequest($validated);
 
         $count = 0;
@@ -132,6 +133,7 @@ class PermissionController extends Controller
     public function update(Request $request, Permission $permission)
     {
         $validated = $this->validateMatrix($request);
+        $this->guardGrant($validated);
         $scope = $this->scopeFromRequest($validated);
 
         $count = 0;
@@ -213,6 +215,57 @@ class PermissionController extends Controller
             'project_id' => 'nullable|exists:projects,id',
             'cohort_id' => 'nullable|exists:cohorts,id',
         ]);
+    }
+
+    /*
+     * ضوابط منح الصلاحيات (W4) — لغير السوبر-أدن:
+     *  - لا يعدّل صلاحيات حسابه الخاص (منع التصعيد الذاتي).
+     *  - لا يمنح على حسابات السوبر-أدن.
+     *  - لا يمنح صلاحيات على موديلات الإدارة العليا (مستخدمون/صلاحيات/مجموعات).
+     */
+    private function guardGrant(array $validated): void
+    {
+        $actor = auth()->user();
+
+        if ($actor->type === 'super-admin') {
+            return;
+        }
+
+        $metaModels = ['App\\Models\\User', 'App\\Models\\Admin\\Permission', 'App\\Models\\Admin\\Group'];
+        $models = PermissionModelCatalog::all();
+
+        foreach ($validated['rows'] as $rowIndex => $row) {
+            if ($row['assign_to'] === 'user') {
+                if ((int) $row['user_id'] === (int) $actor->id) {
+                    abort(403, 'لا يمكنك تعديل صلاحيات حسابك الخاص.');
+                }
+
+                if (User::find($row['user_id'])?->type === 'super-admin') {
+                    abort(403, 'لا يمكن منح الصلاحيات مباشرة لحساب سوبر-أدن.');
+                }
+            }
+
+            foreach ($validated['perms'][$rowIndex] ?? [] as $modelKey => $cell) {
+                if (!is_array($cell)) {
+                    continue;
+                }
+
+                $active = array_filter(
+                    ['can_view', 'can_create', 'can_edit', 'can_delete'],
+                    fn($flag) => filter_var($cell[$flag] ?? false, FILTER_VALIDATE_BOOL)
+                );
+
+                if (!$active) {
+                    continue;
+                }
+
+                $model = $models[$modelKey]['model'] ?? null;
+
+                if ($model !== null && in_array($model, $metaModels, true)) {
+                    abort(403, "لا يمكنك منح صلاحيات على موديلات الإدارة العليا ({$model}) — مخصصة للسوبر-أدن.");
+                }
+            }
+        }
     }
 
     private function scopeFromRequest(array $validated): array

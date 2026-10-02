@@ -40,6 +40,7 @@ use App\Http\Controllers\Admin\PortalController;
 use App\Http\Controllers\Admin\EventCardController;
 use App\Http\Controllers\Admin\ProjectTaskController;
 use App\Http\Controllers\Admin\ProjectActivityController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\Tech\TechController;
 use App\Http\Controllers\Admin\Tech\TechEquipmentController;
 use App\Http\Controllers\Admin\Tech\TechIssueController;
@@ -240,6 +241,16 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::resource('groups', GroupController::class)->except(['show']);
         Route::resource('cohorts', CohortController::class)->except(['show']);
         Route::resource('permissions', PermissionController::class)->except(['show']);
+
+        // الأدوار والنطاقات (نظام الأدوار §17) — منح الأدوار مع تحديد المركز/المشروع/الفوج
+        Route::prefix('roles')->name('roles.')->group(function () {
+            Route::get('/', [RoleController::class, 'index'])->name('index');
+            Route::get('assign', [RoleController::class, 'assign'])->name('assign');
+            Route::post('/', [RoleController::class, 'store'])->name('store');
+            Route::get('{group}/{user}/edit', [RoleController::class, 'edit'])->name('edit');
+            Route::put('{group}/{user}', [RoleController::class, 'update'])->name('update');
+            Route::delete('{group}/{user}', [RoleController::class, 'destroy'])->name('destroy');
+        });
 
         // Audit Log
         Route::get('audit-logs', [AuditController::class, 'index'])->name('audit-logs.index');

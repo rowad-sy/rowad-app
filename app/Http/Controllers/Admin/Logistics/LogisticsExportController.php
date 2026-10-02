@@ -15,6 +15,16 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class LogisticsExportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,view')->only(['exportPurchaseRequests']);
+        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,create')->only(['importPurchaseRequests']);
+        $this->middleware('permission:App\Models\Admin\Logistics\Warehouse,view')->only(['exportWarehouses']);
+        $this->middleware('permission:App\Models\Admin\Logistics\Warehouse,create')->only(['importWarehouses']);
+        $this->middleware('permission:App\Models\Admin\Logistics\Asset,view')->only(['exportAssets']);
+        $this->middleware('permission:App\Models\Admin\Logistics\Asset,create')->only(['importAssets']);
+    }
+
     public function exportPurchaseRequests()
     {
         return Excel::download(PurchaseRequestExport::all(), 'purchase_requests.xlsx');

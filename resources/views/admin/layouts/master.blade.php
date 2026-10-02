@@ -89,6 +89,11 @@
                     <i class="bi bi-people"></i> <span>المجموعات</span>
                 </a>
                 @endcanPermission
+                @canPermission('App\Models\Admin\Group', 'view')
+                <a href="{{ route('admin.roles.index') }}" class="nav-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
+                    <i class="bi bi-briefcase"></i> <span>الأدوار والنطاقات</span>
+                </a>
+                @endcanPermission
                 @canPermission('App\Models\Admin\Permission', 'view')
                 <a href="{{ route('admin.permissions.index') }}" class="nav-link {{ request()->routeIs('admin.permissions.*') ? 'active' : '' }}">
                     <i class="bi bi-shield-check"></i> <span>الصلاحيات</span>

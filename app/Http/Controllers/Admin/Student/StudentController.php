@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Student;
 
 use App\Http\Controllers\Controller;
+use App\Helpers\PermissionHelper;
 use App\Models\Admin\Center;
 use App\Models\Admin\Project;
 use App\Models\Admin\Student\Course;
@@ -19,6 +20,44 @@ class StudentController extends Controller
         $this->middleware('permission:App\Models\Admin\Student\Student,view')->only(['checkIdentity']);
         $this->middleware('permission:App\Models\Admin\Student\Student,edit')->only(['edit', 'update']);
         $this->middleware('permission:App\Models\Admin\Student\Student,delete')->only(['destroy']);
+    }
+
+    /*
+     * حماية السجل المحدد (إغلاق IDOR — W2): لا يكفي أن يملك المستخدم صلاحية
+     * على موديل الطلاب — يجب أن يقع الطالب نفسه داخل نطاقه.
+     */
+    private function assertRecordAccess(string $action, Student $student): void
+    {
+        abort_unless(
+            PermissionHelper::canAccessRecord(auth()->user(), Student::class, $action, $student),
+            403,
+            'ليس لديك صلاحية الوصول إلى هذا الطالب ضمن نطاقك'
+        );
+    }
+
+    /*
+     * التأكد أن قيم النطاق المرسلة في نموذج الإضافة تقع داخل نطاق الصلاحية.
+     */
+    private function assertSubmittedScope(array $data, string $action = 'can_create'): void
+    {
+        $scope = PermissionHelper::getEffectiveScope(auth()->user(), Student::class, $action);
+
+        if ($scope['sees_all']) {
+            return;
+        }
+
+        foreach (['center_id' => 'center_ids', 'project_id' => 'project_ids', 'cohort_id' => 'cohort_ids'] as $column => $key) {
+            $value = $data[$column] ?? null;
+            if ($value !== null && !empty($scope[$key]) && !in_array((int) $value, array_map('intval', $scope[$key]), true)) {
+                abort(403, 'النطاق المرسل (مركز/مشروع/فوج) خارج نطاق صلاحياتك');
+            }
+        }
+
+        foreach ($data['project_ids'] ?? [] as $projectId) {
+            if (!empty($scope['project_ids']) && !in_array((int) $projectId, array_map('intval', $scope['project_ids']), true)) {
+                abort(403, 'لا يمكنك ربط الطلاب بمشاريع خارج نطاقك');
+            }
+        }
     }
 
     public function index(Request $request)
@@ -89,12 +128,14 @@ class StudentController extends Controller
 
     public function create(Request $request)
     {
-        $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $scope = PermissionHelper::getEffectiveScope(auth()->user(), Student::class);
+
+        $centers = Center::when(!$scope['sees_all'] && !empty($scope['center_ids']), fn($q) => $q->whereIn('id', $scope['center_ids']))->orderBy('name')->get();
+        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->orderBy('name')->get();
         $users = User::orderBy('name')->get();
         $courses = \App\Models\Admin\Student\Course::with('project')->orderBy('name_ar')->get();
         $periods = \App\Models\Admin\Student\Period::orderBy('name_ar')->get();
-        $cohorts = \App\Models\Admin\Cohort::with('project')->orderBy('name')->get();
+        $cohorts = \App\Models\Admin\Cohort::when(!$scope['sees_all'] && !empty($scope['cohort_ids']), fn($q) => $q->whereIn('id', $scope['cohort_ids']))->with('project')->orderBy('name')->get();
 
         // Default center/project from current user's employee record
         $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();
@@ -110,6 +151,19 @@ class StudentController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->filled('student_code')) {
+            $trashedTwin = Student::onlyTrashed()->where('student_code', $request->input('student_code'))->first();
+            if ($trashedTwin) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'student_code' => 'هذا الكود يعود لطالبة/طالب محذوف سابقاً ('
+                            . $trashedTwin->first_name_ar . ' ' . $trashedTwin->last_name_ar
+                            . '). لا يمكن إنشاء سجل جديد بنفس الكود — استعِد السجل المحذوف أولاً أو احذفه نهائياً.',
+                    ]);
+            }
+        }
+
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
             'student_code' => 'required|string|max:20|unique:students,student_code',
@@ -145,6 +199,8 @@ class StudentController extends Controller
             'enrollments.*.grade' => 'nullable|numeric|min:0|max:100',
         ]);
 
+        $this->assertSubmittedScope($validated);
+
         $student = Student::create($validated);
 
         if ($request->has('sync_project_ids')) {
@@ -169,6 +225,8 @@ class StudentController extends Controller
 
     public function edit(Student $student)
     {
+        $this->assertRecordAccess('edit', $student);
+
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $users = User::orderBy('name')->get();
@@ -183,6 +241,8 @@ class StudentController extends Controller
 
     public function update(Request $request, Student $student)
     {
+        $this->assertRecordAccess('edit', $student);
+
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
             'student_code' => 'required|string|max:20|unique:students,student_code,' . $student->id,
@@ -218,6 +278,8 @@ class StudentController extends Controller
             'enrollments.*.grade' => 'nullable|numeric|min:0|max:100',
         ]);
 
+        $this->assertSubmittedScope($validated, 'can_edit');
+
         $student->update($validated);
 
         if ($request->has('sync_project_ids')) {
@@ -249,9 +311,9 @@ class StudentController extends Controller
 
     public function show(Student $student)
     {
-        // Allow if user has permission OR is the student owner
-        if (!\App\Helpers\PermissionHelper::can(auth()->user(), 'App\Models\Admin\Student\Student', 'view') && auth()->id() !== $student->user_id) {
-            abort(403, 'ليس لديك صلاحية للوصول إلى هذه الصفحة');
+        // Allow if user has scoped permission on THIS student, OR is the student owner
+        if (auth()->id() !== $student->user_id) {
+            $this->assertRecordAccess('view', $student);
         }
 
         $student->load(['center', 'project', 'projects', 'user', 'enrollments.course', 'enrollments.period', 'certificates.design', 'certificates.enrollment.course']);
@@ -272,6 +334,8 @@ class StudentController extends Controller
 
     public function createUser(Student $student)
     {
+        $this->assertRecordAccess('create', $student);
+
         if ($student->user_id) {
             return redirect()->route('admin.students.show', $student)
                 ->with('error', 'الطالب لديه حساب مستخدم بالفعل');
@@ -349,6 +413,9 @@ class StudentController extends Controller
             'project_ids.*' => 'exists:projects,id',
         ]);
 
+        $this->assertRecordAccess('create', $student);
+        $this->assertSubmittedScope(['project_ids' => $request->input('project_ids', [])], 'can_create');
+
         foreach ($request->project_ids as $projectId) {
             $existing = \DB::table('project_student')
                 ->where('project_id', $projectId)
@@ -376,7 +443,13 @@ class StudentController extends Controller
 
     public function destroy(Request $request, Student $student)
     {
+        $this->assertRecordAccess('delete', $student);
+
         $projectId = $request->input('project_id');
+
+        if ($projectId) {
+            $this->assertSubmittedScope(['project_id' => (int) $projectId], 'can_delete');
+        }
 
         if (!$projectId) {
             $userEmployee = \App\Models\Admin\Hr\Employee::where('user_id', auth()->id())->first();

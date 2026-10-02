@@ -4,6 +4,7 @@ namespace App\Helpers;
 
 use App\Models\Admin\Permission;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /*
@@ -87,9 +88,10 @@ class PermissionHelper
      *   إذا كان للمستخدم صلاحية على Student مع center_id=5
      *   → يرجع ['center_ids' => [5], 'project_ids' => [], 'cohort_ids' => [], 'sees_all' => false]
      *
+     * @param string $flag أي علم يُبنى عليه النطاق (افتراضياً can_view — للعرض)
      * @return array{center_ids: array, project_ids: array, cohort_ids: array, sees_all: bool}
      */
-    public static function getEffectiveScope(User $user, string $modelName): array
+    public static function getEffectiveScope(User $user, string $modelName, string $flag = 'can_view'): array
     {
         if ($user->type === 'super-admin') {
             return [
@@ -108,7 +110,7 @@ class PermissionHelper
         $seesAll = false;
 
         foreach ($permissions as $permission) {
-            if (!$permission->can_view) {
+            if (!$permission->$flag) {
                 continue;
             }
 
@@ -141,22 +143,54 @@ class PermissionHelper
     }
 
     /*
-     * الحصول على جميع صلاحيات المستخدم (المباشرة + من المجموعات)
+     * التحقق من صلاحية على **سجل محدد** (إغلاق ثغرة IDOR — W2).
+     *
+     * لا تكفي can() وحدها: هي تسأل "هل توجد أي صلاحية للفعل على الموديل؟"
+     * بينما هنا نتأكد أن السجل نفسه يقع داخل نطاق صلاحيات الفعل المطلوبة.
+     *
+     * مثال: دور "مدير مشروع" بنطاق project_id=3 ⇒ يستطيع تعديل طلاب مشروع 3 فقط.
      */
-    private static function getUserPermissions(User $user, string $modelName): Collection
+    public static function canAccessRecord(User $user, string $modelName, string $action, Model $record): bool
     {
-        // صلاحيات المستخدم المباشرة
-        $directPermissions = Permission::where('user_id', $user->id)
-            ->whereJsonContains('model_names', $modelName)
-            ->get();
+        if ($user->type === 'super-admin') {
+            return true;
+        }
 
-        // صلاحيات المجموعات التي ينتمي إليها المستخدم
-        $groupIds = $user->groups()->pluck('groups.id');
-        $groupPermissions = Permission::whereIn('group_id', $groupIds)
-            ->whereJsonContains('model_names', $modelName)
-            ->get();
+        if (!self::can($user, $modelName, $action)) {
+            return false;
+        }
 
-        return $directPermissions->concat($groupPermissions);
+        $scope = self::getEffectiveScope($user, $modelName, 'can_' . $action);
+
+        if ($scope['sees_all']) {
+            return true;
+        }
+
+        foreach (['center_id' => 'center_ids', 'project_id' => 'project_ids', 'cohort_id' => 'cohort_ids'] as $column => $key) {
+            $value = $record->getAttribute($column);
+
+            // السجل غير محصور بهذا المحور، أو الصلاحية غير مقيّدة به ⇒ لا رفض من هذا المحور
+            if ($value === null || empty($scope[$key])) {
+                continue;
+            }
+
+            $allowed = array_map('intval', $scope[$key]);
+
+            if (in_array((int) $value, $allowed, true)) {
+                continue;
+            }
+
+            // حالة خاصة: الطلاب المرتبطون بمشاريع عبر جدول project_student فقط
+            if ($column === 'project_id'
+                && method_exists($record, 'projects')
+                && $record->projects()->whereIn('projects.id', $scope['project_ids'])->exists()) {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     /*
@@ -166,5 +200,55 @@ class PermissionHelper
     public static function canViewPage(User $user, string $routeName): bool
     {
         return self::can($user, 'page:' . $routeName, 'view');
+    }
+
+    /*
+     * الحصول على جميع صلاحيات المستخدم (المباشرة + من المجموعات)
+     *
+     * صلاحيات المجموعات تمر بمرحلة "حلّ النطاق" (نظام الأدوار §17):
+     * المجموعة تعرّف "ماذا" (الموديلات والأعلام) والعضوية (group_user) تعرّف "أين"
+     * (مركز/مشروع/فوج). نطاق العضوية يسود عند التعارض، ويسقط لنطاق سجل المجموعة
+     * عند غيابها — وهو سلوك متوافق خلفياً مع السجلات القديمة.
+     */
+    private static function getUserPermissions(User $user, string $modelName): Collection
+    {
+        // صلاحيات المستخدم المباشرة
+        $directPermissions = Permission::where('user_id', $user->id)
+            ->whereJsonContains('model_names', $modelName)
+            ->get();
+
+        // صلاحيات المجموعات التي ينتمي إليها المستخدم (مع نطاقات العضوية من الـ pivot)
+        $memberships = $user->groups()->get();
+        $groupIds = $memberships->pluck('id');
+
+        $groupPermissions = $groupIds->isEmpty()
+            ? new Collection()
+            : Permission::whereIn('group_id', $groupIds)
+                ->whereJsonContains('model_names', $modelName)
+                ->get()
+                ->map(function (Permission $permission) use ($memberships) {
+                    $membership = $memberships->firstWhere('id', $permission->group_id);
+                    return $membership ? self::applyMembershipScope($permission, $membership) : $permission;
+                });
+
+        return $directPermissions->concat($groupPermissions);
+    }
+
+    /*
+     * دمج نطاق العضوية مع نطاق سجل صلاحية المجموعة (نطاق العضوية أعلى أسبقية).
+     * يعيد نسخة محلول بها النطاق — النسخة غير قابلة للحفظ ولا تُستخدم إلا للقراءة.
+     */
+    private static function applyMembershipScope(Permission $permission, Model $membership): Permission
+    {
+        $resolved = clone $permission;
+
+        foreach (['center_id', 'project_id', 'cohort_id'] as $column) {
+            $pivotValue = $membership->pivot->{$column} ?? null;
+            if ($pivotValue !== null) {
+                $resolved->setAttribute($column, $pivotValue);
+            }
+        }
+
+        return $resolved;
     }
 }

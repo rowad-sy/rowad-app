@@ -35,6 +35,18 @@ class GroupController extends Controller
         return view('admin.groups.form', compact('users'));
     }
 
+    /*
+     * منع الالتحاق الذاتي بالمجموعات لغير السوبر-أدن (W4):
+     * المجموعة قد تحمل صلاحيات — إضافتك لنفسك إليها = منح صلاحيات لنفسك.
+     * المنح المشروع يتم من شاشة "الأدوار والنطاقات" أو شاشة الصلاحيات للمجموعات.
+     */
+    private function assertNoSelfEnrollment(array $userIds): void
+    {
+        if (auth()->user()->type !== 'super-admin' && in_array((int) auth()->id(), array_map('intval', $userIds), true)) {
+            abort(403, 'لا يمكنك إضافة نفسك إلى مجموعة — اطلب من مشرف أعلى منحك الدور من شاشة الأدوار.');
+        }
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -43,6 +55,8 @@ class GroupController extends Controller
             'users' => 'nullable|array',
             'users.*' => 'exists:users,id',
         ]);
+
+        $this->assertNoSelfEnrollment($validated['users'] ?? []);
 
         $group = Group::create([
             'name' => $validated['name'],
@@ -76,14 +90,31 @@ class GroupController extends Controller
             'users.*' => 'exists:users,id',
         ]);
 
+        $newIds = array_map('intval', $validated['users'] ?? []);
+        $this->assertNoSelfEnrollment($newIds);
+
         $group->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
         ]);
 
-        $oldIds = $group->users()->pluck('users.id')->toArray();
-        $group->users()->sync($validated['users'] ?? []);
-        $newIds = $group->users()->pluck('users.id')->toArray();
+        $oldIds = $group->users()->pluck('users.id')->map(fn($id) => (int) $id)->all();
+
+        /*
+         * دمج بالفروق (diff) بدل sync() — لأن sync تحذف صفوف الـ pivot وتعيد
+         * إنشاءها فيمحو نطاق العضوية (نظام الأدوار §17) المسجل عليها.
+         */
+        $toDetach = array_values(array_diff($oldIds, $newIds));
+        $toAttach = array_values(array_diff($newIds, $oldIds));
+
+        if ($toDetach) {
+            $group->users()->detach($toDetach);
+        }
+
+        if ($toAttach) {
+            $group->users()->attach($toAttach);
+        }
+
         AuditLogger::logPivot($group, 'users', $oldIds, $newIds, "تحديث مستخدمي المجموعة {$group->name}");
 
         return redirect()->route('admin.groups.index')

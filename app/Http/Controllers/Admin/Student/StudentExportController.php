@@ -4,26 +4,65 @@ namespace App\Http\Controllers\Admin\Student;
 
 use App\Exports\Students\StudentExport;
 use App\Exports\Students\StudentFullExport;
+use App\Helpers\PermissionHelper;
 use App\Imports\Students\StudentImport;
 use App\Imports\Students\StudentFullImport;
 use App\Http\Controllers\Controller;
+use App\Models\Admin\Student\Student;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StudentExportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:App\Models\Admin\Student\Student,view')->only(['export', 'exportFull']);
+        $this->middleware('permission:App\Models\Admin\Student\Student,create')->only(['import', 'importFull']);
+    }
+
+    /*
+     * المعرّفات المسموح تصديرها حسب نطاق الصلاحية — null تعني "كل السجلات".
+     * تُستخدم inProjects() لاحترام جدول project_student (الوسيط المعتمد فعلياً).
+     */
+    private function allowedStudentIds(): ?array
+    {
+        $scope = PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Student');
+
+        if ($scope['sees_all']) {
+            return null;
+        }
+
+        return Student::query()
+            ->when(!empty($scope['center_ids']), fn($q) => $q->whereIn('center_id', $scope['center_ids']))
+            ->when(!empty($scope['project_ids']), fn($q) => $q->inProjects($scope['project_ids']))
+            ->when(!empty($scope['cohort_ids']), fn($q) => $q->whereIn('cohort_id', $scope['cohort_ids']))
+            ->pluck('id')->map(fn($id) => (int) $id)->all();
+    }
+
+    private function resolveIds(Request $request): ?array
+    {
+        $ids = $request->input('ids') ? array_map('intval', (array) $request->input('ids')) : null;
+        $allowed = $this->allowedStudentIds();
+
+        if ($allowed === null) {
+            return $ids;
+        }
+
+        return $ids ? array_values(array_intersect($ids, $allowed)) : $allowed;
+    }
+
     public function export(Request $request)
     {
-        $ids = $request->input('ids');
-        $export = $ids ? StudentExport::fromIds($ids) : StudentExport::all();
+        $ids = $this->resolveIds($request);
+        $export = $ids === null ? StudentExport::all() : StudentExport::fromIds($ids ?: [-1]);
         return Excel::download($export, 'students.xlsx');
     }
 
     public function exportFull(Request $request)
     {
-        $ids = $request->input('ids');
-        $export = new StudentFullExport($ids ?: null);
+        $ids = $this->resolveIds($request);
+        $export = new StudentFullExport($ids === null ? null : ($ids ?: [-1]));
         return Excel::download($export, 'students_full.xlsx');
     }
 

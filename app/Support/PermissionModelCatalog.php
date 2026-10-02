@@ -83,6 +83,8 @@ class PermissionModelCatalog
             ],
             'الصفحات' => [
                 'page:admin.logistics.statistics' => 'إحصائيات اللوجستي',
+                'page:admin.projects-manager.dashboard' => 'لوحة مديري المشاريع',
+                'App\Models\Admin\Logistics\WarehouseItem' => 'أصناف المخزن',
             ],
         ];
     }

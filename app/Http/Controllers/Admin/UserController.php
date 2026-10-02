@@ -17,10 +17,28 @@ class UserController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\User,view')->only(['index']);
-        $this->middleware('permission:App\Models\User,create')->only(['create', 'store']);
-        $this->middleware('permission:App\Models\User,edit')->only(['edit', 'update']);
+        $this->middleware('permission:App\Models\User,view')->only(['index', 'export']);
+        $this->middleware('permission:App\Models\User,create')->only(['create', 'store', 'import']);
+        $this->middleware('permission:App\Models\User,edit')->only(['edit', 'update', 'toggleStatus']);
         $this->middleware('permission:App\Models\User,delete')->only(['destroy']);
+    }
+
+    /*
+     * حارس super-admin (W3): حسابات super-admin وتعيينها لا يلمسها إلا super-admin نفسه.
+     */
+    private function assertSuperAdminAllowed(User $target = null, ?string $requestedType = null): void
+    {
+        if (auth()->user()->type === 'super-admin') {
+            return;
+        }
+
+        if ($target && $target->type === 'super-admin') {
+            abort(403, 'لا يمكن تعديل حسابات السوبر-أدن إلا من حساب سوبر-أدن.');
+        }
+
+        if ($requestedType === 'super-admin') {
+            abort(403, 'لا يمكن تعيين نوع "سوبر-أدن" لأي حساب إلا من حساب سوبر-أدن.');
+        }
     }
 
     public function index(Request $request)
@@ -100,6 +118,8 @@ class UserController extends Controller
         $validated['is_active'] = false;
         $validated['must_change_password'] = true;
 
+        $this->assertSuperAdminAllowed(null, $validated['type'] ?? null);
+
         $user = User::create($validated);
 
         $this->linkRecord($user, $validated);
@@ -110,6 +130,8 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        $this->assertSuperAdminAllowed($user);
+
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $jobTitles = JobPosition::orderBy('title_ar')->get();
@@ -119,6 +141,8 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        $this->assertSuperAdminAllowed($user);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
@@ -140,6 +164,8 @@ class UserController extends Controller
             $validated['activation_email_sent_at'] = null;
             $validated['activation_email_count'] = 0;
         }
+
+        $this->assertSuperAdminAllowed(null, $validated['type'] ?? null);
 
         // Unlink old record if type changed
         $oldType = $user->getOriginal('type');
@@ -188,6 +214,8 @@ class UserController extends Controller
 
     public function toggleStatus(User $user)
     {
+        $this->assertSuperAdminAllowed($user);
+
         $user->update(['is_active' => !$user->is_active]);
 
         return redirect()->route('admin.users.index')
