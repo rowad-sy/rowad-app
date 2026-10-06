@@ -13,6 +13,7 @@ use App\Support\PermissionModelCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Validation\ValidationException;
 
 class PermissionController extends Controller
 {
@@ -66,6 +67,27 @@ class PermissionController extends Controller
             })
             ->values();
 
+        $counts = [
+            'all' => $entities->count(),
+            'user' => $entities->where('is_user', true)->count(),
+            'role' => $entities->filter(fn($e) => !$e['is_user'] && $e['group'] && $e['group']->isRole())->count(),
+            'group' => $entities->filter(fn($e) => !$e['is_user'] && $e['group'] && !$e['group']->isRole())->count(),
+        ];
+
+        $entityFilter = in_array($request->input('entity'), ['user', 'role', 'group'], true)
+            ? $request->input('entity')
+            : 'all';
+
+        if ($entityFilter === 'user') {
+            $entities = $entities->where('is_user', true);
+        } elseif ($entityFilter === 'role') {
+            $entities = $entities->filter(fn($e) => !$e['is_user'] && $e['group'] && $e['group']->isRole());
+        } elseif ($entityFilter === 'group') {
+            $entities = $entities->filter(fn($e) => !$e['is_user'] && $e['group'] && !$e['group']->isRole());
+        }
+
+        $entities = $entities->values();
+
         $page = max(1, (int) $request->query('page', 1));
         $perPage = 10;
 
@@ -77,7 +99,7 @@ class PermissionController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        return view('admin.permissions.index', compact('permissions', 'search'));
+        return view('admin.permissions.index', compact('permissions', 'search', 'entityFilter', 'counts'));
     }
 
     public function create()
@@ -89,7 +111,14 @@ class PermissionController extends Controller
     {
         $validated = $this->validateMatrix($request);
         $this->guardGrant($validated);
-        $scope = $this->scopeFromRequest($validated);
+
+        /*
+         * الترتيبة v2: شاشة الصلاحيات لا تحمل نطاقات إطلاقاً —
+         * التعيين هنا «ماذا» (موديلات + أعلام)، و«أين» يُقرَّر وقت إسناد الدور
+         * في /admin/roles أو شاشة المستخدم. السجلات القديمة الحاملة لنطاق
+         * تبقى محترمة حتى تُنقَّى (أمر permissions:audit-scopes).
+         */
+        $scope = ['center_id' => null, 'project_id' => null, 'cohort_id' => null];
 
         $count = 0;
         foreach ($validated['rows'] as $rowIndex => $row) {
@@ -120,7 +149,7 @@ class PermissionController extends Controller
         ];
 
         $data['rows'][] = [
-            'assign_to' => $isUser ? 'user' : 'group',
+            'assign_to' => $isUser ? 'user' : ($permission->group?->isRole() ? 'role' : 'group'),
             'user_id' => $isUser ? $entityId : null,
             'group_id' => $isUser ? null : $entityId,
             'label' => $isUser ? ($permission->user?->name ?? 'مستخدم') : ($permission->group?->name ?? 'مجموعة'),
@@ -134,7 +163,13 @@ class PermissionController extends Controller
     {
         $validated = $this->validateMatrix($request);
         $this->guardGrant($validated);
-        $scope = $this->scopeFromRequest($validated);
+
+        /*
+         * الترتيبة v2: النطاق لا يُقرأ من الطلب بعد الآن —
+         * يُورَّث من السجل المسند نفسه (grandfathered) حتى لا تفقد
+         * منحٌ قديمة حملت نطاقاً ذلك النطاقَ عند أي تعديل.
+         */
+        $scope = $this->scopeFromRecord($permission);
 
         $count = 0;
         foreach ($validated['rows'] as $rowIndex => $row) {
@@ -188,7 +223,7 @@ class PermissionController extends Controller
     {
         return [
             'users' => User::orderBy('name')->get(),
-            'groups' => Group::orderBy('name')->get(),
+            'groups' => Group::orderByDesc('kind')->orderBy('name')->get(), // الأدوار (role > group alphabetically) أولاً
             'centers' => Center::orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'cohorts' => Cohort::with('project')->orderBy('name')->get(),
@@ -205,16 +240,40 @@ class PermissionController extends Controller
 
     private function validateMatrix(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'rows' => 'required|array|min:1',
-            'rows.*.assign_to' => 'required|in:user,group',
+            'rows.*.assign_to' => 'required|in:user,group,role',
             'rows.*.user_id' => 'required_if:rows.*.assign_to,user|nullable|exists:users,id',
-            'rows.*.group_id' => 'required_if:rows.*.assign_to,group|nullable|exists:groups,id',
+            'rows.*.group_id' => 'required_if:rows.*.assign_to,group,role|nullable|exists:groups,id',
             'perms' => 'nullable|array',
-            'center_id' => 'nullable|exists:centers,id',
-            'project_id' => 'nullable|exists:projects,id',
-            'cohort_id' => 'nullable|exists:cohorts,id',
         ]);
+
+        /*
+         * مطابقة النوع: «دور» يجب أن يشيّر على kind=role و«مجموعة» على kind=group —
+         * يمنع الخلط البصري بين النوعين في نفس قائمة الاختيار.
+         */
+        if (!empty($validated['rows'])) {
+            $groups = Group::whereIn('id', collect($validated['rows'])->pluck('group_id')->filter()->all())->get()->keyBy('id');
+
+            foreach ($validated['rows'] as $index => $row) {
+                $assignTo = $row['assign_to'] ?? '';
+                $group = $groups->get($row['group_id'] ?? null);
+
+                if ($group && $assignTo === 'role' && !$group->isRole()) {
+                    throw ValidationException::withMessages([
+                        "rows.$index.group_id" => 'العنصر المحدد «مجموعة» وليست دوراً — غيّر النوع أو اختر دوراً.',
+                    ]);
+                }
+
+                if ($group && $assignTo === 'group' && $group->isRole()) {
+                    throw ValidationException::withMessages([
+                        "rows.$index.group_id" => 'العنصر المحدد «دور» وليس مجموعة — استخدم نوع «دور».',
+                    ]);
+                }
+            }
+        }
+
+        return $validated;
     }
 
     /*

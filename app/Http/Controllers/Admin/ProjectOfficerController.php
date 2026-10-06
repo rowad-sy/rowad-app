@@ -43,10 +43,10 @@ class ProjectOfficerController extends Controller
             ->where('user_id', auth()->id());
 
         $myRequestsCount = (clone $myRequests)->count();
-        $myPendingPricing = (clone $myRequests)->where('status', 'pending')->count();
-        $myPriced = (clone $myRequests)->where('status', 'priced')->count();
+        $myPendingPricing = (clone $myRequests)->where('status', 'review')->count();
+        $myPriced = (clone $myRequests)->where('status', 'approved1')->count();
         $myInCycle = (clone $myRequests)
-            ->whereIn('status', ['pm_approved', 'pm2_approved'])
+            ->whereIn('status', ['approved1', 'approved2', 'approved'])
             ->count();
         $myApproved = (clone $myRequests)->where('status', 'approved')->count();
         $myRejected = (clone $myRequests)->where('status', 'rejected')->count();

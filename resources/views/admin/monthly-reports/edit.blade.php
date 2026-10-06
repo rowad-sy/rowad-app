@@ -22,9 +22,33 @@
 <div class="alert alert-danger"><i class="bi bi-x-circle"></i> التقرير <strong>مرفوض</strong> — راجع ملاحظة الرفض في صفحة العرض ثم أعد التعبئة. الأقسام مقفلة حتى تُعاد الفتح.</div>
 @endif
 
-<form method="POST" action="{{ route('admin.monthly-reports.update', $report) }}">
+<form method="POST" enctype="multipart/form-data" action="{{ route('admin.monthly-reports.update', $report) }}">
     @csrf
     @method('PUT')
+
+    <div class="table-container mb-3">
+        <div class="p-3">
+            <div class="row align-items-center g-3">
+                <div class="col-md-6">
+                    <label class="form-label small mb-1"><i class="bi bi-card-image me-1" aria-hidden="true"></i>غلاف التقرير — صورة A4 عمودية (تُطبع كأول صفحة)</label>
+                    <input type="file" name="cover_image" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm @error('cover_image') is-invalid @enderror">
+                    @error('cover_image') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="form-text">حتى 8 ميغا — الشعار مدمج داخل الغلاف، لذا لا تُطبع فوقه ترويسة الشعار.</div>
+                </div>
+                @if ($report->cover_path)
+                    <div class="col-md-3 text-center">
+                        <img src="{{ asset('storage/'.$report->cover_path) }}" alt="الغلاف الحالي" class="border rounded" style="max-height:130px;object-fit:contain;">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" name="remove_cover" value="1" id="removeCover">
+                            <label class="form-check-label small" for="removeCover">إزالة الغلاف الحالي</label>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
 
     @if ($report->status === 'draft')
     <div class="row align-items-end mb-3">

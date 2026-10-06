@@ -11,17 +11,23 @@
     $isCreator = $uid === (int) $plan->created_by;
     $isDirector = $uid === (int) $plan->refer_to_direct_manager_id;
     $isPm2 = $uid === (int) $plan->refer_to_pm2_id;
-    $isMediaManager = $uid === (int) $plan->refer_to_media_manager_id;
-    $isOfficer = $uid === (int) $plan->refer_to_media_officer_id;
-    $isCurrentHolder = $plan->isCurrentRecipient($uid);
+    $isRowaduna = $uid === (int) $plan->refer_to_rowaduna_id || $plan->activeReferrals()->where('step', 'rowaduna')->where('to_user_id', $uid)->exists();
+    $canReschedule = $isCreator || $isDirector || $isRowaduna;
 
     $statusColors = [
-        'review' => 'warning text-dark', 'manager_approved' => 'info',
-        'pm2_approved' => 'primary', 'media_manager_approved' => 'primary',
-        'executing' => 'primary', 'executed' => 'success', 'rejected' => 'danger',
+        'review' => 'warning text-dark', 'pm2_review' => 'warning text-dark',
+        'manager_approved' => 'info', 'pm2_approved' => 'info',
+        'rowaduna_review' => 'primary', 'in_progress' => 'primary',
+        'executed' => 'success', 'rejected' => 'danger',
     ];
     $statusLabel = \App\Models\Admin\MediaPlan::STATUSES[$plan->status] ?? $plan->status;
     $locked = $plan->isLocked();
+
+    $themeQuery = request('theme') === 'rowaduna' ? ['theme' => 'rowaduna'] : [];
+    $cover = \App\Models\Admin\MediaPlanEvent::COVERAGE_STATUSES;
+    $pub = \App\Models\Admin\MediaPlanEvent::PUBLISH_STATUSES;
+    $platforms = \App\Models\Admin\MediaPlanEvent::PLATFORMS;
+    $reviewerDefault = $plan->refer_to_direct_manager_id ?? $plan->created_by;
 @endphp
 
 @php $tone = (function ($c) { foreach (['success' => 'success', 'danger' => 'danger', 'warning' => 'warning', 'info' => 'info', 'primary' => 'brand'] as $k => $t) { if (str_contains((string) $c, $k)) return $t; } return 'neutral'; })($statusColors[$plan->status] ?? ''); @endphp
@@ -29,6 +35,8 @@
                :breadcrumb="[['label' => 'الخطة الإعلامية', 'url' => route('admin.media-plans.index')], ['label' => $plan->month_date->locale('ar')->translatedFormat('F Y')]]">
     <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ $statusLabel }}</x-status-badge></div></x-slot:meta>
     <x-audit-history :model="'App\Models\Admin\MediaPlan'" :model-id="$plan->id" />
+    <a href="{{ route('admin.media-plans.print', array_merge([$plan], $themeQuery)) }}" class="btn btn-outline-dark" target="_blank"><i class="bi bi-printer me-1"></i> طباعة / PDF</a>
+    <a href="{{ route('admin.media-plans.export', array_merge([$plan], $themeQuery)) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-spreadsheet me-1"></i> تصدير Excel</a>
     @if (! $locked)
         @canPermission('App\Models\Admin\MediaPlan', 'edit')
         <a href="{{ route('admin.media-plans.edit', $plan) }}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> تعديل</a>
@@ -45,7 +53,7 @@
 
 @if ($locked && $plan->locked_at)
 <div class="alert alert-warning py-2 small">
-    <i class="bi bi-lock-fill me-1"></i> الخطة <strong>مقفلة</strong> بعد موافقة المدير المباشر — لا تُعدَّل ولا تُحذف.
+    <i class="bi bi-lock-fill me-1"></i> الخطة <strong>مقفلة</strong> بعد أول موافقة — لا تُعدَّل ولا تُحذف.
     <span class="text-muted">(أغلقها {{ $plan->lockedByUser?->name ?? '—' }} بتاريخ {{ $plan->locked_at->format('Y-m-d H:i') }})</span>
 </div>
 @endif
@@ -54,6 +62,10 @@
 <div class="alert alert-danger py-2 small">
     <i class="bi bi-x-circle me-1"></i> <strong>سبب الرفض:</strong> {{ $plan->reason }}
 </div>
+@endif
+
+@if ($errors->any())
+<div class="alert alert-danger py-2 small">{{ $errors->first() }}</div>
 @endif
 
 <div class="row g-3">
@@ -67,12 +79,11 @@
                     <tr><th>المركز</th><td>{{ $plan->center?->name ?? '—' }}</td></tr>
                     <tr><th>المشروع</th><td>{{ $plan->project?->name ?? '—' }}</td></tr>
                     <tr><th>أنشأها</th><td>{{ $plan->creator?->name ?? '—' }}</td></tr>
-                    <tr><th>عهدة الإحالة</th>
+                    <tr><th>عهدة الدورة</th>
                         <td>
-                            المدير المباشر: {{ $plan->directManager?->name ?? '—' }} ·
+                            المدير المباشر: {{ $plan->directManager?->name ?? (in_array($plan->status, ['pm2_review'], true) ? 'تُخطّا (المنشئ هو مدير المشروع)' : '—') }} ·
                             مدير المشاريع: {{ $plan->pm2User?->name ?? '—' }} ·
-                            مدير الإعلام: {{ $plan->mediaManager?->name ?? '—' }} ·
-                            المسؤول الإعلامي: {{ $plan->mediaOfficer?->name ?? '—' }}
+                            <span class="text-danger fw-bold">مسؤول روادنا: {{ $plan->rowadunaUser?->name ?? '—' }}</span>
                         </td>
                     </tr>
                     <tr><th>ملاحظات</th><td>{{ $plan->note ?? '—' }}</td></tr>
@@ -89,7 +100,7 @@
 
         <div class="table-container mt-3">
             <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">فعاليات الخطة ({{ $plan->events->count() }})</h5>
+                <h5 class="mb-0">فعاليات الخطة وخط أنابيب التغطية ({{ $plan->events->count() }})</h5>
                 @if (! $locked)
                 @canPermission('App\Models\Admin\MediaPlan', 'edit')
                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#addEventForm">
@@ -164,16 +175,12 @@
                     <thead class="table-light small">
                         <tr>
                             <th>التاريخ</th>
-                            <th>اليوم</th>
-                            <th>الساعة</th>
-                            <th>المكتب</th>
-                            <th>اسم الفعالية</th>
-                            <th>موقع الفعالية</th>
-                            <th>المسؤول</th>
+                            <th>الفعالية</th>
+                            <th>الموقع/الساعة</th>
                             <th>التغطية</th>
-                            <th>ملخص</th>
-                            <th>تعليقات الإعلامي</th>
-                            <th>التنفيذ</th>
+                            <th>خط الأنابيب</th>
+                            <th>المراسل</th>
+                            <th>حالة النشر</th>
                             @if (! $locked)
                             <th></th>
                             @endif
@@ -184,69 +191,180 @@
                             @php
                                 $conflictKey = $event->event_date->format('Y-m-d') . '|' . $event->event_time;
                                 $isConflict = isset($conflicts[$conflictKey]);
-                                $exStatus = $event->execution_status;
+                                $isEventReporter = $uid === (int) $event->refer_to_reporter_id;
+                                $isEventPublisher = $uid === (int) $event->refer_to_publisher_id;
+                                $isEventReviewer = $uid === (int) $event->refer_to_reviewer_id;
                             @endphp
-                            <tr class="{{ $isConflict ? 'table-danger' : '' }}">
-                                <td>{{ $event->event_date->format('Y-m-d') }}</td>
-                                <td>{{ $event->day ?? '—' }}</td>
-                                <td>{{ substr((string) $event->event_time, 0, 5) }}</td>
-                                <td>{{ $event->office ?? '—' }}</td>
-                                <td class="fw-medium">{{ $event->event_name }}</td>
-                                <td>{{ $event->location ?? '—' }}</td>
-                                <td>{{ $event->responsible?->name ?? '—' }}</td>
-                                <td>{{ $event->coverage_type ?? '—' }}</td>
-                                <td>{{ $event->summary ?? '—' }}</td>
-                                <td>
-                                    @if ($event->comments->count())
-                                        <ul class="list-unstyled small mb-1">
-                                            @foreach ($event->comments as $comment)
-                                                <li class="mb-1">
-                                                    <span class="text-muted">{{ $comment->user?->name ?? '—' }}:</span>
-                                                    {{ $comment->comment }}
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    @else
-                                        <span class="text-muted small">—</span>
+                            <tr id="ev{{ $event->id }}" class="{{ $isConflict ? 'table-danger' : '' }}">
+                                <td class="small">{{ $event->event_date->format('Y-m-d') }}<br><span class="text-muted">{{ $event->day ?? '' }} {{ substr((string) $event->event_time, 0, 5) }}</span></td>
+                                <td class="fw-medium small">
+                                    {{ $event->event_name }}
+                                    @if ($event->coverage_type)<div class="text-muted fw-normal">{{ $event->coverage_type }}</div>@endif
+                                    @if ($event->summary)<div class="text-muted fw-normal">{{ Str::limit($event->summary, 60) }}</div>@endif
+                                </td>
+                                <td class="small">{{ $event->location ?? '—' }}</td>
+                                <td class="small" style="min-width:170px">
+                                    <span class="badge bg-{{ $event->coverage_status === 'covered' ? 'success' : ($event->coverage_status === 'not_covered' ? 'danger' : ($event->coverage_status === 'assigned' ? 'warning text-dark' : 'secondary')) }} d-block mb-1">
+                                        {{ $cover[$event->coverage_status] ?? $event->coverage_status }}
+                                    </span>
+                                    @if ($event->media_items_url)
+                                        <a href="{{ $event->media_items_url }}" target="_blank" class="small"><i class="bi bi-folder2-open me-1"></i>مواد التغطية (درايف)</a>
+                                    @endif
+                                    @if ($event->not_covered_reason)
+                                        <div class="small text-danger mt-1">السبب: {{ $event->not_covered_reason }}</div>
+                                    @endif
+                                    @if ($event->coverage_note)
+                                        <div class="small text-muted">{{ $event->coverage_note }}</div>
                                     @endif
 
-                                    @canPermission('App\Models\Admin\MediaPlan', 'edit')
-                                    <form method="POST" action="{{ route('admin.media-plans.events.comment', $event) }}" class="d-flex gap-1">
+                                    {{-- (أ) مسؤول روادنا: إسناد مراسل --}}
+                                    @if ($isRowaduna && in_array($plan->status, ['rowaduna_review', 'in_progress', 'pm2_approved'], true) && in_array($event->coverage_status, ['pending', 'assigned'], true))
+                                    <form method="POST" action="{{ route('admin.media-plans.events.assign', $event) }}" class="mt-1">
                                         @csrf
-                                        <input type="text" name="comment" class="form-control form-control-sm" placeholder="رأي الإعلامي بالموعد..." required>
+                                        <div class="input-group input-group-sm">
+                                            <select name="reporter_user_id" class="form-select user-picker" required>
+                                                <option value="">إسناد لمراسل…</option>
+                                                @foreach ($users as $u)
+                                                    <option value="{{ $u->id }}" @selected((int) $event->refer_to_reporter_id === (int) $u->id)>{{ $u->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="btn btn-outline-primary"><i class="bi bi-person-check"></i></button>
+                                        </div>
+                                    </form>
+                                    @endif
+
+                                    {{-- (ب) المراسل: سجل التغطية --}}
+                                    @if ($isEventReporter && $event->coverage_status === 'assigned')
+                                    <form method="POST" action="{{ route('admin.media-plans.events.reporter-decide', $event) }}" class="mt-1 border-top pt-1">
+                                        @csrf
+                                        <div class="small fw-bold mb-1">تقرير المراسل:</div>
+                                        <input type="url" name="media_items_url" class="form-control form-control-sm mb-1" placeholder="رابط المواد على جوجل درايف">
+                                        <input type="text" name="coverage_note" class="form-control form-control-sm mb-1" placeholder="ملاحظة التغطية (اختياري)">
+                                        <div class="input-group input-group-sm mb-1">
+                                            <select name="publisher_user_id" class="form-select user-picker">
+                                                <option value="">المونتير/الناشر…</option>
+                                                @foreach ($users as $u)
+                                                    <option value="{{ $u->id }}" @selected((int) ($event->refer_to_publisher_id ?? $tentativeRowadunaId ?? 0) === (int) $u->id)>{{ $u->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="btn btn-success btn-sm" name="decision" value="covered"><i class="bi bi-check-lg"></i> تمت التغطية</button>
+                                        </div>
+                                        <button class="btn btn-outline-danger btn-sm w-100" name="decision" value="not_covered"
+                                                onclick="return confirm('تأكيد تسجيل عدم حدوث التغطية؟ يجب إدخال السبب في حقل السبب أولاً.')">
+                                            <i class="bi bi-x-lg"></i> لم تتم التغطية
+                                        </button>
+                                        <input type="text" name="not_covered_reason" class="form-control form-control-sm mt-1" placeholder="سبب عدم التغطية (إلزامي عند الرفض)">
+                                    </form>
+                                    @endif
+
+                                    {{-- (ج) إعادة جدولة فعالية لم تُغطَّ --}}
+                                    @if ($event->coverage_status === 'not_covered' && $canReschedule && ! in_array($plan->status, ['executed', 'rejected'], true))
+                                    <form method="POST" action="{{ route('admin.media-plans.events.reschedule', $event) }}" class="mt-1 border-top pt-1">
+                                        @csrf
+                                        <div class="small fw-bold mb-1"><i class="bi bi-arrow-repeat me-1"></i>إعادة جدولة:</div>
+                                        <div class="d-flex gap-1 mb-1">
+                                            <input type="date" name="event_date" class="form-control form-control-sm" value="{{ $event->event_date->format('Y-m-d') }}" required>
+                                            <input type="time" name="event_time" class="form-control form-control-sm" value="{{ substr((string) $event->event_time, 0, 5) }}" required>
+                                        </div>
+                                        <div class="input-group input-group-sm">
+                                            <select name="reporter_user_id" class="form-select user-picker" required>
+                                                <option value="">مراسل الموعد الجديد…</option>
+                                                @foreach ($users as $u)
+                                                    <option value="{{ $u->id }}" @selected((int) $event->refer_to_reporter_id === (int) $u->id)>{{ $u->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="btn btn-outline-warning"><i class="bi bi-send"></i></button>
+                                        </div>
+                                    </form>
+                                    @endif
+
+                                    {{-- تعليقات الفريق --}}
+                                    @if ($event->comments->count())
+                                        <ul class="list-unstyled small mb-1 mt-1">
+                                            @foreach ($event->comments as $comment)
+                                                <li class="mb-1"><span class="text-muted">{{ $comment->user?->name ?? '—' }}:</span> {{ $comment->comment }}</li>
+                                            @endforeach
+                                        </ul>
+                                    @endif
+                                    @canPermission('App\Models\Admin\MediaPlan', 'edit')
+                                    <form method="POST" action="{{ route('admin.media-plans.events.comment', $event) }}" class="d-flex gap-1 mt-1">
+                                        @csrf
+                                        <input type="text" name="comment" class="form-control form-control-sm" placeholder="تعليق…">
                                         <button class="btn btn-sm btn-outline-success"><i class="bi bi-chat-dots"></i></button>
                                     </form>
                                     @endcanPermission
                                 </td>
-                                <td style="min-width:150px">
-                                    @if ($exStatus)
-                                        <span class="badge bg-{{ $exStatus === 'executed' ? 'success' : 'danger' }} mb-1 d-block">
-                                            {{ \App\Models\Admin\MediaPlan::EXECUTION_STATUSES[$exStatus] ?? $exStatus }}
-                                        </span>
-                                        <small class="text-muted d-block">{{ $event->executionUser?->name ?? '—' }}
-                                            @if ($event->execution_at) — {{ $event->execution_at->format('Y-m-d') }}@endif
-                                        </small>
-                                        @if ($event->execution_note)
-                                            <small class="text-muted d-block">{{ $event->execution_note }}</small>
-                                        @endif
+                                <td class="small" style="min-width:120px">
+                                    @if ($event->coverage_status === 'covered')
+                                        <div>{{ $event->reporter?->name ?? '—' }}</div>
                                     @else
-                                        <span class="text-muted small">لا يوجد</span>
+                                        <span class="text-muted">{{ $event->reporter?->name ?? 'لم يُسند بعد' }}</span>
+                                    @endif
+                                </td>
+                                <td class="small" style="min-width:190px">
+                                    <span class="badge bg-{{ $event->publish_status === 'published' ? 'success' : ($event->publish_status === 'none' ? 'secondary' : 'info text-dark') }} d-block mb-1">
+                                        {{ $pub[$event->publish_status] ?? $event->publish_status }}
+                                    </span>
+                                    @if ($event->preview_url)
+                                        <a href="{{ $event->preview_url }}" target="_blank" class="small d-block mb-1"><i class="bi bi-play-btn me-1"></i>معاينة (مؤقت)</a>
+                                    @endif
+                                    @if ($event->preview_feedback)
+                                        <div class="small text-warning mb-1"><i class="bi bi-pencil-square me-1"></i>{{ $event->preview_feedback }}</div>
+                                    @endif
+                                    @foreach ($event->publish_links ?? [] as $link)
+                                        <a href="{{ $link['url'] }}" target="_blank" class="small d-block text-success"><i class="bi bi-share me-1"></i>{{ $platforms[$link['platform']] ?? $link['platform'] }}</a>
+                                    @endforeach
+
+                                    {{-- (د) الناشر: نشر مؤقت --}}
+                                    @if ($isEventPublisher && in_array($event->publish_status, ['to_publish', 'rework'], true))
+                                    <form method="POST" action="{{ route('admin.media-plans.events.publisher-preview', $event) }}" class="mt-1 border-top pt-1">
+                                        @csrf
+                                        <div class="small fw-bold mb-1"><i class="bi bi-cloud-upload me-1"></i>نشر مؤقت للمعاينة:</div>
+                                        <input type="url" name="preview_url" class="form-control form-control-sm mb-1" placeholder="رابط النشر المؤقت (فيديو/خبر)" required>
+                                        <div class="input-group input-group-sm">
+                                            <select name="refer_to_reviewer_id" class="form-select user-picker" required>
+                                                <option value="">مراجعة مدير المشروع…</option>
+                                                @foreach ($users as $u)
+                                                    <option value="{{ $u->id }}" @selected((int) ($event->refer_to_reviewer_id ?? $reviewerDefault) === (int) $u->id)>{{ $u->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="btn btn-outline-primary"><i class="bi bi-send"></i></button>
+                                        </div>
+                                    </form>
                                     @endif
 
-                                    @if ($isSuper || $isOfficer)
-                                        @if (! $plan->isLocked() || in_array($plan->status, ['media_manager_approved', 'executing'], true))
-                                        <form method="POST" action="{{ route('admin.media-plans.events.mark', $event) }}" class="mt-1">
-                                            @csrf
-                                            <div class="d-flex gap-1">
-                                                <select name="execution_status" class="form-select form-select-sm" required>
-                                                    <option value="executed" @selected($exStatus === 'executed')>نُفِّذت</option>
-                                                    <option value="not_executed" @selected($exStatus === 'not_executed')>لم تُنفَّذ</option>
-                                                </select>
-                                                <button class="btn btn-sm btn-outline-success" aria-label="موافقة" title="موافقة"><i class="bi bi-check-lg" aria-hidden="true"></i></button>
+                                    {{-- (هـ) مدير المشروع: مراجعة المعاينة --}}
+                                    @if ($isEventReviewer && $event->publish_status === 'to_review')
+                                    <form method="POST" action="{{ route('admin.media-plans.events.reviewer-decide', $event) }}" class="mt-1 border-top pt-1">
+                                        @csrf
+                                        <div class="small fw-bold mb-1">قرار المراجعة:</div>
+                                        <input type="text" name="preview_feedback" class="form-control form-control-sm mb-1" placeholder="ملاحظات الإرجاع (إلزامية عند الإعادة)">
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-success flex-fill" name="decision" value="approve"><i class="bi bi-check-lg"></i> سليم — انشر نهائياً</button>
+                                            <button class="btn btn-sm btn-outline-danger flex-fill" name="decision" value="return"><i class="bi bi-arrow-return-left"></i> إعادة</button>
+                                        </div>
+                                    </form>
+                                    @endif
+
+                                    {{-- (و) الناشر: روابط النشر الدائم --}}
+                                    @if ($isEventPublisher && $event->publish_status === 'to_final')
+                                    <form method="POST" action="{{ route('admin.media-plans.events.publish-final', $event) }}" class="mt-1 border-top pt-1">
+                                        @csrf
+                                        <div class="small fw-bold mb-1"><i class="bi bi-broadcast me-1"></i>روابط النشر الدائم:</div>
+                                        @foreach (['facebook', 'instagram', 'youtube'] as $pl)
+                                            <div class="input-group input-group-sm mb-1">
+                                                <span class="input-group-text">{{ $platforms[$pl] }}</span>
+                                                <input type="hidden" name="platforms[{{ $loop->index }}][platform]" value="{{ $pl }}">
+                                                <input type="url" name="platforms[{{ $loop->index }}][url]" class="form-control form-control-sm" placeholder="https://… (اتركه فارغاً لتجاهله)">
                                             </div>
-                                            <input type="text" name="execution_note" class="form-control form-control-sm mt-1" placeholder="ملاحظة التنفيذ (اختياري)">
-                                        </form>
-                                        @endif
+                                        @endforeach
+                                        <div class="input-group input-group-sm mb-1">
+                                            <span class="input-group-text">أخرى</span>
+                                            <input type="hidden" name="platforms[3][platform]" value="other">
+                                            <input type="url" name="platforms[3][url]" class="form-control form-control-sm" placeholder="رابط إضافي">
+                                        </div>
+                                        <button class="btn btn-sm btn-success w-100"><i class="bi bi-check2-circle me-1"></i> تثبيت النشر الدائم</button>
+                                    </form>
                                     @endif
                                 </td>
                                 @if (! $locked)
@@ -261,7 +379,7 @@
                                 @endif
                             </tr>
                         @empty
-                            <x-empty-row colspan="12" icon="bi-inbox" title="لا توجد فعاليات في هذه الخطة" />
+                            <x-empty-row colspan="7" icon="bi-inbox" title="لا توجد فعاليات في هذه الخطة" />
                         @endforelse
                     </tbody>
                 </table>
@@ -270,7 +388,7 @@
     </div>
 
     <div class="col-lg-4">
-        @if ($plan->status === 'review' && ($isDirector || $isSuper))
+        @if ($plan->status === 'review' && $isDirector)
         <div class="table-container mb-3">
             <div class="p-3 border-bottom"><h5 class="mb-0">قرار المدير المباشر</h5></div>
             <div class="p-3">
@@ -282,7 +400,7 @@
                         <option value="reject">رفض الخطة</option>
                     </select>
                     <label class="form-label small fw-bold">إحالة إلى مدير المشاريع</label>
-                    <select name="refer_to_pm2_id" class="form-select form-select-sm mb-2" required>
+                    <select name="refer_to_pm2_id" class="form-select form-select-sm mb-2 user-picker" required>
                         <option value="">— اختر —</option>
                         @foreach ($users as $u)
                             <option value="{{ $u->id }}" @selected(old('refer_to_pm2_id', (int) ($plan->refer_to_pm2_id ?? $tentativePm2Id ?? 0)) === (int) $u->id)>{{ $u->name }}</option>
@@ -295,7 +413,7 @@
         </div>
         @endif
 
-        @if ($plan->status === 'manager_approved' && ($isPm2 || $isSuper))
+        @if (in_array($plan->status, ['pm2_review', 'manager_approved'], true) && $isPm2)
         <div class="table-container mb-3">
             <div class="p-3 border-bottom"><h5 class="mb-0">قرار مدير المشاريع</h5></div>
             <div class="p-3">
@@ -303,14 +421,14 @@
                     @csrf
                     <label class="form-label small fw-bold">القرار</label>
                     <select name="decision" class="form-select form-select-sm mb-2" required>
-                        <option value="approve">موافقة مدير المشاريع</option>
+                        <option value="approve">موافقة وتحويل لقسم روادنا</option>
                         <option value="reject">رفض الخطة</option>
                     </select>
-                    <label class="form-label small fw-bold">إحالة إلى مدير الإعلام</label>
-                    <select name="refer_to_media_manager_id" class="form-select form-select-sm mb-2" required>
+                    <label class="form-label small fw-bold">مسؤول روادنا</label>
+                    <select name="refer_to_rowaduna_id" class="form-select form-select-sm mb-2 user-picker" required>
                         <option value="">— اختر —</option>
                         @foreach ($users as $u)
-                            <option value="{{ $u->id }}" @selected(old('refer_to_media_manager_id', (int) ($plan->refer_to_media_manager_id ?? 0)) === (int) $u->id)>{{ $u->name }}</option>
+                            <option value="{{ $u->id }}" @selected(old('refer_to_rowaduna_id', (int) ($plan->refer_to_rowaduna_id ?? $tentativeRowadunaId ?? 0)) === (int) $u->id)>{{ $u->name }}</option>
                         @endforeach
                     </select>
                     <input type="text" name="note" class="form-control form-control-sm mb-2" placeholder="ملاحظة (اختياري)">
@@ -320,55 +438,40 @@
         </div>
         @endif
 
-        @if ($plan->status === 'pm2_approved' && ($isMediaManager || $isSuper))
+        @if ($isRowaduna && in_array($plan->status, ['rowaduna_review', 'in_progress'], true))
         <div class="table-container mb-3">
-            <div class="p-3 border-bottom"><h5 class="mb-0">قرار مدير الإعلام</h5></div>
-            <div class="p-3">
-                <form method="POST" action="{{ route('admin.media-plans.media-manager-decide', $plan) }}">
-                    @csrf
-                    <label class="form-label small fw-bold">القرار</label>
-                    <select name="decision" class="form-select form-select-sm mb-2" required>
-                        <option value="approve">موافقة مدير الإعلام</option>
-                        <option value="reject">رفض الخطة</option>
-                    </select>
-                    <label class="form-label small fw-bold">المسؤول الإعلامي (مركز الخطة)</label>
-                    <select name="refer_to_media_officer_id" class="form-select form-select-sm mb-2" required>
-                        <option value="">— اختر —</option>
-                        @foreach ($users as $u)
-                            <option value="{{ $u->id }}" @selected(old('refer_to_media_officer_id', (int) ($plan->refer_to_media_officer_id ?? $tentativeOfficerId ?? 0)) === (int) $u->id)>{{ $u->name }}</option>
-                        @endforeach
-                    </select>
-                    <input type="text" name="note" class="form-control form-control-sm mb-2" placeholder="ملاحظة (اختياري)">
-                    <button class="btn btn-sm btn-success w-100"><i class="bi bi-check-lg me-1"></i> تنفيذ القرار</button>
-                </form>
-            </div>
-        </div>
-        @endif
-
-        @if (in_array($plan->status, ['media_manager_approved', 'executing'], true) && ($isOfficer || $isSuper))
-        <div class="table-container mb-3">
-            <div class="p-3 border-bottom"><h5 class="mb-0">تنفيذ الخطة (المسؤول الإعلامي)</h5></div>
+            <div class="p-3 border-bottom"><h5 class="mb-0">متابعة روادنا</h5></div>
             <div class="p-3 small text-muted">
-                <p><i class="bi bi-info-circle me-1"></i> حدّد على كل فعالية <strong>نُفِّذت / لم تُنفَّذ</strong> + ملاحظات من عمود «التنفيذ»، ثم أغلق الخطة.</p>
+                <p><i class="bi bi-info-circle me-1"></i> أسند كل فعالية إلى <strong>مراسل</strong> من عمود «التغطية»، وتابع خط الأنابيب حتى النشر الدائم.</p>
                 <form method="POST" action="{{ route('admin.media-plans.finalize', $plan) }}" onsubmit="return confirm('تأكيد إغلاق الخطة كمنجزة؟')">
                     @csrf
                     <input type="text" name="note" class="form-control form-control-sm mb-2" placeholder="ملاحظة الإغلاق (اختياري)">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" value="1" name="force" id="forceClose">
+                        <label class="form-check-label" for="forceClose">إغلاق إجباري رغم وجود فعاليات غير مكتملة</label>
+                    </div>
                     <button class="btn btn-success w-100"><i class="bi bi-check2-circle me-1"></i> إغلاق الخطة كمنجزة</button>
                 </form>
             </div>
         </div>
         @endif
 
-        @if (! in_array($plan->status, ['executed', 'rejected'], true) && ($isCurrentHolder || $isSuper))
+        @if (! in_array($plan->status, ['executed', 'rejected'], true))
+        @php
+            $planStep = $plan->stepForStatus();
+            $isCurrentHolder = $planStep !== null
+                && ($plan->isCurrentRecipient($uid) || (int) $plan->activeReferrals()->where('step', $planStep)->where('to_user_id', $uid)->exists()
+                    || (int) $plan->{'refer_to_' . ($planStep === 'direct_manager' ? 'direct_manager' : ($planStep === 'pm2' ? 'pm2' : 'rowaduna')) . '_id'} === $uid);
+        @endphp
+        @if ($isCurrentHolder)
         <div class="table-container mb-3">
             <div class="p-3 border-bottom"><h5 class="mb-0">إعادة إحالة</h5></div>
             <div class="p-3">
                 <form method="POST" action="{{ route('admin.media-plans.refer', $plan) }}">
                     @csrf
-                    <input type="hidden" name="step"
-                           value="{{ $plan->status === 'review' ? 'direct_manager' : ($plan->status === 'manager_approved' ? 'pm2' : ($plan->status === 'pm2_approved' ? 'media_manager' : 'media_officer')) }}">
+                    <input type="hidden" name="step" value="{{ $planStep }}">
                     <label class="form-label small fw-bold">إحالة إلى</label>
-                    <select name="to_user_id" class="form-select form-select-sm mb-2" required>
+                    <select name="to_user_id" class="form-select form-select-sm mb-2 user-picker" required>
                         <option value="">— اختر —</option>
                         @foreach ($users as $u)
                             <option value="{{ $u->id }}">{{ $u->name }}</option>
@@ -380,15 +483,35 @@
             </div>
         </div>
         @endif
+        @endif
 
         <div class="table-container">
             <div class="p-3 border-bottom"><h5 class="mb-0">مسار الدورة</h5></div>
             <div class="p-3 small text-muted">
-                <p>1) مسؤول المشروع ينشئ الخطة.</p>
-                <p>2) المدير المباشر يوافق — هنا تُقفل الخطة.</p>
-                <p>3) مدير المشاريع يوافق.</p>
-                <p>4) مدير الإعلام يوافق ويحيلها للمسؤول الإعلامي في المركز.</p>
-                <p>5) المسؤول الإعلامي يحدد نُفِّذت/لم تُنفَّذ لكل فعالية ثم يُغلق الخطة.</p>
+                <p>1) الإنشاء (مسؤول/مدير المشروع) ← المدير المباشر <em>أو مدير المشاريع مباشرة إذا أنشأها مدير المشروع</em>.</p>
+                <p>2) المدير المباشر يوافق — <strong>تُقفل الخطة</strong>.</p>
+                <p>3) مدير المشاريع يوافق ويحوّل لـ <strong>روادنا</strong>.</p>
+                <p>4) مسؤول روادنا يُسند كل فعالية لمراسل (بلا تعارض مواعيد).</p>
+                <p>5) المراسل: تمت التغطية + رابط درايف للمواد، أو لم تتم + السبب (قابلة لإعادة الجدولة).</p>
+                <p>6) المونتير/الناشر: نشر مؤقت برابط معاينة ← مدير المشروع يراجع.</p>
+                <p>7) الناشر: روابط النشر الدائم (فيسبوك/إنستغرام/يوتيوب/…) ← تُغلق الخطة.</p>
+            </div>
+        </div>
+
+        <div class="table-container mt-3">
+            <div class="p-3 border-bottom"><h5 class="mb-0">سجل الدورة</h5></div>
+            <div class="p-3">
+                @forelse ($plan->workflowActions()->with(['fromUser', 'toUser'])->latest()->limit(30)->get()->reverse() as $action)
+                    <div class="small border-bottom pb-1 mb-2">
+                        <span class="text-muted">{{ $action->created_at?->format('Y-m-d H:i') }}</span>
+                        <strong>{{ $action->fromUser?->name ?? '—' }}</strong>
+                        {{ \App\Models\WorkflowAction::ACTIONS[$action->action] ?? $action->action }}
+                        @if ($action->toUser) ← <span class="text-primary">{{ $action->toUser->name }}</span>@endif
+                        @if ($action->note)<div class="text-muted">{{ $action->note }}</div>@endif
+                    </div>
+                @empty
+                    <div class="small text-muted">لا سجلات بعد.</div>
+                @endforelse
             </div>
         </div>
     </div>

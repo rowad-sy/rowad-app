@@ -55,11 +55,16 @@
                     <select name="path_id" class="form-select @error('path_id') is-invalid @enderror">
                         <option value="">— بدون مسار —</option>
                         @foreach ($paths as $path)
-                            <option value="{{ $path->id }}" @selected((int) old('path_id', $project->path_id ?? 0) === $path->id)>{{ $path->name }}</option>
+                            <option value="{{ $path->id }}" @selected((int) old('path_id', $project->path_id ?? $defaultPathId ?? 0) === $path->id)>{{ $path->name }}</option>
                         @endforeach
                     </select>
                     @error('path_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    <div class="form-text">يمكن إدارة المسارات من صفحة المسارات في قسم إدارة المشاريع.</div>
+                    <div class="form-text">
+                        يمكن إدارة المسارات من صفحة المسارات في قسم إدارة المشاريع.
+                        @if (! isset($project) && ! empty($defaultPathId))
+                            <span class="badge bg-success-subtle text-success-emphasis border">سيُنسب المشروع إلى المسار المحدد من شاشة المسارات</span>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -67,15 +72,13 @@
                     <div class="row g-2 mt-1">
                         @foreach ($centers as $center)
                             <div class="col-md-4">
-                                <div class="form-check">
+                                <label class="check-chip">
                                     <input type="checkbox" name="centers[]" value="{{ $center->id }}"
-                                           class="form-check-input"
+                                           class="check-chip-input"
                                            id="center_{{ $center->id }}"
                                             {{ in_array($center->id, old('centers', isset($project) ? $project->centers->pluck('id')->toArray() : [])) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="center_{{ $center->id }}">
-                                        {{ $center->name }}
-                                    </label>
-                                </div>
+                                    <span>{{ $center->name }}</span>
+                                </label>
                             </div>
                         @endforeach
                     </div>

@@ -43,19 +43,19 @@ test('apps page only links to apps the user may open and shows healthcare as una
         ->assertDontSee(route('admin.students.index'), false);
 });
 
-test('site admin dashboard shows counts only for permitted models and an empty state otherwise', function () {
+test('workspace dashboard shows modules only for permitted models and an empty state otherwise', function () {
     Center::create(['name' => 'مركز أ']);
     Center::create(['name' => 'مركز ب']);
 
     $this->actingAs(uiEmployee())->get('/admin/dashboard')
         ->assertOk()
-        ->assertSeeText('لا توجد مؤشرات متاحة لحسابك')
+        ->assertSeeText('لا توجد وحدات متاحة بعد')
         ->assertDontSee(route('admin.centers.index'), false);
 
     $this->actingAs(uiEmployee(['App\Models\Admin\Center']))->get('/admin/dashboard')
         ->assertOk()
         ->assertSee(route('admin.centers.index'), false)
-        ->assertDontSeeText('لا توجد مؤشرات متاحة لحسابك')
+        ->assertDontSeeText('لا توجد وحدات متاحة بعد')
         ->assertDontSee(route('admin.users.index'), false);
 });
 
@@ -94,7 +94,8 @@ function pmRequest(array $attrs = []): PurchaseRequest
     return PurchaseRequest::create(array_merge([
         'request_number' => 'PR-TEST-'.$n,
         'specifications' => 'طلب اختبار '.$n,
-        'status' => 'pm_approved',
+        'pr_date' => now()->toDateString(),
+        'status' => 'review',
         'quantity' => 1,
         'unit' => 'قطعة',
         'expected_unit_price' => 100,
@@ -107,9 +108,9 @@ test('projects manager dashboard prioritises sign requests addressed to the user
     $other = uiEmployee();
     $creator = uiEmployee();
 
-    $mine = pmRequest(['user_id' => $creator->id, 'refer_to_pm2_id' => $me->id, 'specifications' => 'مضخة مياه للمركز']);
-    pmRequest(['user_id' => $creator->id, 'refer_to_pm2_id' => $other->id, 'specifications' => 'طلب موجّه لغيري']);
-    pmRequest(['user_id' => $creator->id, 'refer_to_pm2_id' => $me->id, 'status' => 'priced', 'specifications' => 'حالة لا تستحق توقيعي']);
+    $mine = pmRequest(['user_id' => $creator->id, 'refer_to_approver1_id' => $me->id, 'specifications' => 'مضخة مياه للمركز']);
+    pmRequest(['user_id' => $creator->id, 'refer_to_approver1_id' => $other->id, 'specifications' => 'طلب موجّه لغيري']);
+    pmRequest(['user_id' => $creator->id, 'refer_to_approver1_id' => $me->id, 'status' => 'approved1', 'refer_to_approver2_id' => $other->id, 'specifications' => 'حالة لا تستحق توقيعي']);
 
     $html = $this->actingAs($me)->get('/admin/projects-manager')->assertOk()->getContent();
 
@@ -121,7 +122,7 @@ test('projects manager dashboard prioritises sign requests addressed to the user
         ->and($section)->not->toContain('طلب موجّه لغيري')
         ->and($section)->not->toContain('حالة لا تستحق توقيعي')
         ->and($html)->toContain(route('admin.logistics.purchase-requests.show', $mine))
-        ->and($html)->toContain(route('admin.logistics.purchase-requests.index', ['status' => 'pm_approved']))
+        ->and($html)->toContain(route('admin.logistics.purchase-requests.index', ['status' => 'review']))
         // لا توجد قوائم مراجعة عامة، فلا يظهر عنوانها
         ->and($html)->not->toContain('قوائم قيد المراجعة (عامة)');
 });

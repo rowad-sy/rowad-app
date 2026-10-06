@@ -148,8 +148,10 @@ test('event card form restores entered rows after a failed save, including when 
 
 test('purchase request form restores entered items after a failed save', function () {
     $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
-    $this->actingAs($admin)->withSession(['_old_input' => ['items' => [3 => ['description' => 'بند مُدخل سابقًا', 'quantity' => 4, 'unit' => 'علبة', 'unit_price' => 2.5]]]])
-        ->get(route('admin.logistics.purchase-requests.create'))->assertOk()->assertSee(jsonText('بند مُدخل سابقًا'), false);
+    $this->actingAs($admin)->withSession(['_old_input' => ['items' => [3 => ['description' => 'صنف ميداني تجريبي', 'quantity' => 4, 'unit' => 'قطعة', 'unit_price' => 2.5]]]])
+        ->get(route('admin.logistics.purchase-requests.create'))->assertOk()
+        ->assertSee('name="items[3][description]"', false)
+        ->assertSee('value="صنف ميداني تجريبي"', false);
 });
 
 test('a view-only user sees no create/edit/delete actions on phase 3 lists', function () {
@@ -238,22 +240,28 @@ test('purchase request failed save keeps original item keys, values and per-fiel
     [$c1] = p3Centers();
     $project = Project::create(['name' => 'مشروع']);
     $items = [
-        3 => ['description' => 'بند "أول" <b>&</b>', 'quantity' => '0', 'unit' => 'علبة', 'unit_price' => '2.5', 'budget_line' => '', 'notes' => ''],
-        7 => ['description' => '', 'quantity' => '2', 'unit' => 'قطعة', 'unit_price' => 'abc', 'budget_line' => '', 'notes' => "ملاحظة 'خاصة'"],
+        3 => ['description' => 'بند "أول" <b>&</b>', 'quantity' => '0', 'unit' => 'علبة', 'currency' => 'USD', 'unit_price' => '2.5', 'budget_line' => '', 'notes' => ''],
+        7 => ['description' => '', 'quantity' => '2', 'unit' => 'قطعة', 'currency' => 'SYP', 'unit_price' => 'abc', 'budget_line' => '', 'notes' => "ملاحظة 'خاصة'"],
     ];
 
     $res = $this->actingAs($admin)->from(route('admin.logistics.purchase-requests.create'))->followingRedirects()
-        ->post(route('admin.logistics.purchase-requests.store'), ['center_id' => $c1->id, 'project_id' => $project->id, 'items' => $items]);
+        ->post(route('admin.logistics.purchase-requests.store'), [
+            'request_number' => 'PR-UI-1', 'pr_date' => now()->toDateString(),
+            'center_id' => $c1->id, 'project_id' => $project->id,
+            'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('req.png'),
+            'items' => $items,
+        ]);
     $res->assertOk();
     $html = $res->getContent();
 
-    // المفاتيح الأصلية 3 و7 (لا إعادة ترقيم) والقيم كما أُرسلت (الصفر والنص غير الصالح والفارغ)
-    expect($html)->toContain('"key":"3"')->toContain('"key":"7"')->toContain('"quantity":"0"')->toContain('"unit_price":"abc"')->toContain('"description":null')
-        ->and($html)->not->toContain('"key":"0"')->and($html)->not->toContain('"key":"1"')
-        // أخطاء الخادم مرتبطة بالمفاتيح الأصلية
-        ->and($html)->toContain('"items.3.quantity"')->toContain('"items.7.description"')->toContain('"items.7.unit_price"')
-        // النص الخاص يُنقل مُهرَّبًا داخل JSON (لا HTML خام)
-        ->and($html)->not->toContain('<b>')->toContain('\\u003Cb\\u003E');
+    // المفاتيح الأصلية 3 و7 محفوظة في أسماء الحقول (لا إعادة ترقيم) والقيم كما أُرسلت
+    expect($html)->toContain('name="items[3][description]"')->toContain('name="items[7][quantity]"')
+        ->toContain('value="2.5"')->toContain('value="abc"')
+        ->not->toContain('name="items[0][description]"')
+        // أخطاء الخادم تُميِّز الحقول غير الصالحة
+        ->toContain('is-invalid')
+        // النص الخاص يُهرَّب في الإخراج (لا HTML خام)
+        ->not->toContain('بند "أول" <b>')->toContain('&lt;b&gt;');
     expect(\App\Models\Admin\Logistics\PurchaseRequest::count())->toBe(0);
 });
 
@@ -261,11 +269,18 @@ test('purchase request saves corrected items with their keys, quantities, prices
     $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
     [$c1] = p3Centers();
     $project = Project::create(['name' => 'مشروع']);
-    $this->actingAs($admin)->post(route('admin.logistics.purchase-requests.store'), ['center_id' => $c1->id, 'project_id' => $project->id, 'items' => [
-        3 => ['description' => 'بند أول', 'quantity' => 4, 'unit' => 'علبة', 'unit_price' => '2.50'],
-        7 => ['description' => 'بند ثانٍ', 'quantity' => 2, 'unit' => 'قطعة', 'unit_price' => '10'],
-    ]])->assertRedirect();
+    $this->actingAs($admin)->post(route('admin.logistics.purchase-requests.store'), [
+        'request_number' => 'PR-UI-2', 'pr_date' => now()->toDateString(),
+        'center_id' => $c1->id, 'project_id' => $project->id,
+        'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('req.png'),
+        'items' => [
+            3 => ['description' => 'بند أول', 'quantity' => 4, 'unit' => 'علبة', 'currency' => 'USD', 'unit_price' => '2.50'],
+            7 => ['description' => 'بند ثانٍ', 'quantity' => 2, 'unit' => 'قطعة', 'currency' => 'SYP', 'unit_price' => '10'],
+        ],
+    ])->assertRedirect();
     $pr = \App\Models\Admin\Logistics\PurchaseRequest::with('items')->sole();
-    expect($pr->items)->toHaveCount(2)->and((float) $pr->items->firstWhere('description', 'بند أول')->total_price)->toBe(10.0)
-        ->and((float) $pr->items->firstWhere('description', 'بند ثانٍ')->total_price)->toBe(20.0);
+    expect($pr->items)->toHaveCount(2)
+        ->and((float) $pr->items->firstWhere('description', 'بند أول')->total_price)->toBe(10.0)
+        ->and((float) $pr->items->firstWhere('description', 'بند ثانٍ')->total_price)->toBe(20.0)
+        ->and($pr->items->firstWhere('description', 'بند ثانٍ')->currency)->toBe('SYP');
 });

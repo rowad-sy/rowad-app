@@ -46,10 +46,10 @@
 
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
-        <x-kpi label="بانتظار التسعير" :value="$myPendingPricing" tone="warning" />
+        <x-kpi label="بانتظار الموافقة" :value="$myPendingPricing" tone="warning" />
     </div>
     <div class="col-md-3 col-6">
-        <x-kpi label="مُسعَّر" :value="$myPriced" tone="info" />
+        <x-kpi label="وافق الأول" :value="$myPriced" tone="info" />
     </div>
     <div class="col-md-3 col-6">
         <x-kpi label="في دورة الموافقة" :value="$myInCycle" tone="brand" />
@@ -144,9 +144,9 @@
                         <td>{{ $request->project?->name ?? '—' }}</td>
                         <td>
                             @php $statusLabel = \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$request->status] ?? $request->status; @endphp
-                            @if ($request->status === 'pending')
+                            @if ($request->status === 'review')
                                 <span class="badge bg-warning text-dark">{{ $statusLabel }}</span>
-                            @elseif ($request->status === 'priced')
+                            @elseif ($request->status === 'approved1' || $request->status === 'approved2')
                                 <span class="badge bg-info">{{ $statusLabel }}</span>
                             @elseif ($request->status === 'rejected')
                                 <span class="badge bg-danger">{{ $statusLabel }}</span>

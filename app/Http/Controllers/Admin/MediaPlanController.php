@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\MediaPlanFormExport;
+use App\Helpers\PermissionHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
 use App\Models\Admin\Hr\Employee;
@@ -10,19 +12,27 @@ use App\Models\Admin\MediaPlanEvent;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
 use App\Models\User;
+use App\Support\RoleHoldersLookup;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MediaPlanController extends Controller
 {
+    public const ROWADUNA_PAGE = 'page:admin.rowaduna.dashboard';
+
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\MediaPlan,view')->only(['index', 'show', 'help']);
+        $this->middleware('permission:App\Models\Admin\MediaPlan,view')->only(['index', 'show', 'help', 'printForm', 'exportExcel']);
         $this->middleware('permission:App\Models\Admin\MediaPlan,create')->only(['create', 'store']);
-        $this->middleware('permission:App\Models\Admin\MediaPlan,edit')->only(['edit', 'update', 'storeEvent', 'destroyEvent', 'addComment', 'directManagerDecide', 'pm2Decide', 'mediaManagerDecide', 'markEvent', 'finalize', 'refer']);
+        $this->middleware('permission:App\Models\Admin\MediaPlan,edit')->only([
+            'edit', 'update', 'storeEvent', 'destroyEvent', 'addComment',
+            'directManagerDecide', 'pm2Decide', 'finalize', 'refer',
+            'assignEvent', 'reporterDecide', 'publisherPreview', 'reviewerDecide', 'publishFinal', 'rescheduleEvent',
+        ]);
         $this->middleware('permission:App\Models\Admin\MediaPlan,delete')->only(['destroy']);
     }
 
@@ -37,9 +47,13 @@ class MediaPlanController extends Controller
                 $q->where('created_by', $user->id)
                     ->orWhere('refer_to_direct_manager_id', $user->id)
                     ->orWhere('refer_to_pm2_id', $user->id)
-                    ->orWhere('refer_to_media_manager_id', $user->id)
-                    ->orWhere('refer_to_media_officer_id', $user->id)
-                    ->orWhereHas('activeReferrals', fn ($r) => $r->where('to_user_id', $user->id));
+                    ->orWhere('refer_to_rowaduna_id', $user->id)
+                    ->orWhereHas('activeReferrals', fn ($r) => $r->where('to_user_id', $user->id))
+                    ->orWhereHas('events', function ($e) use ($user) {
+                        $e->where('refer_to_reporter_id', $user->id)
+                            ->orWhere('refer_to_publisher_id', $user->id)
+                            ->orWhere('refer_to_reviewer_id', $user->id);
+                    });
             });
         }
 
@@ -55,6 +69,9 @@ class MediaPlanController extends Controller
         if ($request->filled('project_id')) {
             $query->where('project_id', $request->project_id);
         }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
         $plans = $query->orderBy('month_date', 'desc')->paginate(15)->withQueryString();
         $centers = Center::orderBy('name')->get();
@@ -67,8 +84,9 @@ class MediaPlanController extends Controller
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $users = User::orderBy('name')->get();
+        $creatorIsPm = $this->creatorIsProjectManager();
 
-        return view('admin.media-plans.form', compact('centers', 'projects', 'users'));
+        return view('admin.media-plans.form', compact('centers', 'projects', 'users', 'creatorIsPm'));
     }
 
     public function help()
@@ -83,34 +101,57 @@ class MediaPlanController extends Controller
 
         $this->assertBatchHasNoConflicts($events);
 
+        $projectId = $validated['project_id'] ?? $this->employeeProjectId();
+        $skipDirect = $this->creatorIsProjectManager() || $request->boolean('skip_direct_manager');
+
+        $directorId = $skipDirect ? null : ($validated['refer_to_direct_manager_id'] ?? $this->defaultDirectManagerId($projectId));
+
+        if (! $skipDirect) {
+            if ($directorId === null || (int) $directorId === (int) auth()->id()) {
+                throw ValidationException::withMessages([
+                    'refer_to_direct_manager_id' => 'اختر المدير المباشر (لا يمكن أن تكون نفسك)، أو فعّل «أنا مدير المشروع — إرسال مباشر لمدير المشاريع».',
+                ]);
+            }
+        }
+
+        $pm2Id = $skipDirect
+            ? ($validated['refer_to_pm2_id'] ?? $this->defaultProjectsManagerId())
+            : null;
+
+        if ($skipDirect && ($pm2Id === null || (int) $pm2Id === (int) auth()->id())) {
+            throw ValidationException::withMessages(['refer_to_pm2_id' => 'اختر مدير المشاريع للإحالة إليه مباشرة.']);
+        }
+
         try {
             DB::beginTransaction();
 
             $plan = MediaPlan::create([
                 'month_date' => $validated['month_date'],
                 'center_id' => $validated['center_id'] ?? $this->employeeCenterId(),
-                'project_id' => $validated['project_id'] ?? $this->employeeProjectId(),
+                'project_id' => $projectId,
                 'created_by' => auth()->id(),
                 'note' => $validated['note'] ?? null,
-                'refer_to_direct_manager_id' => $this->defaultDirectManagerId($validated['project_id'] ?? $this->employeeProjectId()),
-                'refer_to_media_officer_id' => $this->defaultMediaOfficerId($validated['center_id'] ?? $this->employeeCenterId()),
-                'status' => 'review',
+                'refer_to_direct_manager_id' => $directorId,
+                'refer_to_rowaduna_id' => $this->defaultRowadunaId(),
+                'status' => $skipDirect ? 'pm2_review' : 'review',
             ]);
 
             $this->saveEvents($plan, $events);
 
             DB::commit();
-
-            $directId = $plan->refer_to_direct_manager_id;
-            $plan->logWorkflow('create', $directId, 'تم إنشاء الخطة الإعلامية وإحالتها للمدير المباشر', 'review');
-
-            if ($directId !== null) {
-                $plan->referTo($directId, 'direct_manager');
-            }
         } catch (QueryException) {
             DB::rollBack();
 
             return back()->withInput()->with('error', 'لا يمكن حفظ الخطة — يوجد تعارض في مواعيد الفعاليات (نفس التاريخ والساعة).');
+        }
+
+        if ($skipDirect) {
+            $plan->update(['refer_to_pm2_id' => $pm2Id]);
+            $plan->logWorkflow('create', $pm2Id, 'أنشأ مدير المشروع الخطة وأرسلها مباشرة إلى مدير المشاريع', 'pm2_review');
+            $plan->referTo($pm2Id, 'pm2');
+        } else {
+            $plan->logWorkflow('create', $directorId, 'تم إنشاء الخطة الإعلامية وإحالتها للمدير المباشر', 'review');
+            $plan->referTo($directorId, 'direct_manager');
         }
 
         return redirect()->route('admin.media-plans.show', $plan)
@@ -126,37 +167,39 @@ class MediaPlanController extends Controller
 
         $plan->load([
             'center', 'project', 'creator',
-            'directManager', 'pm2User', 'mediaManager', 'mediaOfficer', 'lockedByUser',
-            'events.responsible', 'events.executionUser', 'events.comments.user',
+            'directManager', 'pm2User', 'rowadunaUser', 'mediaManager', 'mediaOfficer', 'lockedByUser',
+            'events.responsible', 'events.executionUser',
+            'events.reporter', 'events.publisher', 'events.reviewer',
+            'events.previewReviewerUser', 'events.publishedByUser', 'events.comments.user',
             'workflowActions.fromUser', 'workflowActions.toUser',
         ]);
 
         $users = User::orderBy('name')->get();
 
-        $tentativeDirectorId = $plan->refer_to_direct_manager_id ?? $this->defaultDirectManagerId($plan->project_id);
         $tentativePm2Id = $plan->refer_to_pm2_id ?? $this->defaultProjectsManagerId();
-        $tentativeOfficerId = $plan->refer_to_media_officer_id ?? $this->defaultMediaOfficerId($plan->center_id);
+        $tentativeRowadunaId = $plan->refer_to_rowaduna_id ?? $this->defaultRowadunaId();
 
         return view('admin.media-plans.show', compact(
-            'plan', 'users', 'tentativeDirectorId', 'tentativePm2Id', 'tentativeOfficerId'
+            'plan', 'users', 'tentativePm2Id', 'tentativeRowadunaId'
         ));
     }
 
     public function edit(MediaPlan $plan)
     {
-        abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد موافقة المدير المباشر — لا يمكن تعديلها');
+        abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد أول موافقة — لا يمكن تعديلها');
 
         $plan->load('events');
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $users = User::orderBy('name')->get();
+        $creatorIsPm = $this->creatorIsProjectManager();
 
-        return view('admin.media-plans.form', compact('plan', 'centers', 'projects', 'users'));
+        return view('admin.media-plans.form', compact('plan', 'centers', 'projects', 'users', 'creatorIsPm'));
     }
 
     public function update(Request $request, MediaPlan $plan)
     {
-        abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد موافقة المدير المباشر — لا يمكن تعديلها');
+        abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد أول موافقة — لا يمكن تعديلها');
         $validated = $this->validatePlan($request);
         $events = $this->normalizeEvents($request->input('events', []));
 
@@ -188,7 +231,7 @@ class MediaPlanController extends Controller
 
     public function destroy(MediaPlan $plan)
     {
-        abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد موافقة المدير المباشر — لا يمكن حذفها');
+        abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد أول موافقة — لا يمكن حذفها');
 
         $plan->delete();
 
@@ -211,18 +254,7 @@ class MediaPlanController extends Controller
             return back()->with('error', 'يوجد تعارض — توجد فعالية أخرى بنفس التاريخ والساعة في هذه الخطة.');
         }
 
-        $plan->events()->create([
-            'event_date' => $validated['event_date'],
-            'office' => $validated['office'] ?? null,
-            'event_name' => $validated['event_name'],
-            'day' => $validated['day'] ?? Carbon::parse($validated['event_date'])->locale('ar')->translatedFormat('l'),
-            'event_time' => $validated['event_time'],
-            'location' => $validated['location'] ?? null,
-            'responsible_user_id' => $validated['responsible_user_id'] ?? null,
-            'summary' => $validated['summary'] ?? null,
-            'coverage_type' => $validated['coverage_type'] ?? null,
-            'notes' => $validated['notes'] ?? null,
-        ]);
+        $plan->events()->create($validated);
 
         return back()->with('success', 'تمت إضافة الفعالية بنجاح');
     }
@@ -251,24 +283,25 @@ class MediaPlanController extends Controller
     }
 
     /*
-     * (1) المدير المباشر — يوافق على الخطة ثم تُقفل وتُحال لمدير المشاريع.
+     * (1) المدير المباشر — يوافق ثم تُقفل الخطة وتُحال لمدير المشاريع.
+     * حصرية صارمة: المحال إليه فقط، حتى السوبر ادمن.
      */
     public function directManagerDecide(Request $request, MediaPlan $plan)
     {
-        $this->authorizeHolder($plan, 'direct_manager', 'review');
+        $this->authorizePlanHolder($plan, 'direct_manager', ['review']);
 
         $validated = $request->validate([
             'decision' => 'required|in:approve,reject',
             'note' => 'nullable|string|max:2000',
-            'refer_to_pm2_id' => 'required_if:decision,approve|exists:users,id',
+            'refer_to_pm2_id' => ['required_if:decision,approve', 'exists:users,id', function ($attr, $value, $fail) {
+                if ((int) $value === (int) auth()->id()) {
+                    $fail('لا يمكن أن تكون الإحالة إلى نفسك — اختر مدير المشاريع.');
+                }
+            }],
         ]);
 
         if ($validated['decision'] === 'reject') {
-            $plan->update(['status' => 'rejected', 'reason' => $validated['note'] ?? null]);
-            $plan->completeReferral('direct_manager');
-            $plan->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
-
-            return back()->with('error', 'رُفضت الخطة الإعلامية من المدير المباشر.');
+            return $this->rejectPlan($plan, 'direct_manager', $validated['note'] ?? null, 'المدير المباشر');
         }
 
         $plan->update([
@@ -279,219 +312,511 @@ class MediaPlanController extends Controller
         ]);
 
         $plan->completeReferral('direct_manager');
-        $this->pushReferral($plan, 'pm2', $validated['refer_to_pm2_id'], $validated['note'] ?? null);
+        $plan->referTo($validated['refer_to_pm2_id'], 'pm2', $validated['note'] ?? null);
         $plan->logWorkflow('manager_approved', $validated['refer_to_pm2_id'], $validated['note'] ?? null, 'manager_approved');
 
         return back()->with('success', 'وافق المدير المباشر — أُقفلت الخطة وأُحيلت لمدير المشاريع.');
     }
 
     /*
-     * (2) مدير المشاريع — يوافق ويُحال لمدير الإعلام.
+     * (2) مدير المشاريع — يوافق وتُحال الخطة لمسؤول روادنا.
      */
     public function pm2Decide(Request $request, MediaPlan $plan)
     {
-        $this->authorizeHolder($plan, 'pm2', 'manager_approved');
+        $this->authorizePlanHolder($plan, 'pm2', ['pm2_review', 'manager_approved']);
 
         $validated = $request->validate([
             'decision' => 'required|in:approve,reject',
             'note' => 'nullable|string|max:2000',
-            'refer_to_media_manager_id' => 'required_if:decision,approve|exists:users,id',
+            'refer_to_rowaduna_id' => ['required_if:decision,approve', 'exists:users,id', function ($attr, $value, $fail) {
+                if ((int) $value === (int) auth()->id()) {
+                    $fail('لا يمكن أن تكون الإحالة إلى نفسك — اختر مسؤول روادنا.');
+                }
+            }],
         ]);
 
         if ($validated['decision'] === 'reject') {
-            $plan->update(['status' => 'rejected', 'reason' => $validated['note'] ?? null]);
-            $plan->completeReferral('pm2');
-            $plan->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
-
-            return back()->with('error', 'رُفضت الخطة الإعلامية من مدير المشاريع.');
+            return $this->rejectPlan($plan, 'pm2', $validated['note'] ?? null, 'مدير المشاريع');
         }
 
-        $plan->update([
-            'status' => 'pm2_approved',
-            'refer_to_media_manager_id' => $validated['refer_to_media_manager_id'],
-        ]);
+        $updates = [
+            'status' => 'rowaduna_review',
+            'refer_to_rowaduna_id' => $validated['refer_to_rowaduna_id'],
+        ];
+
+        // في مسار «مدير المشروع يُنشئ مباشرة»: موافقة مدير المشاريع هي قفل الخطة.
+        if ($plan->status === 'pm2_review' && $plan->locked_at === null) {
+            $updates['locked_at'] = now();
+            $updates['locked_by'] = auth()->id();
+        }
+
+        $plan->update($updates);
 
         $plan->completeReferral('pm2');
-        $this->pushReferral($plan, 'media_manager', $validated['refer_to_media_manager_id'], $validated['note'] ?? null);
-        $plan->logWorkflow('pm2_approved', $validated['refer_to_media_manager_id'], $validated['note'] ?? null, 'pm2_approved');
+        $plan->referTo($validated['refer_to_rowaduna_id'], 'rowaduna', $validated['note'] ?? null);
+        $plan->logWorkflow('pm2_approved', $validated['refer_to_rowaduna_id'], $validated['note'] ?? null, 'rowaduna_review');
 
-        return back()->with('success', 'وافق مدير المشاريع — أُحيلت الخطة لمدير الإعلام.');
+        return back()->with('success', 'وافق مدير المشاريع — أُحيلت الخطة لمسؤول روادنا لإسناد التغطيات.');
     }
 
     /*
-     * (3) مدير الإعلام — يوافق ويُحال للمسؤول الإعلامي في مركز الخطة.
+     * (3) مسؤول روادنا — يُسند فعالية إلى مراسل (مع فحص تعارض المواعيد).
      */
-    public function mediaManagerDecide(Request $request, MediaPlan $plan)
-    {
-        $this->authorizeHolder($plan, 'media_manager', 'pm2_approved');
-
-        $validated = $request->validate([
-            'decision' => 'required|in:approve,reject',
-            'note' => 'nullable|string|max:2000',
-            'refer_to_media_officer_id' => 'required_if:decision,approve|exists:users,id',
-        ]);
-
-        if ($validated['decision'] === 'reject') {
-            $plan->update(['status' => 'rejected', 'reason' => $validated['note'] ?? null]);
-            $plan->completeReferral('media_manager');
-            $plan->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
-
-            return back()->with('error', 'رُفضت الخطة الإعلامية من مدير الإعلام.');
-        }
-
-        $plan->update([
-            'status' => 'media_manager_approved',
-            'refer_to_media_officer_id' => $validated['refer_to_media_officer_id'],
-        ]);
-
-        $plan->completeReferral('media_manager');
-        $this->pushReferral($plan, 'media_officer', $validated['refer_to_media_officer_id'], $validated['note'] ?? null);
-        $plan->logWorkflow('media_manager_approved', $validated['refer_to_media_officer_id'], $validated['note'] ?? null, 'media_manager_approved');
-
-        return back()->with('success', 'وافق مدير الإعلام — أُحيلت الخطة للمسؤول الإعلامي في المركز.');
-    }
-
-    /*
-     * (4) المسؤول الإعلامي — يحدد على كل فعالية: نُفِّذت / لم تُنفَّذ + ملاحظات.
-     */
-    public function markEvent(Request $request, MediaPlanEvent $event)
+    public function assignEvent(Request $request, MediaPlanEvent $event)
     {
         $plan = $event->plan;
-        $this->authorizeHolder($plan, 'media_officer', ['media_manager_approved', 'executing']);
+
+        $this->authorizeRowadunaHolder($plan, ['rowaduna_review', 'in_progress', 'pm2_approved', 'media_manager_approved']);
 
         $validated = $request->validate([
-            'execution_status' => 'required|in:executed,not_executed',
-            'execution_note' => 'nullable|string|max:2000',
+            'reporter_user_id' => 'required|exists:users,id',
+            'note' => 'nullable|string|max:2000',
         ]);
 
+        $this->assertReporterSlotFree($event, (int) $validated['reporter_user_id'], $event->event_date, $event->event_time);
+
+        $wasPending = $plan->status === 'rowaduna_review';
+
         $event->update([
-            'execution_status' => $validated['execution_status'],
-            'execution_note' => $validated['execution_note'] ?? null,
+            'coverage_status' => 'assigned',
+            'refer_to_reporter_id' => $validated['reporter_user_id'],
+            'not_covered_reason' => null,
+        ]);
+
+        if ($wasPending) {
+            $plan->update(['status' => 'in_progress']);
+            $plan->completeReferral('rowaduna');
+        }
+
+        $event->referTo((int) $validated['reporter_user_id'], 'reporter', $validated['note'] ?? null);
+        $plan->logWorkflow('event_assigned', (int) $validated['reporter_user_id'],
+            'إسناد فعالية «' . $event->event_name . '» للمراسل' . ($validated['note'] ?? ''));
+
+        return back()->with('success', 'أُسندت الفعالية إلى المراسل بنجاح.');
+    }
+
+    /*
+     * (4) المراسل — تمت التغطية (+ رابط المواد على جوجل درايف + اختيار المونتير)
+     * أو لم تتم (+ السبب، وتبقى قابلة لإعادة الجدولة).
+     */
+    public function reporterDecide(Request $request, MediaPlanEvent $event)
+    {
+        $this->authorizeEventHolder($event, 'reporter', 'assigned');
+
+        $validated = $request->validate([
+            'decision' => 'required|in:covered,not_covered',
+            'media_items_url' => 'required_if:decision,covered|nullable|url|max:2000',
+            'coverage_note' => 'nullable|string|max:2000',
+            'publisher_user_id' => 'required_if:decision,covered|nullable|exists:users,id',
+            'not_covered_reason' => 'required_if:decision,not_covered|nullable|string|max:2000',
+        ]);
+
+        $plan = $event->plan;
+
+        if ($validated['decision'] === 'not_covered') {
+            $event->update([
+                'coverage_status' => 'not_covered',
+                'not_covered_reason' => $validated['not_covered_reason'],
+                'coverage_note' => $validated['coverage_note'] ?? null,
+                'execution_status' => 'not_executed',
+                'execution_by' => auth()->id(),
+                'execution_at' => now(),
+            ]);
+
+            $event->completeReferral('reporter');
+            $plan->logWorkflow('not_covered', null, 'لم تتم تغطية «' . $event->event_name . '»: ' . $validated['not_covered_reason']);
+
+            $this->autoClosePlan($plan);
+
+            return back()->with('success', 'سُجِّلت حالة «لم تتم التغطية» — يمكن لمدير المشروع إعادة جدولتها لموعد آخر.');
+        }
+
+        $event->update([
+            'coverage_status' => 'covered',
+            'media_items_url' => $validated['media_items_url'],
+            'coverage_note' => $validated['coverage_note'] ?? null,
+            'publish_status' => 'to_publish',
+            'refer_to_publisher_id' => $validated['publisher_user_id'],
+            'execution_status' => 'executed',
             'execution_by' => auth()->id(),
             'execution_at' => now(),
         ]);
 
-        if ($plan->status === 'media_manager_approved') {
-            $plan->update(['status' => 'executing']);
-        }
+        $event->completeReferral('reporter');
+        $event->referTo((int) $validated['publisher_user_id'], 'publisher', $validated['coverage_note'] ?? null);
+        $plan->logWorkflow('covered', (int) $validated['publisher_user_id'],
+            'تمت تغطية «' . $event->event_name . '' . '» ورفع المواد، وأُحيلت للمونتير/الناشر');
 
-        return back()->with('success', 'حُدِّث تنفيذ الفعالية.');
+        return back()->with('success', 'سُجِّلت التغطية ورُفعت روابط المواد — أُحيلت للمونتير/الناشر للنشر المؤقت.');
     }
 
     /*
-     * إغلاق الخطة يدوياً بعد وضع علامات الفعاليات — تُصبح منجزة.
+     * (5) المونتير/الناشر — نشر مؤقت: يضع رابط المعاينة ويُحيل لمدير المشروع للمراجعة.
+     */
+    public function publisherPreview(Request $request, MediaPlanEvent $event)
+    {
+        $this->authorizeEventHolder($event, 'publisher', ['to_publish', 'rework']);
+
+        $validated = $request->validate([
+            'preview_url' => 'required|url|max:2000',
+            'refer_to_reviewer_id' => 'required|exists:users,id',
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        $plan = $event->plan;
+
+        $event->update([
+            'publish_status' => 'to_review',
+            'preview_url' => $validated['preview_url'],
+            'refer_to_reviewer_id' => $validated['refer_to_reviewer_id'],
+        ]);
+
+        $event->completeReferral('publisher');
+        $event->referTo((int) $validated['refer_to_reviewer_id'], 'preview_review', $validated['note'] ?? null);
+        $plan->logWorkflow('preview_published', (int) $validated['refer_to_reviewer_id'],
+            'نشر مؤقت لـ «' . $event->event_name . '» بانتظار مراجعة المالك');
+
+        return back()->with('success', 'رُفع رابط النشر المؤقت — بانتظار مراجعة مدير المشروع.');
+    }
+
+    /*
+     * (6) مدير المشروع — مراجعة رابط المعاينة: موافقة للنشر الدائم أو إعادة مع ملاحظات.
+     */
+    public function reviewerDecide(Request $request, MediaPlanEvent $event)
+    {
+        $this->authorizeEventHolder($event, 'preview_review', 'to_review');
+
+        $validated = $request->validate([
+            'decision' => 'required|in:approve,return',
+            'preview_feedback' => 'required_if:decision,return|nullable|string|max:2000',
+        ]);
+
+        $plan = $event->plan;
+        $publisherId = $event->refer_to_publisher_id;
+
+        if ($publisherId === null) {
+            return back()->with('error', 'لا يوجد ناشر محال إليه لهذه الفعالية — أعد النشر من خطوة المونتير.');
+        }
+
+        if ($validated['decision'] === 'return') {
+            $event->update([
+                'publish_status' => 'rework',
+                'preview_feedback' => $validated['preview_feedback'],
+            ]);
+
+            $event->completeReferral('preview_review');
+            $event->referTo((int) $publisherId, 'publisher', $validated['preview_feedback']);
+            $plan->logWorkflow('preview_returned', (int) $publisherId, 'ملاحظات على معاينة «' . $event->event_name . '»: ' . $validated['preview_feedback']);
+
+            return back()->with('success', 'أُعيدت الفعالية للناشر مع الملاحظات.');
+        }
+
+        $event->update([
+            'publish_status' => 'to_final',
+            'preview_feedback' => null,
+            'preview_reviewed_by' => auth()->id(),
+            'preview_reviewed_at' => now(),
+        ]);
+
+        $event->completeReferral('preview_review');
+        $event->referTo((int) $publisherId, 'publisher', 'موافق على المعاينة — انشر نهائياً');
+        $plan->logWorkflow('preview_approved', (int) $publisherId, 'اعتماد معاينة «' . $event->event_name . '» — بانتظار النشر الدائم');
+
+        return back()->with('success', 'اعتمدت المعاينة — أُحيلت للناشر لإدخال روابط النشر الدائم.');
+    }
+
+    /*
+     * (7) المونتير/الناشر — النشر الدائم: روابط المنصات (فيسبوك/إنستغرام/يوتيوب/...).
+     */
+    public function publishFinal(Request $request, MediaPlanEvent $event)
+    {
+        $this->authorizeEventHolder($event, 'publisher', 'to_final');
+
+        $validated = $request->validate([
+            'platforms' => 'required|array|min:1',
+            'platforms.*.platform' => 'required|in:' . implode(',', array_keys(MediaPlanEvent::PLATFORMS)),
+            'platforms.*.url' => 'required|url|max:2000',
+        ]);
+
+        $links = collect($validated['platforms'])
+            ->filter(fn ($l) => ! empty($l['url']))
+            ->values()
+            ->all();
+
+        if ($links === []) {
+            return back()->with('error', 'أدخل رابطاً واحداً على الأقل للمنصات.');
+        }
+
+        $plan = $event->plan;
+
+        $event->update([
+            'publish_status' => 'published',
+            'publish_links' => $links,
+            'published_by' => auth()->id(),
+            'published_at' => now(),
+        ]);
+
+        $event->completeReferral('publisher');
+        $plan->logWorkflow('published', null, 'نُشر «' . $event->event_name . '» نهائياً على: '
+            . implode('، ', array_map(fn ($l) => MediaPlanEvent::PLATFORMS[$l['platform']] ?? $l['platform'], $links)));
+
+        $this->autoClosePlan($plan);
+
+        return back()->with('success', 'تم النشر الدائم وتوثيق الروابط.');
+    }
+
+    /*
+     * (بديل) إعادة جدولة فعالية لم تتم تغطيتها — لمدير المشروع (صاحب الخطة) أو مسؤول روادنا.
+     */
+    public function rescheduleEvent(Request $request, MediaPlanEvent $event)
+    {
+        $plan = $event->plan;
+        $user = auth()->user();
+
+        $allowed = in_array((int) $user->id, array_filter([
+            (int) $plan->refer_to_direct_manager_id,
+            (int) $plan->created_by,
+            (int) $plan->refer_to_rowaduna_id,
+        ]), true);
+
+        abort_if(! $allowed, 403, 'إعادة الجدولة لمدير المشروع أو مسؤول روادنا فقط.');
+        abort_if($event->coverage_status !== 'not_covered', 403, 'تُعاد الجدولة فقط للفعاليات التي لم تتم تغطيتها.');
+        abort_if(in_array($plan->status, ['executed', 'rejected'], true), 403, 'الخطة مغلقة — لا يمكن إعادة الجدولة.');
+
+        $validated = $request->validate([
+            'event_date' => 'required|date',
+            'event_time' => 'required|date_format:H:i',
+            'reporter_user_id' => 'required|exists:users,id',
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        $dup = $plan->events()
+            ->where('id', '!=', $event->id)
+            ->where('event_date', $validated['event_date'])
+            ->where('event_time', $validated['event_time'])
+            ->exists();
+
+        if ($dup) {
+            return back()->with('error', 'يوجد تعارض — توجد فعالية أخرى بنفس التاريخ والساعة في هذه الخطة.');
+        }
+
+        $this->assertReporterSlotFree(null, (int) $validated['reporter_user_id'], $validated['event_date'], $validated['event_time'], $event->id);
+
+        $event->update([
+            'event_date' => $validated['event_date'],
+            'event_time' => $validated['event_time'],
+            'day' => Carbon::parse($validated['event_date'])->locale('ar')->translatedFormat('l'),
+            'coverage_status' => 'assigned',
+            'refer_to_reporter_id' => $validated['reporter_user_id'],
+            'not_covered_reason' => null,
+            'media_items_url' => null,
+            'publish_status' => 'none',
+            'preview_url' => null,
+            'preview_feedback' => null,
+            'publish_links' => null,
+        ]);
+
+        $event->cancelActiveReferrals('reporter');
+        $event->referTo((int) $validated['reporter_user_id'], 'reporter', $validated['note'] ?? null);
+        $plan->logWorkflow('rescheduled', (int) $validated['reporter_user_id'],
+            'أُعيدت جدولة «' . $event->event_name . '» إلى ' . $validated['event_date'] . ' ' . $validated['event_time']);
+
+        return back()->with('success', 'أُعيدت جدولة الفعالية وأُرسلت للمراسل في الموعد الجديد.');
+    }
+
+    /*
+     * إغلاق الخطة من مسؤول روادنا — يدوياً بعد إنجاز أو تعذر كل الفعاليات.
      */
     public function finalize(Request $request, MediaPlan $plan)
     {
-        $this->authorizeHolder($plan, 'media_officer', ['media_manager_approved', 'executing']);
+        $this->authorizeRowadunaHolder($plan, ['in_progress', 'rowaduna_review']);
 
-        $plan->update([
-            'status' => 'executed',
-            'approved_at' => now(),
-        ]);
+        $validated = $request->validate(['force' => 'nullable|boolean']);
 
-        $plan->completeReferral('media_officer');
+        if (! $plan->allEventsClosed() && ! $request->boolean('force')) {
+            $open = $plan->events()->get()->reject(fn ($e) => $e->isClosed())->count();
+
+            return back()->with('error', 'بقيت ' . $open . ' فعالية غير مكتملة — أكمل التغطيات والنشر أو استخدم «إغلاق إجباري» بملاحظة.');
+        }
+
+        $plan->update(['status' => 'executed', 'approved_at' => now()]);
+        $plan->cancelActiveReferrals();
         $plan->logWorkflow('executed', null, $request->note ?? 'أُنجزت الخطة الإعلامية', 'executed');
 
         return back()->with('success', 'أُغلقت الخطة الإعلامية كمنجزة.');
     }
 
     /*
-     * إعادة الإحالة — المستلَم الحالي للخطوة يعيد إحالتها لشخص آخر.
+     * إعادة إحالة على مستوى الخطة — الحامل الحالي للخطوة فقط.
      */
     public function refer(Request $request, MediaPlan $plan)
     {
         $validated = $request->validate([
-            'step' => 'required|in:direct_manager,pm2,media_manager,media_officer',
+            'step' => 'required|in:direct_manager,pm2,rowaduna',
             'to_user_id' => 'required|exists:users,id',
             'note' => 'nullable|string|max:2000',
         ]);
 
-        $this->authorizeHolder($plan, $validated['step']);
+        $this->authorizePlanHolder($plan, $validated['step']);
 
-        $this->pushReferral($plan, $validated['step'], $validated['to_user_id'], $validated['note'] ?? null);
-        $plan->logWorkflow('referred', $validated['to_user_id'], $validated['note'] ?? null);
+        $column = self::STEP_COLUMNS[$validated['step']];
+        $plan->update([$column => $validated['to_user_id']]);
+        $plan->referTo((int) $validated['to_user_id'], $validated['step'], $validated['note'] ?? null);
+        $plan->logWorkflow('referred', (int) $validated['to_user_id'], $validated['note'] ?? null);
 
         return back()->with('success', 'أُعيدت إحالة الخطة الإعلامية بنجاح.');
     }
 
+    /* ------------------------------------------------------------ print/export */
+
+    public function printForm(Request $request, MediaPlan $plan)
+    {
+        $this->ensureVisible($plan);
+
+        $theme = $request->get('theme') === 'rowaduna' ? 'rowaduna' : 'rowad';
+
+        return view('admin.media-plans.print', [
+            'plan' => $plan->load(['center', 'project', 'creator', 'events.reporter', 'events.publisher', 'events.comments']),
+            'theme' => $theme,
+        ]);
+    }
+
+    public function exportExcel(Request $request, MediaPlan $plan)
+    {
+        $this->ensureVisible($plan);
+
+        $theme = $request->get('theme') === 'rowaduna' ? 'rowaduna' : 'rowad';
+
+        $filename = 'media-plan-' . $plan->month_date->format('Y-m') . ($theme === 'rowaduna' ? '-rowaduna' : '') . '.xlsx';
+
+        return Excel::download(new MediaPlanFormExport($plan->load(['center', 'project', 'creator', 'events.reporter', 'events.publisher']), $theme), $filename);
+    }
+
+    /* ------------------------------------------------------------ guards & helpers */
+
     public const STEP_COLUMNS = [
         'direct_manager' => 'refer_to_direct_manager_id',
         'pm2' => 'refer_to_pm2_id',
-        'media_manager' => 'refer_to_media_manager_id',
-        'media_officer' => 'refer_to_media_officer_id',
+        'rowaduna' => 'refer_to_rowaduna_id',
     ];
 
-    private function authorizeHolder(MediaPlan $plan, string $step, array|string|null $expectedStatuses = null): void
+    /*
+     * حصرية صارمة على مستوى الخطة — المحال إليه فقط، حتى السوبر ادمن لا يعتمد.
+     */
+    private function authorizePlanHolder(MediaPlan $plan, string $step, array|string|null $expectedStatuses = null): void
     {
         $user = auth()->user();
-
-        if ($user->type === 'super-admin') {
-            return;
-        }
-
-        $column = self::STEP_COLUMNS[$step] ?? null;
-
-        // لا يوجد مستلَم معيّن بعد (بيانات قديمة) → يبقى التصرف متاحاً.
-        if ($column !== null && $plan->{$column} === null) {
-            return;
-        }
+        $column = self::STEP_COLUMNS[$step];
 
         $isHolder = $plan->isCurrentRecipient($user->id)
-            || ($column !== null && (int) $plan->{$column} === (int) $user->id);
+            || (int) $plan->{$column} === (int) $user->id;
 
-        if (! $isHolder) {
-            abort(403, 'هذه الخطوة ليست موجهة إليك.');
-        }
+        // إحالات الخطوات القديمة (بيانات قبل ترقية الدورة) لا تُعطي عهدة للخطوة الجديدة.
+        abort_if(! $isHolder, 403, 'هذه الخطوة موجهة لشخص آخر — أنت لست صاحبها الحالي.');
 
         if ($expectedStatuses !== null && ! in_array($plan->status, (array) $expectedStatuses, true)) {
             abort(403, 'حالة الخطة لا تسمح بهذه الخطوة.');
         }
     }
 
-    private function pushReferral(MediaPlan $plan, string $step, ?int $toUserId, ?string $note): void
+    /*
+     * حصرية صارمة لمسؤول روادنا (عهدة العمود أو إحالة نشطة على الخطوة).
+     */
+    private function authorizeRowadunaHolder(MediaPlan $plan, array $statuses): void
     {
-        $column = self::STEP_COLUMNS[$step] ?? null;
+        $this->authorizePlanHolder($plan, 'rowaduna', $statuses);
+    }
 
-        if ($column !== null) {
-            $plan->update([$column => $toUserId]);
+    /*
+     * حصرية صارمة على مستوى الفعالية (مراسل/ناشر/مراجع).
+     */
+    private function authorizeEventHolder(MediaPlanEvent $event, string $step, array|string $expectedState): void
+    {
+        $user = auth()->user();
+
+        $column = match ($step) {
+            'reporter' => 'refer_to_reporter_id',
+            'publisher' => 'refer_to_publisher_id',
+            'preview_review' => 'refer_to_reviewer_id',
+        };
+
+        $state = match ($step) {
+            'reporter' => $event->coverage_status,
+            'publisher', 'preview_review' => $event->publish_status,
+        };
+
+        $isHolder = $event->isCurrentRecipient($user->id)
+            || (int) $event->{$column} === (int) $user->id;
+
+        abort_if(! $isHolder, 403, 'هذه الخطوة موجهة لشخص آخر — أنت لست صاحبها الحالي.');
+        abort_if(! in_array($state, (array) $expectedState, true), 403, 'حالة الفعالية لا تسمح بهذه الخطوة الآن.');
+
+        $plan = $event->plan;
+        abort_if(in_array($plan->status, ['rejected'], true), 403, 'الخطة مرفوضة.');
+    }
+
+    /*
+     * منع إسناد أكثر من تغطية لنفس المراسل في نفس التاريخ والساعة (عبر كل الخطط).
+     */
+    private function assertReporterSlotFree(?MediaPlanEvent $event, int $reporterId, $date, $time, ?int $exceptId = null): void
+    {
+        $exceptId = $exceptId ?? $event?->id;
+
+        $conflict = MediaPlanEvent::query()
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->where('refer_to_reporter_id', $reporterId)
+            ->where('event_date', $date)
+            ->where('event_time', $time)
+            ->where('coverage_status', '!=', 'not_covered')
+            ->whereHas('plan', fn ($q) => $q->whereNotIn('status', ['rejected']))
+            ->with('plan')
+            ->first();
+
+        if ($conflict) {
+            $planMonth = $conflict->plan->month_date->locale('ar')->translatedFormat('F Y');
+
+            throw ValidationException::withMessages([
+                'reporter_user_id' => 'لا يمكن إسناد التغطية لنفس المراسل في نفس الوقت: لديه فعالية «'
+                    . $conflict->event_name . '» في نفس الموعد (خطة ' . $planMonth . ').',
+            ]);
+        }
+    }
+
+    private function autoClosePlan(MediaPlan $plan): void
+    {
+        if ($plan->status === 'in_progress' && $plan->allEventsPublished()) {
+            $plan->update(['status' => 'executed', 'approved_at' => now()]);
+            $plan->logWorkflow('executed', null, 'اكتملت كل فعاليات الخطة — أُغلقت تلقائياً', 'executed');
+        }
+    }
+
+    private function rejectPlan(MediaPlan $plan, string $step, ?string $note, string $label)
+    {
+        $plan->update(['status' => 'rejected', 'reason' => $note]);
+        $plan->completeReferral($step);
+        $plan->cancelActiveReferrals();
+        $plan->logWorkflow('rejected', null, $note, 'rejected');
+
+        return back()->with('error', 'رُفضت الخطة الإعلامية من ' . $label . '.');
+    }
+
+    private function ensureVisible(MediaPlan $plan): void
+    {
+        $user = auth()->user();
+        if ($user->type !== 'super-admin' && ! $plan->isVisibleToUserId($user->id)) {
+            abort(403, 'هذه الخطة ليست موجهة إليك');
+        }
+    }
+
+    private function creatorIsProjectManager(): bool
+    {
+        $user = auth()->user();
+
+        if ($user->type === 'super-admin') {
+            return false;
         }
 
-        if ($toUserId !== null) {
-            $plan->referTo($toUserId, $step, $note);
-        }
-    }
-
-    private function defaultDirectManagerId(?int $projectId): ?int
-    {
-        return Permission::whereJsonContains('model_names', 'page:admin.project-manager.dashboard')
-            ->where('can_view', 1)
-            ->when($projectId, fn ($q) => $q->where(fn ($s) => $s->whereNull('project_id')->orWhere('project_id', $projectId)))
-            ->whereNotNull('user_id')
-            ->orderBy('id')
-            ->value('user_id');
-    }
-
-    private function defaultProjectsManagerId(): ?int
-    {
-        return Permission::whereJsonContains('model_names', 'page:admin.project-manager.dashboard')
-            ->where('can_view', 1)
-            ->whereNull('center_id')
-            ->whereNull('project_id')
-            ->whereNotNull('user_id')
-            ->orderBy('id')
-            ->value('user_id');
-    }
-
-    private function defaultMediaOfficerId(?int $centerId): ?int
-    {
-        return Permission::whereJsonContains('model_names', 'App\Models\Admin\MediaPlan')
-            ->where('can_edit', 1)
-            ->where('can_view', 1)
-            ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
-            ->whereNotNull('user_id')
-            ->orderBy('id')
-            ->value('user_id');
+        return PermissionHelper::can($user, 'page:admin.project-manager.dashboard', 'view');
     }
 
     private function validatePlan(Request $request): array
@@ -501,6 +826,9 @@ class MediaPlanController extends Controller
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
             'note' => 'nullable|string|max:2000',
+            'refer_to_direct_manager_id' => 'nullable|exists:users,id',
+            'refer_to_pm2_id' => 'nullable|exists:users,id',
+            'skip_direct_manager' => 'nullable|boolean',
         ]);
     }
 
@@ -564,6 +892,27 @@ class MediaPlanController extends Controller
                 'notes' => $ev['notes'] ?? null,
             ]);
         }
+    }
+
+    private function defaultDirectManagerId(?int $projectId): ?int
+    {
+        return RoleHoldersLookup::first('page:admin.project-manager.dashboard', 'view', $projectId)
+            ?? Permission::whereJsonContains('model_names', 'page:admin.project-manager.dashboard')
+                ->where('can_view', 1)
+                ->when($projectId, fn ($q) => $q->where(fn ($s) => $s->whereNull('project_id')->orWhere('project_id', $projectId)))
+                ->whereNotNull('user_id')
+                ->orderBy('id')
+                ->value('user_id');
+    }
+
+    private function defaultProjectsManagerId(): ?int
+    {
+        return RoleHoldersLookup::first('page:admin.projects-manager.dashboard');
+    }
+
+    private function defaultRowadunaId(): ?int
+    {
+        return RoleHoldersLookup::first(self::ROWADUNA_PAGE);
     }
 
     private function employeeCenterId(): ?int

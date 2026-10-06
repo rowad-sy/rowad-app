@@ -7,7 +7,7 @@
     $colors = ['review' => 'bg-warning text-dark', 'approved' => 'bg-info', 'assigned' => 'bg-primary', 'completed' => 'bg-success', 'rejected' => 'bg-danger', 'cancelled' => 'bg-secondary'];
 @endphp
 
-<x-page-header :title="'خطة الحركة'" :description="'طلبات الحركة بين المراكز: مدير مشروع → إدارة المشاريع → مسؤول الحركة → المتابِعون'"
+<x-page-header :title="'خطة الحركة'" :description="'خطط شهرية كلٌّ منها يحوي عدة حركات بين المراكز: مدير مشروع → إدارة المشاريع → مسؤول الحركة → المتابِعون'"
                :breadcrumb="[['label' => 'المشاريع'], ['label' => 'خطة الحركة']]">
     <div class="d-flex gap-2">
         <a href="{{ route('admin.movement-plans.help') }}" class="btn btn-outline-info">
@@ -50,10 +50,9 @@
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>رقم الحركة</th>
-                    <th>التاريخ</th>
-                    <th>المسار</th>
-                    <th>الغاية</th>
+                    <th>رقم الخطة</th>
+                    <th>الشهر</th>
+                    <th>الحركات</th>
                     <th>المركز</th>
                     <th>الحالة</th>
                     <th>المتابِعون</th>
@@ -65,15 +64,10 @@
                 @forelse ($plans as $plan)
                     <tr>
                         <td><code>{{ $plan->request_number }}</code></td>
-                        <td>{{ $plan->movement_date->format('Y-m-d') }}</td>
-                        <td>
-                            @if ($plan->from_location || $plan->to_location)
-                                <small>{{ $plan->from_location ?: '—' }} ← {{ $plan->to_location ?: '—' }}</small>
-                            @else
-                                —
-                            @endif
+                        <td class="num">{{ $plan->plan_month?->format('Y-m') ?? '—' }}</td>
+                        <td class="num">
+                            <x-status-badge tone="{{ $plan->entries_count > 0 ? 'info' : 'neutral' }}">{{ $plan->entries_count }}</x-status-badge>
                         </td>
-                        <td>{{ Str::limit($plan->purpose, 50) }}</td>
                         <td>{{ $plan->center?->name ?? '—' }}</td>
                         <td><span class="badge {{ $colors[$plan->status] ?? 'bg-secondary' }}">{{ \App\Models\Admin\MovementPlan::STATUSES[$plan->status] ?? $plan->status }}</span></td>
                         <td>
@@ -92,7 +86,7 @@
                         </td>
                     </tr>
                 @empty
-                    <x-empty-row colspan="9" icon="bi-inbox" title="لا توجد خطط حركة" />
+                    <x-empty-row colspan="8" icon="bi-inbox" title="لا توجد خطط حركة" />
                 @endforelse
             </tbody>
         </table>

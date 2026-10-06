@@ -49,6 +49,15 @@
                     @endforeach
                 </select>
             </div>
+            <div class="col-md-3">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">الكل</option>
+                    @foreach (\App\Models\Admin\MediaPlan::STATUSES as $key => $label)
+                        <option value="{{ $key }}" {{ request('status') === $key ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
         </x-filter-bar>
 
     <div class="table-responsive">
@@ -60,6 +69,7 @@
                     <th>المركز</th>
                     <th>المشروع</th>
                     <th>عدد الفعاليات</th>
+                    <th>الحالة</th>
                     <th>أنشأها</th>
                     <th>تاريخ الإنشاء</th>
                     <th>الإجراءات</th>
@@ -77,10 +87,22 @@
                                 {{ $plan->events_count }}
                             </span>
                         </td>
+                        <td>
+                            @php
+                                $stTone = match ($plan->status) {
+                                    'executed' => 'success', 'rejected' => 'danger',
+                                    'review', 'pm2_review' => 'warning',
+                                    default => 'info',
+                                };
+                            @endphp
+                            <span class="badge bg-{{ $stTone }}">{{ \App\Models\Admin\MediaPlan::STATUSES[$plan->status] ?? $plan->status }}</span>
+                        </td>
                         <td>{{ $plan->creator?->name ?? '—' }}</td>
                         <td>{{ $plan->created_at->format('Y-m-d') }}</td>
                         <td>
                             <a href="{{ route('admin.media-plans.show', $plan) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                            <a href="{{ route('admin.media-plans.print', $plan) }}" class="btn btn-sm btn-outline-dark" target="_blank" aria-label="طباعة" title="طباعة / PDF"><i class="bi bi-printer" aria-hidden="true"></i></a>
+                            <a href="{{ route('admin.media-plans.export', $plan) }}" class="btn btn-sm btn-outline-success" aria-label="تصدير" title="تصدير Excel"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i></a>
                             @canPermission('App\Models\Admin\MediaPlan', 'edit')
                             <a href="{{ route('admin.media-plans.edit', $plan) }}" class="btn btn-sm btn-outline-primary" aria-label="تعديل" title="تعديل"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             @endcanPermission
@@ -94,7 +116,7 @@
                         </td>
                     </tr>
                 @empty
-                    <x-empty-row colspan="8" icon="bi-inbox" title="لا توجد خطط إعلامية" />
+                    <x-empty-row colspan="9" icon="bi-inbox" title="لا توجد خطط إعلامية" />
                 @endforelse
             </tbody>
         </table>

@@ -21,9 +21,9 @@ class LogisticsStatisticsController extends Controller
         }
 
         $executedCount = (clone $query)->where('status', 'executed')->count();
-        $pendingCount = (clone $query)->where('status', 'pending')->count();
+        $pendingCount = (clone $query)->where('status', 'review')->count();
         $rejectedCount = (clone $query)->where('status', 'rejected')->count();
-        $totalPendingAmount = (clone $query)->where('status', 'pending')->sum('expected_total_price');
+        $totalPendingAmount = (clone $query)->where('status', 'review')->sum('expected_total_price');
 
         return view('admin.logistics.statistics.index', compact(
             'executedCount', 'pendingCount', 'rejectedCount', 'totalPendingAmount'

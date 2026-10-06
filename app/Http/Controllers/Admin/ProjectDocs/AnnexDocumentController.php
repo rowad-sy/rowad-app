@@ -115,6 +115,7 @@ class AnnexDocumentController extends Controller
             'status' => 'draft',
             'page_count' => $pageCount,
             'data' => $document->data,
+            'cover_path' => $document->cover_path,
             'created_by' => auth()->id(),
             'assigned_to' => null,
             'signed_at' => null,
@@ -178,6 +179,21 @@ class AnnexDocumentController extends Controller
 
         $user = auth()->user();
         $isCreator = $user->id === (int) $document->created_by;
+
+        $coverInput = $request->validate([
+            'cover_image' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:8192',
+            'remove_cover' => 'nullable|boolean',
+        ]);
+
+        if ($request->hasFile('cover_image')) {
+            if ($document->cover_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($document->cover_path);
+            }
+            $document->update(['cover_path' => $request->file('cover_image')->store('doc-covers', 'public')]);
+        } elseif (! empty($coverInput['remove_cover']) && $document->cover_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($document->cover_path);
+            $document->update(['cover_path' => null]);
+        }
 
         $pageCount = (int) $document->page_count;
         if ($request->filled('page_count')) {

@@ -25,6 +25,13 @@
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label">كود المركز <span class="text-muted small">(يظهر في نماذج الطلبات — مثال: B01-01-00)</span></label>
+                    <input type="text" name="code" dir="ltr" class="form-control @error('code') is-invalid @enderror"
+                           value="{{ old('code', $center->code ?? '') }}">
+                    @error('code') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label">العنوان</label>
                     <input type="text" name="address"
                            class="form-control @error('address') is-invalid @enderror"

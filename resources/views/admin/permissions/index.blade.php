@@ -3,11 +3,18 @@
 @section('title', 'الصلاحيات')
 
 @section('content')
-<x-page-header :title="'الصلاحيات'" :description="'إدارة صلاحيات المستخدمين والمجموعات'"
+<x-page-header :title="'الصلاحيات'" :description="'إدارة صلاحيات المستخدمين والأدوار والمجموعات — النطاقات تُحدَّد وقت إسناد الدور'"
                :breadcrumb="[['label' => 'الإدارة'], ['label' => 'الصلاحيات']]">
-    <a href="{{ route('admin.permissions.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> إضافة صلاحية
-    </a>
+    <div class="d-flex gap-2">
+        <a href="{{ route('admin.roles.index') }}" class="btn btn-outline-primary">
+            <i class="bi bi-briefcase me-1" aria-hidden="true"></i> الأدوار والنطاقات
+        </a>
+        @canPermission('App\Models\Admin\Permission', 'create')
+        <a href="{{ route('admin.permissions.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> إضافة صلاحيات
+        </a>
+        @endcanPermission
+    </div>
 </x-page-header>
 
 <div class="table-container">
@@ -20,13 +27,21 @@
                     </button>
                 </div>
             </div>
+            <div class="col-md-8 d-flex align-items-center flex-wrap gap-1">
+                @foreach (['all' => 'الكل', 'user' => 'مستخدمون', 'role' => 'أدوار', 'group' => 'مجموعات'] as $key => $chipLabel)
+                    <a href="{{ route('admin.permissions.index', array_filter(['entity' => $key === 'all' ? null : $key, 'search' => $search])) }}"
+                       class="btn btn-sm {{ $entityFilter === $key ? 'btn-primary' : 'btn-outline-secondary' }}">
+                        {{ $chipLabel }} <span class="badge bg-light text-dark ms-1">{{ $counts[$key] }}</span>
+                    </a>
+                @endforeach
+            </div>
         </x-filter-bar>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead>
                 <tr>
-                    <th>المستخدم / المجموعة</th>
+                    <th>الكيان</th>
                     <th>عدد النطاقات</th>
                     <th>الموديل</th>
                     <th>النطاق</th>
@@ -42,9 +57,11 @@
                             @if ($si === 0)
                                 <td rowspan="{{ count($entity['scopes']) }}" class="fw-medium align-middle">
                                     @if ($entity['is_user'] && $entity['user'])
-                                        <i class="bi bi-person me-1"></i>{{ $entity['user']->name }}
+                                        <i class="bi bi-person me-1" aria-hidden="true"></i>{{ $entity['user']->name }}
+                                        <x-status-badge tone="neutral" class="ms-1">مستخدم</x-status-badge>
                                     @elseif (!$entity['is_user'] && $entity['group'])
-                                        <i class="bi bi-people me-1"></i>{{ $entity['group']->name }}
+                                        <i class="bi {{ $entity['group']->isRole() ? 'bi-briefcase' : 'bi-people' }} me-1" aria-hidden="true"></i>{{ $entity['group']->name }}
+                                        <x-status-badge tone="{{ $entity['group']->isRole() ? 'brand' : 'neutral' }}" class="ms-1">{{ $entity['group']->isRole() ? 'دور' : 'مجموعة' }}</x-status-badge>
                                     @else
                                         —
                                     @endif

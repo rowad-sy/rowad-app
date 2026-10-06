@@ -14,8 +14,8 @@ namespace Database\Seeders;
  *    مرتبطين بسجلات hr_employees بنطاقات حقيقية (مركز 7 = عفرين)
  *  - صفوف صلاحيات (model_names = PurchaseRequest + page:admin.project-manager.dashboard
  *    + page:admin.project-officer.dashboard بنطاقات صحيحة)
- *  - طلبات شراء في كل مراحل الدورة (pending/priced/pm_approved/pm2_approved/approved/executed/rejected)
- *    مع بنود وسجل workflow كامل.
+ *  - طلبات شراء في كل أطوار الدورة الجديدة (review/approved1/approved2/approved/executed/rejected)
+ *    مع بنود بعملات (USD/SYP) وتواقيع إلكترونية وسجل workflow كامل.
  *  - صلاحيات AnnexDocument/AnnexTemplate للمستخدمين التجريبيين
  *    (تُستخدم القوالب الإنتاجية من AnnexTemplatesSeeder بدل قوالب DEMO).
  *  - مسؤولاً إعلامياً تجريبياً + صلاحيات/بيانات الخطة الإعلامية (MediaPlan).
@@ -27,8 +27,9 @@ namespace Database\Seeders;
  *  demo.officer@rowad.app   — مسؤول مشروع (مركز عفرين)
  *  demo.logistics@rowad.app — لوجستي مركز عفرين
  *  demo.pm@rowad.app        — مدير مشروع (مركز عفرين)
- *  demo.pm2@rowad.app       — مدير المشاريع
- *  demo.finance@rowad.app   — مدير المالية
+ *  demo.pm2@rowad.app       — مدير المشاريع (موافق أول)
+ *  demo.finance@rowad.app   — مدير المالية (موافق ثانٍ)
+ *  demo.ceo@rowad.app       — المدير التنفيذي (موافق ثالث/نهائي)
  *  demo.media@rowad.app     — مسؤول إعلامي (مركز عفرين)
  *  demo.moveofficer@rowad.app — مسؤول حركة (مركز عفرين)
  */
@@ -37,6 +38,7 @@ use App\Models\Admin\Center;
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\Hr\JobPosition;
 use App\Models\Admin\Logistics\PurchaseRequest;
+use App\Models\Admin\Logistics\PurchaseRequestSignature;
 use App\Models\Admin\MediaPlan;
 use App\Models\Admin\MovementPlan;
 use App\Models\Admin\MovementPlanRecipient;
@@ -114,12 +116,15 @@ class DemoPurchaseCycleSeeder extends Seeder
         Center $center,
         Project $project,
     ): void {
-        // ── الصلاحيات (لا تتكرّر لأن الجارد أعلاه يمنع إعادة التشغيل) ──
+        // ── الصلاحيات (الدورة الجديدة: إنشاء=مدير المشروع، موافقات موقعة، تنفيذ لوجستي) ──
+        $ceo = $this->user('المدير التنفيذي', 'demo.ceo@rowad.app', 'مدير تنفيذي');
+        $this->employee($ceo, 'DEMO-PM-CEO', 'فؤاد', 'الرئيسي', null, null, null);
+
         Permission::create([
             'user_id' => $officer->id,
             'model_names' => ['App\\Models\\Admin\\Logistics\\PurchaseRequest'],
             'center_id' => $center->id,
-            'can_view' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true,
+            'can_view' => true,
         ]);
         Permission::create([
             'user_id' => $officer->id,
@@ -137,7 +142,7 @@ class DemoPurchaseCycleSeeder extends Seeder
             'user_id' => $pm->id,
             'model_names' => ['App\\Models\\Admin\\Logistics\\PurchaseRequest'],
             'center_id' => $center->id,
-            'can_view' => true, 'can_edit' => true,
+            'can_view' => true, 'can_create' => true, 'can_edit' => true,
         ]);
         Permission::create([
             'user_id' => $pm->id,
@@ -157,76 +162,108 @@ class DemoPurchaseCycleSeeder extends Seeder
             'center_id' => $center->id,
             'can_view' => true, 'can_edit' => true,
         ]);
+        Permission::create([
+            'user_id' => $ceo->id,
+            'model_names' => ['App\\Models\\Admin\\Logistics\\PurchaseRequest'],
+            'center_id' => $center->id,
+            'can_view' => true, 'can_edit' => true,
+        ]);
 
-        // ── طلبات الشراء عبر المراحل ──
+        // ── طلبات الشراء عبر أطوار الدورة الجديدة ──
         $t0 = now()->subDays(7)->startOfDay();
 
-        $this->request($officer, $center, $project, $t0, 'pending', [
-            ['وصف' => 'ورق طباعة A4', 'ك' => 40, 'وحدة' => 'رزمة', 'س' => 0, 'ملاحظة' => 'يُسعَّر لاحقاً'],
-            ['وصف' => 'حبر طابعات', 'ك' => 12, 'وحدة' => 'خرطوشة', 'س' => 0, 'ملاحظة' => null],
+        // 1) بانتظار موافقة المدير المباشر (pm2)
+        $this->request($pm, $center, $project, $t0, 'review', [
+            ['وصف' => 'ورق طباعة A4', 'ك' => 40, 'وحدة' => 'علبة', 'س' => 4.5, 'عملة' => 'USD', 'ملاحظة' => null],
+            ['وصف' => 'حبر طابعات', 'ك' => 12, 'وحدة' => 'علبة', 'س' => 220000, 'عملة' => 'SYP', 'ملاحظة' => null],
         ], [
-            $this->step('create', 'pending', $officer->id, $logistics->id, 'تم إنشاء طلب الشراء وإحالته للتسعير', $t0),
-        ], $logistics->id, $pm->id, $pm2->id, $finance->id);
+            $this->step('create', 'review', $pm->id, $pm2->id, 'تم إنشاء طلب الشراء وإحالته للموافقة', $t0),
+        ], refs: ['approver1' => $pm2->id]);
 
-        $this->request($officer, $center, $project, $t0->copy()->addHours(6), 'priced', [
-            ['وصف' => 'كراسي مكتبية', 'ك' => 10, 'وحدة' => 'قطعة', 'س' => 15000, 'ملاحظة' => null],
-            ['وصف' => 'طاولات اجتماعات', 'ك' => 2, 'وحدة' => 'قطعة', 'س' => 120000, 'ملاحظة' => null],
+        // 2) وافق المدير المباشر — بانتظار المالية (توقيع مسجل)
+        $signed1 = $t0->copy()->addDay();
+        $this->request($pm, $center, $project, $t0->copy()->addHours(6), 'approved1', [
+            ['وصف' => 'كراسي مكتبية', 'ك' => 10, 'وحدة' => 'قطعة', 'س' => 85, 'عملة' => 'USD', 'ملاحظة' => null],
+            ['وصف' => 'طاولات اجتماعات', 'ك' => 2, 'وحدة' => 'قطعة', 'س' => 320, 'عملة' => 'USD', 'ملاحظة' => null],
         ], [
-            $this->step('create', 'pending', $officer->id, $logistics->id, 'تم إنشاء طلب الشراء وإحالته للتسعير', $t0->copy()->addHours(6)),
-            $this->step('priced', 'priced', $logistics->id, $pm->id, 'تم التسعير — رقم الميزانية B-2026-0142', $t0->copy()->addDays(1), 'B-2026-0142'),
-        ], $logistics->id, $pm->id, $pm2->id, $finance->id, 'B-2026-0142');
+            $this->step('create', 'review', $pm->id, $pm2->id, 'تم إنشاء طلب الشراء وإحالته للموافقة', $t0->copy()->addHours(6)),
+            $this->step('approved', 'approved1', $pm2->id, $finance->id, 'وافق مدير المشاريع وأحال الطلب للموارد المالية', $signed1),
+        ], refs: ['approver1' => $pm2->id, 'approver2' => $finance->id], signatures: [
+            ['requested_by', $pm, $t0->copy()->addHours(6)],
+            ['approver1', $pm2, $signed1],
+        ]);
 
-        $lockedAt = $t0->copy()->addDays(2);
-        $this->request($officer, $center, $project, $t0->copy()->addHours(9), 'pm_approved', [
-            ['وصف' => 'أجهزة حاسوب محمول', 'ك' => 3, 'وحدة' => 'جهاز', 'س' => 450000, 'ملاحظة' => 'مواصفات قياسية'],
-            ['وصف' => 'شاشات 24 بوصة', 'ك' => 3, 'وحدة' => 'شاشة', 'س' => 95000, 'ملاحظة' => null],
+        // 3) وافق مدير المشاريع والمالية — بانتظار المدير التنفيذي
+        $signed2 = $t0->copy()->addDays(2);
+        $this->request($pm, $center, $project, $t0->copy()->addHours(9), 'approved2', [
+            ['وصف' => 'أجهزة حاسوب محمول', 'ك' => 3, 'وحدة' => 'قطعة', 'س' => 650, 'عملة' => 'USD', 'ملاحظة' => 'مواصفات قياسية'],
+            ['وصف' => 'شاشات 24 بوصة', 'ك' => 3, 'وحدة' => 'قطعة', 'س' => 140, 'عملة' => 'USD', 'ملاحظة' => null],
         ], [
-            $this->step('create', 'pending', $officer->id, $logistics->id, 'تم إنشاء طلب الشراء وإحالته للتسعير', $t0->copy()->addHours(9)),
-            $this->step('priced', 'priced', $logistics->id, $pm->id, 'تم التسعير — رقم الميزانية B-2026-0150', $t0->copy()->addDays(1), 'B-2026-0150'),
-            $this->step('pm_approved', 'pm_approved', $pm->id, $pm2->id, 'وافق مدير المشروع وقفل الطلب نهائياً', $lockedAt),
-        ], $logistics->id, $pm->id, $pm2->id, $finance->id, 'B-2026-0150', $lockedAt, $pm->id);
+            $this->step('create', 'review', $pm->id, $pm2->id, 'تم إنشاء طلب الشراء وإحالته للموافقة', $t0->copy()->addHours(9)),
+            $this->step('approved', 'approved1', $pm2->id, $finance->id, 'موافقة وتوقيع المدير المباشر', $t0->copy()->addDay()),
+            $this->step('approved', 'approved2', $finance->id, $ceo->id, 'موافقة وتوقيع الموارد المالية', $signed2),
+        ], refs: ['approver1' => $pm2->id, 'approver2' => $finance->id, 'approver3' => $ceo->id], signatures: [
+            ['requested_by', $pm, $t0->copy()->addHours(9)],
+            ['approver1', $pm2, $t0->copy()->addDay()],
+            ['approver2', $finance, $signed2],
+        ]);
 
-        $this->request($officer, $center, $project, $t0->copy()->addHours(11), 'pm2_approved', [
-            ['وصف' => 'ثلاجة حفظ الأدوية', 'ك' => 1, 'وحدة' => 'قطعة', 'س' => 850000, 'ملاحظة' => null],
-            ['وصف' => 'سجلات حفظ طبية', 'ك' => 20, 'وحدة' => 'ملف', 'س' => 3000, 'ملاحظة' => null],
+        // 4) معتمد — قيد التنفيذ اللوجستي (بعض البنود منفذة)
+        $signed3 = $t0->copy()->addDays(3);
+        $execAt = $t0->copy()->addDays(4);
+        $this->request($pm, $center, $project, $t0->copy()->addHours(11), 'approved', [
+            ['وصف' => 'مولد كهرباء احتياطي', 'ك' => 1, 'وحدة' => 'قطعة', 'س' => 1450, 'عملة' => 'USD', 'ميزانية' => '3.1.29', 'ملاحظة' => null, 'exec' => true],
+            ['وصف' => 'سلك توصيل كهربائي', 'ك' => 20, 'وحدة' => 'لفة', 'س' => 35000, 'عملة' => 'SYP', 'ميزانية' => '3.1.30', 'ملاحظة' => null, 'exec' => false],
         ], [
-            $this->step('create', 'pending', $officer->id, $logistics->id, 'تم إنشاء طلب الشراء وإحالته للتسعير', $t0->copy()->addHours(11)),
-            $this->step('priced', 'priced', $logistics->id, $pm->id, 'تم التسعير — رقم الميزانية B-2026-0201', $t0->copy()->addDays(1), 'B-2026-0201'),
-            $this->step('pm_approved', 'pm_approved', $pm->id, $pm2->id, 'وافق مدير المشروع وقفل الطلب نهائياً', $t0->copy()->addDays(2)),
-            $this->step('pm2_approved', 'pm2_approved', $pm2->id, $finance->id, 'وافق مدير المشاريع وأحاله لمدير المالية', $t0->copy()->addDays(3)),
-        ], $logistics->id, $pm->id, $pm2->id, $finance->id, 'B-2026-0201', $t0->copy()->addDays(2), $pm->id);
+            $this->step('create', 'review', $pm->id, $pm2->id, 'تم إنشاء طلب الشراء وإحالته للموافقة', $t0->copy()->addHours(11)),
+            $this->step('approved', 'approved1', $pm2->id, $finance->id, 'موافقة وتوقيع المدير المباشر', $t0->copy()->addDay()->addHours(3)),
+            $this->step('approved', 'approved2', $finance->id, $ceo->id, 'موافقة وتوقيع الموارد المالية', $t0->copy()->addDays(2)),
+            $this->step('approved', 'approved', $ceo->id, $logistics->id, 'اعتماد نهائي بتوقيع المدير التنفيذي — أُحيل للتنفيذ اللوجستي', $signed3),
+        ], refs: ['approver1' => $pm2->id, 'approver2' => $finance->id, 'approver3' => $ceo->id, 'logistics' => $logistics->id],
+            lockedAt: $signed3, lockedBy: $ceo->id, approvedAt: $signed3,
+            signatures: [
+                ['requested_by', $pm, $t0->copy()->addHours(11)],
+                ['approver1', $pm2, $t0->copy()->addDay()->addHours(3)],
+                ['approver2', $finance, $t0->copy()->addDays(2)],
+                ['approver3', $ceo, $signed3],
+            ], execAt: $execAt, execBy: $logistics->id);
 
-        $approvedAt = $t0->copy()->addDays(4);
-        $this->request($officer, $center, $project, $t0->copy()->addHours(14), 'approved', [
-            ['وصف' => 'مولد كهرباء احتياطي', 'ك' => 1, 'وحدة' => 'جهاز', 'س' => 2200000, 'ملاحظة' => null],
-            ['وصف' => 'سلك توصيل كهربائي', 'ك' => 2, 'وحدة' => 'شريط', 'س' => 15000, 'ملاحظة' => null],
+        // 5) منفَّذ بالكامل
+        $fullExec = $t0->copy()->addDays(6);
+        $this->request($pm, $center, $project, $t0->copy()->addDays(2), 'executed', [
+            ['وصف' => 'دراجات هوائية للنشاط', 'ك' => 5, 'وحدة' => 'قطعة', 'س' => 180, 'عملة' => 'USD', 'ملاحظة' => null, 'exec' => true],
         ], [
-            $this->step('create', 'pending', $officer->id, $logistics->id, 'تم إنشاء طلب الشراء وإحالته للتسعير', $t0->copy()->addHours(14)),
-            $this->step('priced', 'priced', $logistics->id, $pm->id, 'تم التسعير — رقم الميزانية B-2026-0255', $t0->copy()->addDays(1), 'B-2026-0255'),
-            $this->step('pm_approved', 'pm_approved', $pm->id, $pm2->id, 'وافق مدير المشروع وقفل الطلب نهائياً', $t0->copy()->addDays(2)),
-            $this->step('pm2_approved', 'pm2_approved', $pm2->id, $finance->id, 'وافق مدير المشاريع وأحاله لمدير المالية', $t0->copy()->addDays(3)),
-            $this->step('approved', 'approved', $finance->id, null, 'اعتمد مدير المالية الطلب نهائياً', $approvedAt),
-        ], $logistics->id, $pm->id, $pm2->id, $finance->id, 'B-2026-0255', $t0->copy()->addDays(2), $pm->id, $approvedAt);
+            $this->step('create', 'review', $pm->id, $pm2->id, 'تم إنشاء طلب الشراء وإحالته للموافقة', $t0->copy()->addDays(2)),
+            $this->step('approved', 'approved1', $pm2->id, $finance->id, 'موافقة المدير المباشر', $t0->copy()->addDays(2)->addHours(4)),
+            $this->step('approved', 'approved2', $finance->id, $ceo->id, 'موافقة الموارد المالية', $t0->copy()->addDays(3)),
+            $this->step('approved', 'approved', $ceo->id, $logistics->id, 'اعتماد نهائي بتوقيع المدير التنفيذي', $t0->copy()->addDays(3)->addHours(8)),
+            $this->step('executed', 'executed', $logistics->id, null, 'تم تنفيذ كل بنود الطلب', $fullExec),
+        ], refs: ['approver1' => $pm2->id, 'approver2' => $finance->id, 'approver3' => $ceo->id, 'logistics' => $logistics->id],
+            lockedAt: $t0->copy()->addDays(3)->addHours(8), lockedBy: $ceo->id, approvedAt: $t0->copy()->addDays(3)->addHours(8),
+            signatures: [
+                ['approver1', $pm2, $t0->copy()->addDays(2)->addHours(4)],
+                ['approver2', $finance, $t0->copy()->addDays(3)],
+                ['approver3', $ceo, $t0->copy()->addDays(3)->addHours(8)],
+            ], execAt: $fullExec, execBy: $logistics->id);
 
-        $executedAt = $t0->copy()->addDays(5);
-        $this->request($officer, $center, $project, $t0->copy()->addDays(4)->addHours(2), 'executed', [
-            ['وصف' => 'دراجات هوائية للنشاط', 'ك' => 5, 'وحدة' => 'دراجة', 'س' => 130000, 'ملاحظة' => null],
+        // 6) مرفوض من المالية
+        $this->request($pm, $center, $project, $t0->copy()->addHours(16), 'rejected', [
+            ['وصف' => 'مكيفات صحراوية', 'ك' => 6, 'وحدة' => 'قطعة', 'س' => 310, 'عملة' => 'USD', 'ملاحظة' => null],
         ], [
-            $this->step('create', 'pending', $officer->id, $logistics->id, 'تم إنشاء طلب الشراء وإحالته للتسعير', $t0->copy()->addDays(4)->addHours(2)),
-            $this->step('priced', 'priced', $logistics->id, $pm->id, 'تم التسعير — رقم الميزانية B-2026-0300', $t0->copy()->addDays(4)->addHours(8), 'B-2026-0300'),
-            $this->step('pm_approved', 'pm_approved', $pm->id, $pm2->id, 'وافق مدير المشروع وقفل الطلب نهائياً', $t0->copy()->addDays(4)->addHours(14)),
-            $this->step('pm2_approved', 'pm2_approved', $pm2->id, $finance->id, 'وافق مدير المشاريع وأحاله لمدير المالية', $t0->copy()->addDays(4)->addHours(20)),
-            $this->step('approved', 'approved', $finance->id, null, 'اعتمد مدير المالية الطلب نهائياً', $t0->copy()->addDays(5)->startOfDay()),
-            $this->step('executed', 'executed', $logistics->id, null, 'تم تنفيذ طلب الشراء', $executedAt),
-        ], $logistics->id, $pm->id, $pm2->id, $finance->id, 'B-2026-0300', $t0->copy()->addDays(4)->addHours(14), $pm->id, $t0->copy()->addDays(5)->startOfDay());
+            $this->step('create', 'review', $pm->id, $pm2->id, 'تم إنشاء طلب الشراء وإحالته للموافقة', $t0->copy()->addHours(16)),
+            $this->step('approved', 'approved1', $pm2->id, $finance->id, 'موافقة المدير المباشر', $t0->copy()->addDays(1)),
+            $this->step('rejected', 'rejected', $finance->id, null, 'رُفض لعدم توفر الميزانية هذا الربع', $t0->copy()->addDays(2)),
+        ], refs: ['approver1' => $pm2->id, 'approver2' => $finance->id], signatures: [
+            ['approver1', $pm2, $t0->copy()->addDays(1)],
+        ]);
 
-        $this->request($officer, $center, $project, $t0->copy()->addHours(16), 'rejected', [
-            ['وصف' => 'مكيفات صحراوية', 'ك' => 6, 'وحدة' => 'جهاز', 'س' => 180000, 'ملاحظة' => null],
+        // 7) طلب صيانة — بصيغة PM يمر نفس الدورة (بانتظار الموافقة الأولى)
+        $this->request($pm, $center, $project, $t0->copy()->addDays(1), 'review', [
+            ['وصف' => 'صيانة مكيف مكتب الخدمات', 'ك' => 2, 'وحدة' => 'قطعة', 'س' => 90, 'عملة' => 'USD', 'ميزانية' => '5.2.10', 'ملاحظة' => 'عطل تبريد'],
+            ['وصف' => 'أقفال أبواب — استبدال', 'ك' => 6, 'وحدة' => 'طقم', 'س' => 180000, 'عملة' => 'SYP', 'ملاحظة' => null],
         ], [
-            $this->step('create', 'pending', $officer->id, $logistics->id, 'تم إنشاء طلب الشراء وإحالته للتسعير', $t0->copy()->addHours(16)),
-            $this->step('priced', 'priced', $logistics->id, $pm->id, 'تم التسعير — رقم الميزانية B-2026-0311', $t0->copy()->addDays(1)->addHours(2), 'B-2026-0311'),
-            $this->step('rejected', 'rejected', $pm->id, null, 'رفض مدير المشروع الطلب لعدم كفاية الميزانية', $t0->copy()->addDays(2)->addHours(4)),
-        ], $logistics->id, $pm->id, $pm2->id, $finance->id, 'B-2026-0311');
+            $this->step('create', 'review', $pm->id, $pm2->id, 'تم إنشاء طلب الصيانة وإحالته للموافقة', $t0->copy()->addDays(1)),
+        ], refs: ['approver1' => $pm2->id, 'type' => 'maintenance']);
 
         fwrite(STDOUT, "Demo purchase-cycle users, permissions and requests created.\n");
     }
@@ -269,7 +306,7 @@ class DemoPurchaseCycleSeeder extends Seeder
         Center $center,
         Project $project,
     ): void {
-        $media = $this->user('مسؤول إعلامي - عفرين', 'demo.media@rowad.app', 'مسؤول إعلامي');
+        $media = $this->user('مسؤول روادنا - عفرين', 'demo.media@rowad.app', 'مسؤول روادنا');
         $this->employee($media, 'DEMO-PM-MED', 'ندى', 'الإعلامية', $center->id, $project->id, null);
 
         $model = 'App\\Models\\Admin\\MediaPlan';
@@ -288,12 +325,21 @@ class DemoPurchaseCycleSeeder extends Seeder
             ]);
         }
 
+        Permission::create([
+            'user_id' => $media->id,
+            'model_names' => ['page:admin.rowaduna.dashboard'],
+            'can_view' => true, 'can_create' => false, 'can_edit' => false, 'can_delete' => false,
+        ]);
+
         $plan = MediaPlan::create([
             'month_date' => now()->firstOfMonth(),
             'center_id' => $center->id,
             'project_id' => $project->id,
             'created_by' => $officer->id,
             'note' => 'خطة إعلامية تجريبية — شهر ' . now()->locale('ar')->translatedFormat('F'),
+            'status' => 'review',
+            'refer_to_direct_manager_id' => $pm->id,
+            'refer_to_rowaduna_id' => $media->id,
         ]);
 
         $first = $events = $plan->events()->create([
@@ -361,22 +407,35 @@ class DemoPurchaseCycleSeeder extends Seeder
         $t0 = now()->subDays(2)->startOfDay();
         $number = fn (): string => 'MOV-' . now()->year . '-' . str_pad((string) (MovementPlan::count() + 1), 4, '0', STR_PAD_LEFT);
 
-        // 1) بانتظار مراجعة إدارة المشاريع
+        // 1) بانتظار مراجعة إدارة المشاريع — خطة شهرية بثلاث حركات
         $review = MovementPlan::create([
             'request_number' => $number(),
             'created_by' => $pm->id,
             'center_id' => $center->id,
             'project_id' => $project->id,
-            'movement_date' => now()->addDays(1)->toDateString(),
-            'departure_time' => '09:00',
-            'return_time' => '15:30',
-            'from_location' => 'مكتب الرواد - عفرين',
-            'to_location' => 'المخيمات الشرقية - عفرين',
-            'purpose' => 'جولة ميدانية لمتابعة توزيع المستلزمات المدرسية على المستفيدين.',
+            'plan_month' => now()->startOfMonth()->toDateString(),
             'notes' => 'خطة تجريبية بانتظار إدارة المشاريع.',
             'status' => 'review',
             'created_at' => $t0,
             'updated_at' => $t0,
+        ]);
+        $review->entries()->create([
+            'movement_date' => now()->addDays(1)->toDateString(),
+            'departure_time' => '09:00', 'return_time' => '15:30',
+            'from_location' => 'مكتب الرواد - عفرين', 'to_location' => 'المخيمات الشرقية - عفرين',
+            'purpose' => 'جولة ميدانية لمتابعة توزيع المستلزمات المدرسية على المستفيدين.',
+        ]);
+        $review->entries()->create([
+            'movement_date' => now()->addDays(4)->toDateString(),
+            'departure_time' => '10:00', 'return_time' => '13:00',
+            'from_location' => 'مكتب الرواد - عفرين', 'to_location' => 'مدرسة الأمل - عفرين',
+            'purpose' => 'متابعة سير الدوام وتسجيل الحضور.',
+        ]);
+        $review->entries()->create([
+            'movement_date' => now()->addDays(8)->toDateString(),
+            'departure_time' => '08:30', 'return_time' => '12:30',
+            'from_location' => 'مخزن اللوجستيات', 'to_location' => 'نقطة التوزيع - بلبة',
+            'purpose' => 'استلام شحنة مستلزمات نظافة وتوزيعها.',
         ]);
         $review->workflowActions()->create([
             'action' => 'create', 'status' => 'review', 'from_user_id' => $pm->id, 'to_user_id' => null,
@@ -384,23 +443,29 @@ class DemoPurchaseCycleSeeder extends Seeder
         ]);
 
         $approvedAt = $t0->copy()->addHours(8);
-        // 2) أُحيلت لمسؤول الحركة
+        // 2) أُحيلت لمسؤول الحركة — حركتان
         $approved = MovementPlan::create([
             'request_number' => $number(),
             'created_by' => $pm->id,
             'center_id' => $center->id,
             'project_id' => $project->id,
-            'movement_date' => now()->addDays(2)->toDateString(),
-            'departure_time' => '08:00',
-            'return_time' => '12:00',
-            'from_location' => 'مكتب الرواد - عفرين',
-            'to_location' => 'المخبز الآلي',
-            'purpose' => 'نقل مواد غذائية للمركز من المخبز الآلي.',
-            'notes' => null,
+            'plan_month' => now()->startOfMonth()->toDateString(),
             'refer_to_movement_officer_id' => $moveOfficer->id,
             'status' => 'approved',
             'created_at' => $t0->copy()->addHours(2),
             'updated_at' => $approvedAt,
+        ]);
+        $approved->entries()->create([
+            'movement_date' => now()->addDays(2)->toDateString(),
+            'departure_time' => '08:00', 'return_time' => '12:00',
+            'from_location' => 'مكتب الرواد - عفرين', 'to_location' => 'المخبز الآلي',
+            'purpose' => 'نقل مواد غذائية للمركز من المخبز الآلي.',
+        ]);
+        $approved->entries()->create([
+            'movement_date' => now()->addDays(6)->toDateString(),
+            'departure_time' => '13:00', 'return_time' => '16:00',
+            'from_location' => 'مكتب الرواد - عفرين', 'to_location' => 'مكتب اعزاز',
+            'purpose' => 'اجتماع تنسيقي دوري بين المكاتب.',
         ]);
         $approved->workflowActions()->create([
             'action' => 'create', 'status' => 'review', 'from_user_id' => $pm->id, 'to_user_id' => null,
@@ -412,25 +477,31 @@ class DemoPurchaseCycleSeeder extends Seeder
         ]);
 
         $assignedAt = $t0->copy()->addDays(1)->addHours(3);
-        // 3) قيد المتابعة (متعدد المتابعين)
+        // 3) قيد المتابعة (متعدد المتابعين) — حركتان
         $assigned = MovementPlan::create([
             'request_number' => $number(),
             'created_by' => $pm->id,
             'center_id' => $center->id,
             'project_id' => $project->id,
-            'movement_date' => now()->addDays(3)->toDateString(),
-            'departure_time' => '10:00',
-            'return_time' => '17:00',
-            'from_location' => 'مكتب الرواد - عفرين',
-            'to_location' => 'مناطق متفرقة - عفرين',
-            'purpose' => 'جولة توعية صحية ميدانية بمشاركة الفريق اللوجستي.',
-            'notes' => null,
+            'plan_month' => now()->startOfMonth()->toDateString(),
             'refer_to_movement_officer_id' => $moveOfficer->id,
             'assigned_by' => $moveOfficer->id,
             'assigned_at' => $assignedAt,
             'status' => 'assigned',
             'created_at' => $t0->copy()->addHours(5),
             'updated_at' => $assignedAt,
+        ]);
+        $assigned->entries()->create([
+            'movement_date' => now()->addDays(3)->toDateString(),
+            'departure_time' => '10:00', 'return_time' => '17:00',
+            'from_location' => 'مكتب الرواد - عفرين', 'to_location' => 'مناطق متفرقة - عفرين',
+            'purpose' => 'جولة توعية صحية ميدانية بمشاركة الفريق اللوجستي.',
+        ]);
+        $assigned->entries()->create([
+            'movement_date' => now()->addDays(7)->toDateString(),
+            'departure_time' => '09:00', 'return_time' => '14:00',
+            'from_location' => 'مكتب الرواد - عفرين', 'to_location' => 'ريف جنديرس',
+            'purpose' => 'توزيع سلال إغاثية ومتابعة المستفيدين.',
         ]);
         foreach ([
             [$logistics->id, 'لوجستي'],
@@ -459,19 +530,13 @@ class DemoPurchaseCycleSeeder extends Seeder
         ]);
 
         $completedAt = $t0->copy()->addDays(1)->addHours(9);
-        // 4) منجزة
+        // 4) منجزة — حركتان
         $completed = MovementPlan::create([
             'request_number' => $number(),
             'created_by' => $pm->id,
             'center_id' => $center->id,
             'project_id' => $project->id,
-            'movement_date' => $t0->copy()->subDays(1)->toDateString(),
-            'departure_time' => '07:30',
-            'return_time' => '11:15',
-            'from_location' => 'مكتب الرواد - عفرين',
-            'to_location' => 'المقر الرئيسي - منطقة الشمال',
-            'purpose' => 'تسليم مستندات المشروع لإدارة المشاريع.',
-            'notes' => 'تمت بنجاح.',
+            'plan_month' => now()->copy()->subMonth()->startOfMonth()->toDateString(),
             'refer_to_movement_officer_id' => $moveOfficer->id,
             'assigned_by' => $moveOfficer->id,
             'assigned_at' => $t0->copy()->addDays(1)->addHours(2),
@@ -479,6 +544,20 @@ class DemoPurchaseCycleSeeder extends Seeder
             'status' => 'completed',
             'created_at' => $t0->copy()->subHours(2),
             'updated_at' => $completedAt,
+        ]);
+        $completed->entries()->create([
+            'movement_date' => $t0->copy()->subDays(1)->toDateString(),
+            'departure_time' => '07:30', 'return_time' => '11:15',
+            'from_location' => 'مكتب الرواد - عفرين', 'to_location' => 'المقر الرئيسي - منطقة الشمال',
+            'purpose' => 'تسليم مستندات المشروع لإدارة المشاريع.',
+            'notes' => 'تمت بنجاح.',
+        ]);
+        $completed->entries()->create([
+            'movement_date' => $t0->copy()->toDateString(),
+            'departure_time' => '12:00', 'return_time' => '15:00',
+            'from_location' => 'المخزن', 'to_location' => 'مركز جرابلس',
+            'purpose' => 'نقل أثاث مكتبي.',
+            'notes' => 'تم التسليم والاستلام.',
         ]);
         MovementPlanRecipient::create([
             'movement_plan_id' => $completed->id,
@@ -681,9 +760,9 @@ class DemoPurchaseCycleSeeder extends Seeder
     private function employee(User $user, string $code, string $first, string $last, ?int $centerId, ?int $projectId, ?int $cohortId): Employee
     {
         return Employee::updateOrCreate(
-            ['user_id' => $user->id],
+            ['employee_code' => $code],
             [
-                'employee_code' => $code,
+                'user_id' => $user->id,
                 'first_name_ar' => $first,
                 'last_name_ar' => $last,
                 'gender' => ($first === 'ريم' || $first === 'سارة') ? 'female' : 'male',
@@ -701,41 +780,47 @@ class DemoPurchaseCycleSeeder extends Seeder
     }
 
     private function request(
-        User $officer,
+        User $creator,
         Center $center,
         Project $project,
         Carbon $createdAt,
         string $status,
         array $items,
         array $steps,
-        int $logisticsId,
-        int $directManagerId,
-        int $pm2Id,
-        int $financeId,
-        ?string $budgetNumber = null,
+        array $refs = [],
+        array $signatures = [],
         ?Carbon $lockedAt = null,
         ?int $lockedBy = null,
         ?Carbon $approvedAt = null,
+        ?Carbon $execAt = null,
+        ?int $execBy = null,
     ): PurchaseRequest {
         $total = 0;
         foreach ($items as $item) {
             $total += $item['ك'] * $item['س'];
         }
 
+        $type = ($refs['type'] ?? 'purchase') === 'maintenance' ? 'maintenance' : 'purchase';
+
         $pr = PurchaseRequest::create([
-            'request_number' => 'PR-2026-' . str_pad((string) (PurchaseRequest::withTrashed()->count() + 1), 5, '0', STR_PAD_LEFT),
-            'user_id' => $officer->id,
+            'request_number' => ($type === 'maintenance' ? 'PM-2026-' : 'PR-2026-') . str_pad((string) (PurchaseRequest::withTrashed()->count() + 1), 5, '0', STR_PAD_LEFT),
+            'request_type' => $type,
+            'user_id' => $creator->id,
             'center_id' => $center->id,
             'project_id' => $project->id,
+            'pr_date' => $createdAt->toDateString(),
+            'required_date' => $createdAt->copy()->addDays(7)->toDateString(),
+            'management_unit' => 'إدارة المشاريع',
             'specifications' => collect($items)->pluck('وصف')->implode('، '),
+            'quantity' => count($items),
+            'unit' => 'بند',
             'expected_total_price' => $total,
             'status' => $status,
-            'notes' => 'طلب شراء تجريبي — دورة الموافقات ' . $status,
-            'refer_to_logistics_id' => $logisticsId,
-            'refer_to_direct_manager_id' => $directManagerId,
-            'refer_to_pm2_id' => $pm2Id,
-            'refer_to_finance_id' => $financeId,
-            'budget_number' => $budgetNumber,
+            'notes' => 'طلب شراء تجريبي — الدورة الجديدة (' . $status . ')',
+            'refer_to_approver1_id' => $refs['approver1'] ?? null,
+            'refer_to_approver2_id' => $refs['approver2'] ?? null,
+            'refer_to_approver3_id' => $refs['approver3'] ?? null,
+            'refer_to_logistics_id' => $refs['logistics'] ?? null,
             'locked_at' => $lockedAt,
             'locked_by' => $lockedBy,
             'approved_at' => $approvedAt,
@@ -744,16 +829,32 @@ class DemoPurchaseCycleSeeder extends Seeder
         ]);
 
         foreach ($items as $item) {
-            $lineTotal = $item['ك'] * $item['س'];
+            $executed = (bool) ($item['exec'] ?? false);
             $pr->items()->create([
                 'description' => $item['وصف'],
                 'quantity' => $item['ك'],
                 'unit' => $item['وحدة'],
+                'currency' => $item['عملة'] ?? 'USD',
                 'unit_price' => $item['س'],
-                'total_price' => $lineTotal,
-                'notes' => $item['ملاحظة'],
+                'total_price' => $item['ك'] * $item['س'],
+                'budget_line' => $item['ميزانية'] ?? null,
+                'notes' => $item['ملاحظة'] ?? null,
+                'executed_at' => $executed ? $execAt : null,
+                'executed_by' => $executed ? $execBy : null,
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
+            ]);
+        }
+
+        foreach ($signatures as [$role, $signer, $at]) {
+            PurchaseRequestSignature::create([
+                'purchase_request_id' => $pr->id,
+                'role' => $role,
+                'user_id' => $signer->id,
+                'name' => $signer->name,
+                'position' => 'تجريبي',
+                'signed_at' => $at,
+                'signature_path' => null,
             ]);
         }
 

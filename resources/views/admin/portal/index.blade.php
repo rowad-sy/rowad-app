@@ -61,24 +61,29 @@
                     <span>الملف التعريفي</span>
                 </a>
 
-                <a href="{{ route('admin.identities') }}" class="portal-btn" style="--angle:72deg; --n:1">
+                <a href="{{ route('admin.identities') }}" class="portal-btn" style="--angle:60deg; --n:1">
                     <span class="portal-btn-icon"><i class="bi bi-share-fill"></i></span>
                     <span>المعرفات الرئيسية</span>
                 </a>
 
-                <a href="{{ route('admin.events-calendar') }}" class="portal-btn" style="--angle:144deg; --n:2">
+                <a href="{{ route('admin.events-calendar') }}" class="portal-btn" style="--angle:120deg; --n:2">
                     <span class="portal-btn-icon"><i class="bi bi-calendar3"></i></span>
                     <span>الفعاليات</span>
                 </a>
 
-                <a href="{{ route('admin.paths.tree') }}" class="portal-btn" style="--angle:216deg; --n:3">
+                <a href="{{ route('admin.paths.tree') }}" class="portal-btn" style="--angle:180deg; --n:3">
                     <span class="portal-btn-icon"><i class="bi bi-diagram-3-fill"></i></span>
                     <span>المسارات والمشاريع</span>
                 </a>
 
-                <a href="https://app.powerbi.com/view?r=eyJrIjoiN2U0ZTIwMTQtODRlNS00Mzg2LWI4YjMtMDFhMWY0YzdhMzVlIiwidCI6IjZlYjI4YmIwLTQ3MDQtNGQwOS05MGMzLTY4NGQ1YTFhMWVlYiIsImMiOjl9" target="_blank" rel="noopener" class="portal-btn" style="--angle:288deg; --n:4">
+                <a href="https://statistics.alrowadngo.sy/?institution=rowad" target="_blank" rel="noopener" class="portal-btn" style="--angle:240deg; --n:4">
                     <span class="portal-btn-icon"><i class="bi bi-bar-chart-line-fill"></i></span>
                     <span>الإحصائيات</span>
+                </a>
+
+                <a href="https://www.youtube.com/watch?v=O-Z8fpXpnGY" target="_blank" rel="noopener" class="portal-btn" style="--angle:300deg; --n:5">
+                    <span class="portal-btn-icon"><i class="bi bi-play-btn-fill"></i></span>
+                    <span>البرومو</span>
                 </a>
             </div>
 

@@ -7,6 +7,7 @@ use App\Models\Admin\Group;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class GroupController extends Controller
 {
@@ -22,11 +23,20 @@ class GroupController extends Controller
     {
         $search = $request->input('search');
         $groups = Group::withCount('users')
+            ->where('kind', Group::KIND_GROUP)
             ->when($search, function ($q, $search) {
                 return $q->where('name', 'like', "%{$search}%");
-            })->orderBy('name')->paginate(10)->withQueryString();
+            })->orderBy('name')->paginate(10);
 
         return view('admin.groups.index', compact('groups', 'search'));
+    }
+
+    /*
+     * شاشة المجموعات تدير نوع "group" فقط — الأدوار (kind=role) تُدار من شاشة الأدوار.
+     */
+    private function assertIsGroup(Group $group): void
+    {
+        abort_unless(! $group->isRole(), 404, 'هذا الكيان "دور" — إدارته من شاشة الأدوار والنطاقات.');
     }
 
     public function create()
@@ -50,10 +60,12 @@ class GroupController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => ['required', 'string', 'max:255', Rule::unique('groups', 'name')],
             'description' => 'nullable|string',
             'users' => 'nullable|array',
             'users.*' => 'exists:users,id',
+        ], [
+            'name.unique' => 'هذا الاسم مستخدم في النظام (دور أو مجموعة) — الأسماء فريدة على مستوى النظام.',
         ]);
 
         $this->assertNoSelfEnrollment($validated['users'] ?? []);
@@ -61,6 +73,7 @@ class GroupController extends Controller
         $group = Group::create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'kind' => Group::KIND_GROUP,
         ]);
 
         if (!empty($validated['users'])) {
@@ -76,6 +89,8 @@ class GroupController extends Controller
 
     public function edit(Group $group)
     {
+        $this->assertIsGroup($group);
+
         $group->load('users');
         $users = User::orderBy('name')->get();
         return view('admin.groups.form', compact('group', 'users'));
@@ -83,11 +98,15 @@ class GroupController extends Controller
 
     public function update(Request $request, Group $group)
     {
+        $this->assertIsGroup($group);
+
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => ['required', 'string', 'max:255', Rule::unique('groups', 'name')->ignore($group->id)],
             'description' => 'nullable|string',
             'users' => 'nullable|array',
             'users.*' => 'exists:users,id',
+        ], [
+            'name.unique' => 'هذا الاسم مستخدم في النظام (دور أو مجموعة) — الأسماء فريدة على مستوى النظام.',
         ]);
 
         $newIds = array_map('intval', $validated['users'] ?? []);

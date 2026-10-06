@@ -25,12 +25,12 @@
     </h2>
 
     @if ($prAwaitingPm2Sign > 0)
-    {{-- مستحقة لك: status = pm_approved ومحالة إليك (refer_to_pm2_id) — نفس شرط عدّاد «بموجودي للتوقيع» --}}
+    {{-- مستحقة لك: status = review ومحالة إليك (refer_to_approver1_id) — نفس شرط عدّاد «بموجودي للتوقيع» --}}
     <div class="table-container attention-card mb-3">
         <div class="p-3 border-bottom d-flex flex-wrap align-items-center gap-2">
             <span class="fw-bold"><i class="bi bi-pen me-1" aria-hidden="true"></i> طلبات شراء بانتظار توقيعك</span>
             <span class="count-pill is-attention section-title-pill">{{ $prAwaitingPm2Sign }}</span>
-            <a href="{{ route('admin.logistics.purchase-requests.index', ['status' => 'pm_approved']) }}" class="btn btn-sm btn-outline-primary ms-auto">عرض الطلبات بحالة «{{ \App\Models\Admin\Logistics\PurchaseRequest::STATUSES['pm_approved'] ?? 'pm_approved' }}»</a>
+            <a href="{{ route('admin.logistics.purchase-requests.index', ['status' => 'review']) }}" class="btn btn-sm btn-outline-primary ms-auto">عرض الطلبات بحالة «{{ \App\Models\Admin\Logistics\PurchaseRequest::STATUSES['review'] ?? 'review' }}»</a>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -69,10 +69,9 @@
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>رقم الحركة</th>
-                    <th>التاريخ</th>
-                    <th>المسار</th>
-                    <th>الغاية</th>
+                    <th>رقم الخطة</th>
+                    <th>الشهر</th>
+                    <th>الحركات</th>
                     <th>المركز</th>
                     <th>أنشأها</th>
                     <th>الإجراءات</th>
@@ -82,9 +81,8 @@
                 @foreach ($movementAwaitingReview as $plan)
                     <tr>
                         <td><code>{{ $plan->request_number }}</code></td>
-                        <td>{{ $plan->movement_date->format('Y-m-d') }}</td>
-                        <td><small>{{ $plan->from_location ?: '—' }} ← {{ $plan->to_location ?: '—' }}</small></td>
-                        <td>{{ Str::limit($plan->purpose, 40) }}</td>
+                        <td class="num">{{ $plan->plan_month?->format('Y-m') ?? '—' }}</td>
+                        <td class="num">{{ $plan->entries_count }}</td>
                         <td>{{ $plan->center?->name ?? '—' }}</td>
                         <td>{{ $plan->creator?->name ?? '—' }}</td>
                         <td>
@@ -374,8 +372,8 @@
                             @php
                                 $statusLabel = \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$request->status] ?? $request->status;
                                 $prColor = match ($request->status) {
-                                    'pending' => 'warning text-dark',
-                                    'priced' => 'info',
+                                    'review' => 'warning text-dark',
+                                    'approved1', 'approved2' => 'info',
                                     'rejected' => 'danger',
                                     'executed' => 'dark',
                                     default => 'success',

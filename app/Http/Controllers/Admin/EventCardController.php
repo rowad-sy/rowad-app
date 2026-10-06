@@ -246,6 +246,7 @@ class EventCardController extends Controller
             'tasks_projects' => 'nullable|string',
             'tasks_operations' => 'nullable|string',
             'tasks_mel' => 'nullable|string',
+            'tasks_grants' => 'nullable|string',
             'content_items' => 'nullable|array',
             'content_items.*.item' => 'nullable|string|max:255',
             'content_items.*.content' => 'nullable|string|max:2000',

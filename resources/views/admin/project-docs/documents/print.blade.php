@@ -10,17 +10,19 @@
         @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Medium.ttf') format('truetype'); font-weight: 500; font-style: normal; font-display: swap; }
         @font-face { font-family: 'Tajawal Local'; src: url('/fonts/Tajawal-Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
         :root { --accent: #ff8427; --accent-strong: #d96a10; --ink: #1f1f1f; }
-        body { background: #f1f3f5; font-family: 'Tajawal Local', 'Tajawal', sans-serif; color: var(--ink); }
+        body { background: #f1f3f5; font-family: 'Sakkal Majalla', 'Tajawal Local', 'Tajawal', sans-serif; color: var(--ink); }
         .print-sheet {
             position: relative;
             background-color: #fff;
             max-width: 210mm; margin: 0 auto 10mm; min-height: 297mm;
             padding: 18mm 14mm 22mm;
-            font-family: 'Tajawal Local', 'Tajawal', sans-serif;
+            font-family: 'Sakkal Majalla', 'Tajawal Local', 'Tajawal', sans-serif;
             font-size: 12pt;
             page-break-after: always;
         }
         .print-sheet:last-child { margin-bottom: 0; page-break-after: auto; }
+        .cover-sheet { padding: 0; overflow: hidden; }
+        .cover-sheet img { display: block; width: 210mm; height: 297mm; object-fit: cover; }
         .sheet-head { border-top: 3px solid var(--accent); border-bottom: 2px solid var(--accent); padding-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
         .sheet-head img.brand-logo { height: 14mm; width: auto; }
         .sheet-head .org { font-weight: 700; color: var(--accent-strong); font-size: 1.05rem; }
@@ -71,6 +73,12 @@
         <a class="btn btn-outline-secondary" href="{{ route('admin.project-docs.documents.show', $document) }}">رجوع</a>
         <span class="badge bg-secondary">{{ $totalPages }} {{ Str::plural('صفحة', $totalPages) }}</span>
     </div>
+
+    @if ($document->cover_path)
+        <div class="print-sheet cover-sheet">
+            <img src="{{ asset('storage/'.$document->cover_path) }}" alt="غلاف الوثيقة">
+        </div>
+    @endif
 
     @for ($p = 1; $p <= $totalPages; $p++)
         <div class="print-sheet">

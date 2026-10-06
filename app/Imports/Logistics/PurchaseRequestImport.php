@@ -30,7 +30,7 @@ class PurchaseRequestImport implements ToCollection, WithHeadingRow
                 'request_number' => 'PR-' . date('Y') . '-' . str_pad($lastNumber + 1, 5, '0', STR_PAD_LEFT),
                 'user_id' => auth()->id(),
                 'expected_total_price' => $totalPrice,
-                'status' => 'pending',
+                'status' => 'review',
                 'notes' => $first['ملاحظات'] ?? null,
             ]);
 

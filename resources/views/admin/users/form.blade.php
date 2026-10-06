@@ -105,14 +105,10 @@
                     <p class="text-muted small mb-3">بيانات إضافية للمستخدم من نوع موظف — تُستخدم في البحث والفلترة (مستقلة عن سجل الموارد البشرية).</p>
 
                     <div class="mb-3">
-                        <label class="form-label">المسمى الوظيفي</label>
-                        <select name="job_title_id" class="form-select @error('job_title_id') is-invalid @enderror">
-                            <option value="">— اختر المسمى —</option>
-                            @foreach ($jobTitles as $jt)
-                                <option value="{{ $jt->id }}" {{ old('job_title_id', $user->job_title_id ?? '') == $jt->id ? 'selected' : '' }}>{{ $jt->title_ar }}</option>
-                            @endforeach
-                        </select>
-                        @error('job_title_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="form-text text-muted small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            المسمى الوظيفي لم يعد يُطلب هنا — الصلاحيات وتسمية الوظيفة تُحدَّد عبر <b>الأدوار والنطاقات</b> بالأسفل.
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -137,6 +133,67 @@
                         @error('project_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
+
+                {{-- الترتيبة v2: إسناد الأدوار مع النطاق من نفس الشاشة --}}
+                @if ($canAssignRoles ?? false)
+                    <hr>
+                    <h6 class="text-primary mb-1"><i class="bi bi-briefcase me-1" aria-hidden="true"></i> الأدوار والنطاقات</h6>
+                    <p class="text-muted small mb-3">
+                        علّم أدوار هذا المستخدم وحدّد لكل دور نطاقه (مركز/مشروع/فوج) — اتركها = يسري على كل المنظمة.
+                        تعريف الأدوار: <a href="{{ route('admin.roles.index') }}" class="text-decoration-none">شاشة الأدوار</a>،
+                        وصلاحياتها: <a href="{{ route('admin.permissions.index') }}" class="text-decoration-none">شاشة الصلاحيات</a>.
+                    </p>
+
+                    @if ($roles->isEmpty())
+                        <div class="alert alert-light border small">لا توجد أدوار بعد — عرّف دوراً أولاً من «الأدوار والنطاقات».</div>
+                    @else
+                        @foreach ($roles as $role)
+                            @php $piv = $roleAssignments[$role->id] ?? null; @endphp
+                            <div class="border rounded p-2 mb-2">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input role-toggle" id="role_{{ $role->id }}"
+                                           data-target="role_scopes_{{ $role->id }}"
+                                           name="roles[{{ $role->id }}][enabled]" value="1"
+                                           {{ ($piv !== null || old("roles.{$role->id}.enabled")) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-medium" for="role_{{ $role->id }}">{{ $role->name }}</label>
+                                    @if ($role->description)
+                                        <div class="form-text small">{{ $role->description }}</div>
+                                    @endif
+                                </div>
+                                <div class="row g-2 mt-1" id="role_scopes_{{ $role->id }}"
+                                     style="{{ ($piv !== null || old("roles.{$role->id}.enabled")) ? '' : 'display:none;' }}">
+                                    <div class="col-4">
+                                        <select name="roles[{{ $role->id }}][center_id]" class="form-select form-select-sm" aria-label="مركز دور {{ $role->name }}">
+                                            <option value="">🏢 كل المراكز</option>
+                                            @foreach ($centers as $center)
+                                                <option value="{{ $center->id }}"
+                                                    {{ old("roles.{$role->id}.center_id", $piv?->pivot->center_id) == $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-4">
+                                        <select name="roles[{{ $role->id }}][project_id]" class="form-select form-select-sm" aria-label="مشروع دور {{ $role->name }}">
+                                            <option value="">📌 كل المشاريع</option>
+                                            @foreach ($projects as $project)
+                                                <option value="{{ $project->id }}"
+                                                    {{ old("roles.{$role->id}.project_id", $piv?->pivot->project_id) == $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-4">
+                                        <select name="roles[{{ $role->id }}][cohort_id]" class="form-select form-select-sm" aria-label="فوج دور {{ $role->name }}">
+                                            <option value="">🎓 كل الأفواج</option>
+                                            @foreach ($cohorts as $co)
+                                                <option value="{{ $co->id }}"
+                                                    {{ old("roles.{$role->id}.cohort_id", $piv?->pivot->cohort_id) == $co->id ? 'selected' : '' }}>{{ $co->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    @endif
+                @endif
 
                 @if (isset($user))
                     <div class="mb-3 form-check form-switch">
@@ -188,6 +245,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     typeSelect.addEventListener('change', toggleLinkFields);
     toggleLinkFields();
+
+    document.querySelectorAll('.role-toggle').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            var box = document.getElementById(cb.dataset.target);
+            if (box) box.style.display = cb.checked ? '' : 'none';
+        });
+    });
 });
 </script>
 @endpush

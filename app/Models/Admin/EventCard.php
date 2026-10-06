@@ -25,7 +25,7 @@ class EventCard extends Model
         'name', 'project_id', 'center_id', 'event_date', 'location', 'organizer',
         'presenter', 'expected_attendance', 'objectives',
         'schedule_place', 'schedule_date', 'schedule_time',
-        'tasks_projects', 'tasks_operations', 'tasks_mel',
+        'tasks_projects', 'tasks_operations', 'tasks_mel', 'tasks_grants',
         'content_items', 'logistics_items', 'purchases_items', 'media_items',
         'hr_notes', 'transport_items', 'budget_items', 'budget_total',
         'post_evaluation', 'status', 'created_by', 'referred_user_id',

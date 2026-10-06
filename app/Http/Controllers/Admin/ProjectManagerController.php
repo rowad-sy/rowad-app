@@ -55,10 +55,13 @@ class ProjectManagerController extends Controller
             ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId));
 
-        $pendingPricingCount = (clone $prQuery)->where('status', 'pending')->count();
+        $pendingPricingCount = (clone $prQuery)->whereIn('status', ['review', 'approved1', 'approved2'])->count();
         $awaitingMySignCount = (clone $prQuery)
-            ->where('status', 'priced')
-            ->where('refer_to_direct_manager_id', auth()->id())
+            ->where(fn ($q) => $q
+                ->where(fn ($s) => $s->where('status', 'review')->where('refer_to_approver1_id', auth()->id()))
+                ->orWhere(fn ($s) => $s->where('status', 'approved1')->where('refer_to_approver2_id', auth()->id()))
+                ->orWhere(fn ($s) => $s->where('status', 'approved2')->where('refer_to_approver3_id', auth()->id()))
+                ->orWhere(fn ($s) => $s->where('status', 'approved')->where('refer_to_logistics_id', auth()->id())))
             ->count();
         $approvedCount = (clone $prQuery)->where('status', 'approved')->count();
         $executedCount = (clone $prQuery)->where('status', 'executed')->count();

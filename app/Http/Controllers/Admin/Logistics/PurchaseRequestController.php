@@ -2,24 +2,28 @@
 
 namespace App\Http\Controllers\Admin\Logistics;
 
+use App\Exports\Logistics\PurchaseRequestFormExport;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
+use App\Models\Admin\Department;
 use App\Models\Admin\Hr\Employee;
-use App\Models\Admin\Logistics\ApprovalRule;
 use App\Models\Admin\Logistics\PurchaseRequest;
-use App\Models\Admin\Logistics\PurchaseRequestApproval;
+use App\Models\Admin\Logistics\PurchaseRequestItem;
+use App\Models\Admin\Logistics\PurchaseRequestSignature;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PurchaseRequestController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,view')->only(['index', 'show', 'help']);
+        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,view')->only(['index', 'show', 'help', 'print', 'exportExcel']);
         $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,create')->only(['create', 'store']);
-        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,edit')->only(['priceForm', 'price', 'managerDecide', 'pm2Decide', 'financeDecide', 'executiveDecide', 'execute', 'refer']);
+        $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,edit')->only(['edit', 'update', 'approve', 'reject', 'refer', 'executeItems']);
         $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,delete')->only(['destroy']);
     }
 
@@ -31,17 +35,23 @@ class PurchaseRequestController extends Controller
         if ($user->type !== 'super-admin') {
             $query->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
-                    ->orWhere(fn ($s) => $s->where('refer_to_logistics_id', $user->id)
-                        ->orWhere('refer_to_direct_manager_id', $user->id)
-                        ->orWhere('refer_to_pm2_id', $user->id)
-                        ->orWhere('refer_to_finance_id', $user->id)
-                        ->orWhere('refer_to_executive_id', $user->id))
+                    ->orWhere(fn ($s) => $s->where('refer_to_approver1_id', $user->id)
+                        ->orWhere('refer_to_approver2_id', $user->id)
+                        ->orWhere('refer_to_approver3_id', $user->id)
+                        ->orWhere('refer_to_logistics_id', $user->id))
                     ->orWhereHas('activeReferrals', fn ($r) => $r->where('to_user_id', $user->id));
             });
         }
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
+        }
+
+        $type = $request->get('type', 'all');
+        if (array_key_exists($type, PurchaseRequest::TYPES)) {
+            $query->where('request_type', $type);
+        } else {
+            $type = 'all';
         }
 
         if ($request->filled('center_id')) {
@@ -52,37 +62,42 @@ class PurchaseRequestController extends Controller
             $query->where('project_id', $request->project_id);
         }
 
-        $purchaseRequests = $query->orderBy('created_at', 'desc')
-            ->paginate(15)
-            ->appends($request->only(['status', 'center_id', 'project_id']));
+        $perPage = (int) ($request->get('per_page', 15));
+        $perPage = in_array($perPage, [10, 15, 25, 50], true) ? $perPage : 15;
+
+        $purchaseRequests = $query->orderByDesc('pr_date')->orderByDesc('id')
+            ->paginate($perPage)
+            ->appends($request->only(['status', 'center_id', 'project_id', 'per_page', 'type']));
 
         $statuses = array_keys(PurchaseRequest::STATUSES);
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
+        $status = $request->get('status', 'all');
+        $centerId = $request->get('center_id');
+        $projectId = $request->get('project_id');
 
         return view('admin.logistics.purchase-requests.index', compact(
-            'purchaseRequests', 'statuses', 'centers', 'projects'
+            'purchaseRequests', 'statuses', 'centers', 'projects',
+            'status', 'centerId', 'projectId', 'perPage', 'type'
         ));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $centers = Center::orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
+        $users = User::where('type', 'employee')->orderBy('name')->get();
+        $departments = Department::where('is_active', 1)->orderBy('name_ar')->get();
 
         $employee = Employee::where('user_id', auth()->id())->first();
-        $officerCenterId = $employee?->center_id;
-        $officerProjectId = $employee?->project_id;
-        $officerCohortId = $employee?->cohort_id;
-
-        $candidates = $this->cycleCandidates();
-        $defaultLogisticsId = $this->defaultLogisticsId($officerCenterId);
-        $defaultDirectManagerId = $this->defaultDirectManagerId($officerProjectId);
+        $defaultApproverId = $this->defaultApproverId();
+        $requestType = array_key_exists((string) $request->get('type'), PurchaseRequest::TYPES)
+            ? (string) $request->get('type')
+            : 'purchase';
 
         return view('admin.logistics.purchase-requests.form', compact(
-            'centers', 'projects',
-            'candidates', 'defaultLogisticsId', 'defaultDirectManagerId',
-            'officerCenterId', 'officerProjectId', 'officerCohortId'
+            'centers', 'projects', 'users', 'departments',
+            'defaultApproverId', 'employee', 'requestType'
         ));
     }
 
@@ -93,79 +108,54 @@ class PurchaseRequestController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'center_id' => 'required|exists:centers,id',
-            'project_id' => 'required|exists:projects,id',
-            'notes' => 'nullable|string|max:1000',
-            'signature_data_url' => 'nullable|string',
-            'signature_image' => 'nullable|image|mimes:png,jpg,jpeg,gif|max:2048',
-            'items' => 'required|array|min:1',
-            'items.*.description' => 'required|string|max:2000',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit' => 'required|string|max:50',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.budget_line' => 'nullable|numeric|min:0',
-            'items.*.notes' => 'nullable|string|max:1000',
-            'refer_to_logistics_id' => 'nullable|exists:users,id',
-            'refer_to_direct_manager_id' => 'nullable|exists:users,id',
+        $request->validate([
+            'signature_image' => ['required', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
         ]);
 
-        $validated['user_id'] = auth()->id();
-        $validated['status'] = 'pending';
+        $validated = $this->validateRequest($request);
+
+        $employee = Employee::where('user_id', auth()->id())->first();
+
+        $approver1 = $validated['refer_to_approver1_id'] ?? $this->defaultApproverId();
+        if ($approver1 !== null && (int) $approver1 === (int) auth()->id()) {
+            $approver1 = null;
+        }
 
         $totalPrice = 0;
         foreach ($validated['items'] as $item) {
             $totalPrice += $item['quantity'] * $item['unit_price'];
         }
-        $validated['expected_total_price'] = $totalPrice;
 
-        if ($request->hasFile('signature_image')) {
-            $validated['signature_path'] = $request->file('signature_image')->store('signatures', 'public');
-        } elseif ($request->filled('signature_data_url')) {
-            $validated['signature_path'] = $request->signature_data_url;
+        $purchaseRequest = PurchaseRequest::create([
+            'request_number' => $validated['request_number'],
+            'request_type' => ($validated['request_type'] ?? null) === 'maintenance' ? 'maintenance' : 'purchase',
+            'user_id' => auth()->id(),
+            'center_id' => ($validated['center_id'] ?? null) ?: $employee?->center_id,
+            'project_id' => ($validated['project_id'] ?? null) ?: $employee?->project_id,
+            'pr_date' => $validated['pr_date'],
+            'required_date' => $validated['required_date'] ?? null,
+            'management_unit' => $validated['management_unit'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'specifications' => $this->specsSummary($validated['items']),
+            'quantity' => count($validated['items']),
+            'unit' => 'بند',
+            'expected_total_price' => $totalPrice,
+            'refer_to_approver1_id' => $approver1,
+            'status' => 'review',
+        ]);
+
+        $this->syncItems($purchaseRequest, $validated['items']);
+
+        $this->storeRequestedSignature($request, $purchaseRequest);
+
+        $purchaseRequest->logWorkflow('create', $approver1, 'تم إنشاء ' . $purchaseRequest->typeLabel() . ' وإحالته للموافقة', 'review');
+
+        if ($approver1 !== null) {
+            $purchaseRequest->referTo($approver1, 'approver1');
         }
 
-        unset($validated['signature_data_url'], $validated['signature_image']);
-
-        $lastRequest = PurchaseRequest::where('request_number', 'like', 'PR-' . date('Y') . '-%')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if ($lastRequest) {
-            $lastNumber = (int) substr($lastRequest->request_number, -5);
-            $nextId = $lastNumber + 1;
-        } else {
-            $nextId = 1;
-        }
-
-        $validated['request_number'] = 'PR-' . date('Y') . '-' . str_pad($nextId, 5, '0', STR_PAD_LEFT);
-
-        $items = $validated['items'] ?? [];
-        unset($validated['items']);
-
-        $purchaseRequest = PurchaseRequest::create($validated);
-
-        foreach ($items as $item) {
-            $purchaseRequest->items()->create([
-                'description' => $item['description'],
-                'quantity' => $item['quantity'],
-                'unit' => $item['unit'],
-                'unit_price' => $item['unit_price'],
-                'total_price' => $item['quantity'] * $item['unit_price'],
-                'budget_line' => $item['budget_line'] ?? null,
-                'notes' => $item['notes'] ?? null,
-            ]);
-        }
-
-        $this->createApprovals($purchaseRequest);
-
-        $this->pushReferral($purchaseRequest, 'logistics', $purchaseRequest->refer_to_logistics_id, null);
-        $this->pushReferral($purchaseRequest, 'direct_manager', $purchaseRequest->refer_to_direct_manager_id, null);
-
-        $purchaseRequest->logWorkflow('create', $purchaseRequest->refer_to_logistics_id, 'تم إنشاء طلب الشراء');
-
-        return redirect()->route('admin.logistics.purchase-requests.index')
-            ->with('success', 'تم إضافة طلب الشراء بنجاح');
+        return redirect()->route('admin.logistics.purchase-requests.show', $purchaseRequest)
+            ->with('success', 'تم إنشاء ' . $purchaseRequest->typeLabel() . ' وإحالته للموافقة');
     }
 
     public function show(PurchaseRequest $purchaseRequest)
@@ -176,307 +166,266 @@ class PurchaseRequestController extends Controller
         }
 
         $purchaseRequest->load([
-            'user', 'center', 'project', 'approvals.user', 'items',
-            'logisticsStaff', 'directManager', 'pm2User', 'financeUser', 'executiveUser', 'lockedByUser',
-            'workflowActions.fromUser', 'workflowActions.toUser',
+            'user.jobTitle', 'center', 'project', 'items.executor',
+            'approver1User', 'approver2User', 'approver3User', 'logisticsStaff', 'lockedByUser',
+            'signatures.user', 'workflowActions.fromUser', 'workflowActions.toUser',
         ]);
 
-        $candidates = $this->cycleCandidates();
+        $users = User::where('type', 'employee')->orderBy('name')->get();
 
-        $tentativePm2Id = $purchaseRequest->refer_to_pm2_id
-            ?? Permission::whereJsonContains('model_names', 'page:admin.project-manager.dashboard')
-                ->where('can_view', 1)
-                ->whereNull('center_id')
-                ->whereNull('project_id')
-                ->whereNotNull('user_id')
-                ->orderBy('id')
-                ->value('user_id')
-            ?? $candidates->first()?->id;
+        return view('admin.logistics.purchase-requests.show', compact('purchaseRequest', 'users'));
+    }
 
-        $tentativeFinanceId = $purchaseRequest->refer_to_finance_id
-            ?? Permission::whereJsonContains('model_names', 'App\Models\Admin\Logistics\PurchaseRequest')
-                ->where('can_edit', 1)
-                ->whereNotNull('user_id')
-                ->whereNull('center_id')
-                ->whereNull('project_id')
-                ->orderBy('id')
-                ->value('user_id')
-            ?? $candidates->first()?->id;
+    public function edit(PurchaseRequest $purchaseRequest)
+    {
+        $this->authorizeEditable($purchaseRequest);
 
-        $tentativeExecutiveId = $purchaseRequest->refer_to_executive_id
-            ?? User::where('type', 'super-admin')->value('id')
-            ?? $candidates->first()?->id;
+        $centers = Center::orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
+        $users = User::where('type', 'employee')->orderBy('name')->get();
+        $departments = Department::where('is_active', 1)->orderBy('name_ar')->get();
 
-        return view('admin.logistics.purchase-requests.show', compact(
-            'purchaseRequest', 'candidates', 'tentativePm2Id', 'tentativeFinanceId', 'tentativeExecutiveId'
+        $purchaseRequest->load('items');
+        $defaultApproverId = $purchaseRequest->refer_to_approver1_id;
+        $employee = Employee::where('user_id', auth()->id())->first();
+        $requestType = $purchaseRequest->request_type ?: 'purchase';
+
+        return view('admin.logistics.purchase-requests.form', compact(
+            'purchaseRequest', 'centers', 'projects', 'users', 'departments',
+            'defaultApproverId', 'employee', 'requestType'
         ));
     }
 
-    /*
-     * (قسم 14.3) واجهة التسعير المقيد — اللوجستي فقط
-     * يسمح بتحديث unit_price/total_price للبنود ورقم الميزانية؛
-     * حقول البنود الأخرى (وصف/كمية/وحدة) غير مرسلة أصلاً.
-     */
-    public function priceForm(PurchaseRequest $purchaseRequest)
+    public function update(Request $request, PurchaseRequest $purchaseRequest)
     {
-        $this->authorizePricing($purchaseRequest);
-        $purchaseRequest->load('items');
+        $this->authorizeEditable($purchaseRequest);
 
-        return view('admin.logistics.purchase-requests.price', compact('purchaseRequest'));
-    }
+        $validated = $this->validateRequest($request, $purchaseRequest);
 
-    public function price(PurchaseRequest $purchaseRequest, Request $request)
-    {
-        $this->authorizePricing($purchaseRequest);
-
-        $validated = $request->validate([
-            'budget_number' => 'nullable|string|max:60',
-            'items' => 'required|array|min:1',
-            'items.*.id' => 'required|integer',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.budget_line' => 'nullable|numeric|min:0',
-        ]);
-
-        $itemIds = $purchaseRequest->items()->pluck('id')->all();
-
-        foreach ($validated['items'] as $item) {
-            if (! in_array((int) $item['id'], $itemIds, true)) {
-                return back()->with('error', 'بند غير تابع لهذا الطلب');
-            }
+        $approver1 = $validated['refer_to_approver1_id'] ?? $purchaseRequest->refer_to_approver1_id;
+        if ((int) $approver1 === (int) $purchaseRequest->user_id) {
+            return back()->withInput()->withErrors(['refer_to_approver1_id' => 'لا يمكن إحالة الطلب إلى منشئه.']);
         }
 
-        $grandTotal = 0;
+        $totalPrice = 0;
         foreach ($validated['items'] as $item) {
-            $row = $purchaseRequest->items()->findOrFail($item['id']);
-            $total = $row->quantity * $item['unit_price'];
-            $grandTotal += $total;
-            $row->update([
-                'unit_price' => $item['unit_price'],
-                'total_price' => $total,
-                'budget_line' => $item['budget_line'] ?? null,
-            ]);
+            $totalPrice += $item['quantity'] * $item['unit_price'];
+        }
+
+        if ($approver1 !== null && (int) $approver1 !== (int) $purchaseRequest->refer_to_approver1_id) {
+            $purchaseRequest->completeReferral('approver1');
+            $purchaseRequest->update(['refer_to_approver1_id' => $approver1]);
+            $purchaseRequest->referTo($approver1, 'approver1');
+            $purchaseRequest->logWorkflow('referred', $approver1, 'غيّر المنشئ وجهة الإحالة عند التعديل');
         }
 
         $purchaseRequest->update([
-            'budget_number' => $validated['budget_number'] ?? null,
-            'expected_total_price' => $grandTotal,
-            'status' => 'priced',
+            'center_id' => $validated['center_id'] ?? $purchaseRequest->center_id,
+            'project_id' => $validated['project_id'] ?? $purchaseRequest->project_id,
+            'pr_date' => $validated['pr_date'],
+            'required_date' => $validated['required_date'] ?? null,
+            'management_unit' => $validated['management_unit'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'specifications' => $this->specsSummary($validated['items']),
+            'quantity' => count($validated['items']),
+            'expected_total_price' => $totalPrice,
         ]);
 
-        $purchaseRequest->completeReferral('logistics');
-
-        $noteParts = [];
-        if (! empty($validated['budget_number'] ?? null)) {
-            $noteParts[] = 'رقم الميزانية: ' . $validated['budget_number'];
-        }
-        $budgetLines = collect($validated['items'])->pluck('budget_line')->filter();
-        if ($budgetLines->isNotEmpty()) {
-            $noteParts[] = 'خط الميزانية: ' . $budgetLines->implode(', ');
-        }
-
-        $purchaseRequest->logWorkflow(
-            'priced',
-            $purchaseRequest->refer_to_direct_manager_id,
-            trim(implode(' | ', $noteParts)),
-            'priced'
-        );
+        $this->syncItems($purchaseRequest, $validated['items']);
 
         return redirect()->route('admin.logistics.purchase-requests.show', $purchaseRequest)
-            ->with('success', 'تم التسعير وإحالة الطلب إلى المدير المباشر للتوقيع');
+            ->with('success', 'تم تحديث طلب الشراء.');
     }
 
     /*
-     * (قسم 14.4/14.5) قرار المدير المباشر — عند الموافقة يُقفل الطلب نهائياً
-     * (locked_at/locked_by) ويُحال إلى مدير المشاريع.
+     * الموافقة — خطوة واحدة تتقدم بالحالة. الموقع الإلزامي صورة مرفوعة،
+     * ومع كل موافقة تُختار الوجهة التالية من قائمة قابلة للبحث.
+     * الحصرية مطلقة: المستلم الحالي فقط، ولا استثناء لـ super-admin.
      */
-    public function managerDecide(PurchaseRequest $purchaseRequest, Request $request)
+    public function approve(Request $request, PurchaseRequest $purchaseRequest)
     {
-        $this->authorizeStep($purchaseRequest, 'direct_manager', 'priced');
+        $step = $purchaseRequest->currentStep();
+        abort_if(! in_array($step, ['approver1', 'approver2', 'approver3'], true), 403, 'لا توجد موافقة مطلوبة في هذا الطور.');
+        $this->authorizeHolderStrict($purchaseRequest, $step);
+
+        $isFinal = $step === 'approver3';
 
         $validated = $request->validate([
-            'decision' => 'required|in:approve,reject',
+            'signature_image' => ['required', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
             'note' => 'nullable|string|max:1000',
-            'refer_to_pm2_id' => 'required_if:decision,approve|exists:users,id',
-        ]);
+            'next_approver_id' => ['required_without:logistics_user_id', 'nullable', 'exists:users,id'],
+            'logistics_user_id' => [$isFinal ? 'required' : 'nullable', 'exists:users,id'],
+        ], [], ['next_approver_id' => 'الموافق التالي', 'logistics_user_id' => 'مدير اللوجستي']);
 
-        if ($validated['decision'] === 'reject') {
-            $purchaseRequest->update(['status' => 'rejected']);
-            $purchaseRequest->completeReferral('direct_manager');
-            $purchaseRequest->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
-
-            return redirect()->back()->with('error', 'تم رفض طلب الشراء من المدير المباشر');
+        $nextId = $isFinal ? $validated['logistics_user_id'] : ($validated['next_approver_id'] ?? null);
+        if ($nextId === null) {
+            return back()->withErrors(['next_approver_id' => 'اختر الشخص التالي من القائمة.']);
         }
 
-        $purchaseRequest->update([
-            'status' => 'pm_approved',
-            'refer_to_pm2_id' => $validated['refer_to_pm2_id'],
-        ]);
+        if ((int) $nextId === (int) auth()->id()) {
+            return back()->withErrors(['next_approver_id' => 'لا يمكن تمرير الطلب لنفسك.']);
+        }
 
-        $purchaseRequest->completeReferral('direct_manager');
-        $this->pushReferral($purchaseRequest, 'pm2', $validated['refer_to_pm2_id'], $validated['note'] ?? null);
+        $signaturePath = $request->file('signature_image')->store('pr-signatures', 'public');
+        $user = $request->user();
 
-        $purchaseRequest->logWorkflow(
-            'pm_approved',
-            $validated['refer_to_pm2_id'],
-            $validated['note'] ?? null,
-            'pm_approved'
+        PurchaseRequestSignature::updateOrCreate(
+            ['purchase_request_id' => $purchaseRequest->id, 'role' => $step],
+            [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'position' => $user->jobTitle?->title_ar ?? ($isFinal ? 'المدير التنفيذي' : null),
+                'signed_at' => now(),
+                'signature_path' => $signaturePath,
+            ]
         );
 
-        return redirect()->back()->with('success', 'تمت الموافقة وإحالة الطلب إلى مدير المشاريع');
+        $column = match ($step) {
+            'approver1' => 'refer_to_approver2_id',
+            'approver2' => 'refer_to_approver3_id',
+            'approver3' => 'refer_to_logistics_id',
+        };
+
+        $updates = [$column => $nextId];
+
+        if ($isFinal) {
+            $updates['locked_at'] = now();
+            $updates['locked_by'] = $user->id;
+            $updates['approved_at'] = now();
+        }
+
+        $newStatus = match ($step) {
+            'approver1' => 'approved1',
+            'approver2' => 'approved2',
+            'approver3' => 'approved',
+        };
+        $updates['status'] = $newStatus;
+
+        $purchaseRequest->update($updates);
+        $purchaseRequest->completeReferral($step);
+        $purchaseRequest->referTo($nextId, $isFinal ? 'logistics' : ($step === 'approver1' ? 'approver2' : 'approver3'), $validated['note'] ?? null);
+        $purchaseRequest->logWorkflow('approved', $nextId, $validated['note'] ?? null, $newStatus);
+
+        return back()->with('success', 'تمت الموافقة والتوقيع وإحالة الطلب للجهة التالية.');
     }
 
-    public function pm2Decide(PurchaseRequest $purchaseRequest, Request $request)
+    public function reject(Request $request, PurchaseRequest $purchaseRequest)
     {
-        $this->authorizeStep($purchaseRequest, 'pm2', 'pm_approved');
+        $step = $purchaseRequest->currentStep();
+        abort_if($step === null || $step === 'logistics', 403, 'لا توجد موافقة قائمة يمكن رفضها.');
+        $this->authorizeHolderStrict($purchaseRequest, $step);
 
         $validated = $request->validate([
-            'decision' => 'required|in:approve,reject',
-            'note' => 'nullable|string|max:1000',
-            'refer_to_finance_id' => 'required_if:decision,approve|exists:users,id',
+            'reason' => 'required|string|max:1000',
         ]);
 
-        if ($validated['decision'] === 'reject') {
-            $purchaseRequest->update(['status' => 'rejected']);
-            $purchaseRequest->completeReferral('pm2');
-            $purchaseRequest->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
+        $purchaseRequest->update(['status' => 'rejected', 'notes' => trim(($purchaseRequest->notes.PHP_EOL.'رفض: '.$validated['reason']))]);
+        $purchaseRequest->completeReferral($step);
+        $purchaseRequest->logWorkflow('rejected', null, $validated['reason'], 'rejected');
 
-            return redirect()->back()->with('error', 'تم رفض طلب الشراء من مدير المشاريع');
-        }
-
-        $purchaseRequest->update([
-            'status' => 'pm2_approved',
-            'refer_to_finance_id' => $validated['refer_to_finance_id'],
-        ]);
-
-        $purchaseRequest->completeReferral('pm2');
-        $this->pushReferral($purchaseRequest, 'finance', $validated['refer_to_finance_id'], $validated['note'] ?? null);
-
-        $purchaseRequest->logWorkflow(
-            'pm2_approved',
-            $validated['refer_to_finance_id'],
-            $validated['note'] ?? null,
-            'pm2_approved'
-        );
-
-        return redirect()->back()->with('success', 'تمت الموافقة وإحالة الطلب إلى المسؤول المالي');
-    }
-
-    public function financeDecide(PurchaseRequest $purchaseRequest, Request $request)
-    {
-        $this->authorizeStep($purchaseRequest, 'finance', 'pm2_approved');
-
-        $validated = $request->validate([
-            'decision' => 'required|in:approve,reject',
-            'note' => 'nullable|string|max:1000',
-            'refer_to_executive_id' => 'required_if:decision,approve|exists:users,id',
-        ]);
-
-        if ($validated['decision'] === 'reject') {
-            $purchaseRequest->update(['status' => 'rejected']);
-            $purchaseRequest->completeReferral('finance');
-            $purchaseRequest->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
-
-            return redirect()->back()->with('error', 'تم رفض طلب الشراء من المسؤول المالي');
-        }
-
-        $purchaseRequest->update([
-            'status' => 'finance_approved',
-            'refer_to_executive_id' => $validated['refer_to_executive_id'],
-            'finance_at' => now(),
-        ]);
-
-        $purchaseRequest->completeReferral('finance');
-        $this->pushReferral($purchaseRequest, 'executive', $validated['refer_to_executive_id'], $validated['note'] ?? null);
-
-        $purchaseRequest->logWorkflow(
-            'finance_approved',
-            $validated['refer_to_executive_id'],
-            $validated['note'] ?? null,
-            'finance_approved'
-        );
-
-        return redirect()->back()->with('success', 'تمت موافقة المالية وإحالة الطلب إلى المدير التنفيذي');
+        return back()->with('error', 'تم رفض طلب الشراء.');
     }
 
     /*
-     * الاعتماد النهائي — المدير التنفيذي: هنا يُقفل الطلب نهائياً
-     * (locked_at/locked_by) ويصبح معتمداً.
+     * إعادة الإحالة: المستلم الحالي للخطوة فقط يمررها لغيره.
      */
-    public function executiveDecide(PurchaseRequest $purchaseRequest, Request $request)
+    public function refer(Request $request, PurchaseRequest $purchaseRequest)
     {
-        $this->authorizeStep($purchaseRequest, 'executive', 'finance_approved');
+        $step = $purchaseRequest->currentStep();
+        abort_if($step === null, 403, 'الطلب منجز أو مرفوض.');
+        $this->authorizeHolderStrict($purchaseRequest, $step);
 
         $validated = $request->validate([
-            'decision' => 'required|in:approve,reject',
-            'note' => 'nullable|string|max:1000',
-        ]);
-
-        if ($validated['decision'] === 'reject') {
-            $purchaseRequest->update(['status' => 'rejected']);
-            $purchaseRequest->completeReferral('executive');
-            $purchaseRequest->logWorkflow('rejected', null, $validated['note'] ?? null, 'rejected');
-
-            return redirect()->back()->with('error', 'تم رفض طلب الشراء من المدير التنفيذي');
-        }
-
-        $purchaseRequest->update([
-            'status' => 'approved',
-            'locked_at' => now(),
-            'locked_by' => auth()->id(),
-            'approved_at' => now(),
-        ]);
-
-        $purchaseRequest->completeReferral('executive');
-        $purchaseRequest->logWorkflow('approved', null, $validated['note'] ?? null, 'approved');
-
-        return redirect()->back()->with('success', 'تم اعتماد طلب الشراء نهائياً وقفله');
-    }
-
-    /*
-     * إعادة الإحالة: يقوم بها المستلَم الحالي للخطوة فقط، ويمكن أن يعيد
-     * إحالة الخطوة لشخص آخر (تبديل منفذ الخطوة دون تغيير الحالة).
-     */
-    public function refer(PurchaseRequest $purchaseRequest, Request $request)
-    {
-        $validated = $request->validate([
-            'step' => 'required|in:logistics,direct_manager,pm2,finance,executive',
             'to_user_id' => 'required|exists:users,id',
             'note' => 'nullable|string|max:1000',
         ]);
 
-        $this->authorizeHolder($purchaseRequest, $validated['step']);
+        if ((int) $validated['to_user_id'] === (int) auth()->id()) {
+            return back()->withErrors(['to_user_id' => 'أنت المستلم الحالي.']);
+        }
 
-        $this->pushReferral($purchaseRequest, $validated['step'], $validated['to_user_id'], $validated['note'] ?? null);
+        $column = match ($step) {
+            'approver1' => 'refer_to_approver1_id',
+            'approver2' => 'refer_to_approver2_id',
+            'approver3' => 'refer_to_approver3_id',
+            'logistics' => 'refer_to_logistics_id',
+        };
+
+        $purchaseRequest->completeReferral($step);
+        $purchaseRequest->update([$column => $validated['to_user_id']]);
+        $purchaseRequest->referTo($validated['to_user_id'], $step, $validated['note'] ?? null);
         $purchaseRequest->logWorkflow('referred', $validated['to_user_id'], $validated['note'] ?? null);
 
-        return redirect()->back()->with('success', 'أُعيدت إحالة الطلب بنجاح');
+        return back()->with('success', 'أُعيدت إحالة الطلب.');
     }
 
     /*
-     * (قسم 14.2) تنفيذ اللوجستي بعد الاعتماد — العرض يكون رؤية فقط،
-     * والتغيير الوحيد المتاح هو تنفيذ الطلب.
+     * تنفيذ اللوجستي: تعليم كل بند منفَّذ/غير منفَّذ — لا توقيع هنا.
+     * يكتمل الطلب تلقائياً عند تعليم كل البنود.
      */
-    public function execute(PurchaseRequest $purchaseRequest, Request $request)
+    public function executeItems(Request $request, PurchaseRequest $purchaseRequest)
     {
-        $user = auth()->user();
-        if ($user->type !== 'super-admin' && $user->id !== $purchaseRequest->refer_to_logistics_id) {
-            abort(403, 'أنت لست لوجستي هذا الطلب');
+        abort_if($purchaseRequest->status !== 'approved', 403, 'الطلب لم يصل بعد لمرحلة التنفيذ.');
+        $this->authorizeHolderStrict($purchaseRequest, 'logistics');
+
+        $validated = $request->validate([
+            'executed_ids' => 'nullable|array',
+            'executed_ids.*' => 'integer|exists:logistics_purchase_request_items,id',
+        ]);
+
+        $itemIds = $purchaseRequest->items()->pluck('id')->all();
+        $selected = array_map('intval', $validated['executed_ids'] ?? []);
+
+        foreach ($itemIds as $id) {
+            $item = PurchaseRequestItem::find($id);
+            $shouldBeExecuted = in_array((int) $id, $selected, true);
+
+            if ($shouldBeExecuted && $item->executed_at === null) {
+                $item->update(['executed_at' => now(), 'executed_by' => auth()->id()]);
+            } elseif (! $shouldBeExecuted && $item->executed_at !== null) {
+                $item->update(['executed_at' => null, 'executed_by' => null]);
+            }
         }
 
-        if ($purchaseRequest->status !== 'approved') {
-            return back()->with('error', 'لا يمكن تنفيذ الطلب قبل اعتماده');
+        $remaining = $purchaseRequest->items()->whereNull('executed_at')->count();
+
+        if ($remaining === 0) {
+            $purchaseRequest->update(['status' => 'executed']);
+            $purchaseRequest->completeReferral('logistics');
+            $purchaseRequest->logWorkflow('executed', null, 'تم تعليم كل البنود كمنفذة', 'executed');
+
+            return back()->with('success', 'تم تنفيذ كل بنود الطلب وأُغلق الطلب.');
         }
 
-        $purchaseRequest->update(['status' => 'executed']);
-        $purchaseRequest->logWorkflow('executed', null, $request->note, 'executed');
+        return back()->with('success', 'تم تحديث حالات البنود — بقي '.$remaining.' بنداً للتنفيذ.');
+    }
 
-        return redirect()->back()->with('success', 'تم تنفيذ طلب الشراء');
+    public function printForm(PurchaseRequest $purchaseRequest)
+    {
+        $this->ensureVisible($purchaseRequest);
+
+        return view('admin.logistics.purchase-requests.print', $this->printData($purchaseRequest));
+    }
+
+    public function exportExcel(PurchaseRequest $purchaseRequest)
+    {
+        $this->ensureVisible($purchaseRequest);
+        $data = $this->printData($purchaseRequest);
+
+        $filename = 'PR-'.$data['purchaseRequest']->request_number.'.xlsx';
+
+        return Excel::download(new PurchaseRequestFormExport(
+            $data['purchaseRequest'],
+            $data['rows'],
+            $data['totals'],
+            $data['signatures'],
+        ), $filename);
     }
 
     public function destroy(PurchaseRequest $purchaseRequest)
     {
         if ($purchaseRequest->isLocked()) {
-            abort(403, 'الطلب مقفول بعد موافقة مدير المشروع — لا يمكن حذفه');
+            abort(403, 'الطلب معتمد نهائياً — لا يمكن حذفه');
         }
 
         $purchaseRequest->delete();
@@ -485,140 +434,198 @@ class PurchaseRequestController extends Controller
             ->with('success', 'تم حذف طلب الشراء بنجاح');
     }
 
-    private function createApprovals(PurchaseRequest $purchaseRequest): void
+    /* ------------------------------------------------------------ helpers */
+
+    private function printData(PurchaseRequest $purchaseRequest): array
     {
-        $total = $purchaseRequest->expected_total_price;
+        $purchaseRequest->load(['items', 'project', 'center', 'user.jobTitle', 'signatures.user']);
 
-        $rule = ApprovalRule::with('approvers')
-            ->where('min_amount', '<=', $total)
-            ->where(function ($q) use ($total) {
-                $q->where('max_amount', '>=', $total)->orWhereNull('max_amount');
-            })
-            ->first();
-
-        if (!$rule || $rule->approvers->isEmpty()) {
-            return;
+        $rows = [];
+        foreach ($purchaseRequest->items as $i => $item) {
+            $rows[] = [
+                'n' => $i + 1,
+                'description' => $item->description,
+                'quantity' => $item->quantity,
+                'unit' => $item->unit,
+                'currency' => strtoupper((string) $item->currency),
+                'unit_price' => (float) $item->unit_price,
+                'total_price' => (float) $item->total_price,
+                'budget_line' => $item->budget_line,
+                'executed' => $item->executed_at !== null,
+            ];
         }
 
-        foreach ($rule->approvers as $approver) {
-            PurchaseRequestApproval::create([
-                'purchase_request_id' => $purchaseRequest->id,
-                'user_id' => $approver->id,
-                'status' => 'pending',
+        $signatures = [];
+        $creator = $purchaseRequest->user;
+        $requested = $purchaseRequest->signatures->firstWhere('role', 'requested_by');
+        $signatures['requested_by'] = [
+            'name' => $requested?->name ?? $creator?->name ?? '',
+            'position' => $requested?->position ?? $creator?->jobTitle?->title_ar ?? '',
+            'date' => $requested?->signed_at ?? $purchaseRequest->pr_date,
+            'image' => $requested?->signature_path,
+        ];
+
+        foreach (['approver1' => 'direct_manager', 'approver2' => 'finance', 'approver3' => 'ceo'] as $role => $key) {
+            $sig = $purchaseRequest->signatures->firstWhere('role', $role);
+            $signatures[$key] = [
+                'name' => $sig?->name ?? '',
+                'position' => $sig?->position ?? '',
+                'date' => $sig?->signed_at,
+                'image' => $sig?->signature_path,
+            ];
+        }
+
+        return [
+            'purchaseRequest' => $purchaseRequest,
+            'rows' => $rows,
+            'totals' => $purchaseRequest->totalsByCurrency(),
+            'signatures' => $signatures,
+        ];
+    }
+
+    private function ensureVisible(PurchaseRequest $purchaseRequest): void
+    {
+        $user = auth()->user();
+        if ($user->type !== 'super-admin' && ! $purchaseRequest->isVisibleToUserId($user->id)) {
+            abort(403, 'هذا الطلب ليس موجهًا إليك');
+        }
+    }
+
+    private function validateRequest(Request $request, ?PurchaseRequest $purchaseRequest = null): array
+    {
+        return $request->validate([
+            'request_number' => [
+                'required', 'string', 'max:60',
+                Rule::unique('logistics_purchase_requests', 'request_number')
+                    ->whereNull('deleted_at')
+                    ->ignore($purchaseRequest?->id),
+            ],
+            'pr_date' => 'required|date',
+            'required_date' => 'nullable|date',
+            'request_type' => ['nullable', Rule::in(['purchase', 'maintenance'])],
+            'center_id' => 'nullable|exists:centers,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'management_unit' => 'nullable|string|max:255',
+            'refer_to_approver1_id' => 'nullable|exists:users,id',
+            'notes' => 'nullable|string|max:1000',
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'nullable|integer',
+            'items.*.description' => 'required|string|max:2000',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit' => ['required', 'in:'.implode(',', \App\Models\Admin\Logistics\PurchaseRequestItem::UNITS)],
+            'items.*.currency' => 'required|in:USD,SYP',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.budget_line' => 'nullable|string|max:60',
+            'items.*.notes' => 'nullable|string|max:1000',
+        ]);
+    }
+
+    /*
+     * مزامنة بنود الطلب (إنشاء/تحديث/حذف) — الحذف قبل الإنشاء (نمط المقررات).
+     */
+    private function syncItems(PurchaseRequest $purchaseRequest, array $items): void
+    {
+        $existing = $purchaseRequest->items()->pluck('id')->all();
+        $keepIds = [];
+
+        foreach ($items as $row) {
+            $data = [
+                'description' => $row['description'],
+                'quantity' => $row['quantity'],
+                'unit' => $row['unit'],
+                'currency' => $row['currency'],
+                'unit_price' => $row['unit_price'],
+                'total_price' => $row['quantity'] * $row['unit_price'],
+                'budget_line' => $row['budget_line'] ?? null,
+                'notes' => $row['notes'] ?? null,
+            ];
+
+            if (! empty($row['id']) && in_array((int) $row['id'], $existing, true)) {
+                PurchaseRequestItem::where('id', $row['id'])
+                    ->where('purchase_request_id', $purchaseRequest->id)
+                    ->update($data);
+                $keepIds[] = (int) $row['id'];
+            } else {
+                $keepIds[] = $purchaseRequest->items()->create($data)->id;
+            }
+        }
+
+        $purchaseRequest->items()->whereNotIn('id', $keepIds)->delete();
+    }
+
+    private function specsSummary(array $items): string
+    {
+        return collect($items)->pluck('description')->implode(' | ');
+    }
+
+    private function storeRequestedSignature(Request $request, PurchaseRequest $purchaseRequest): void
+    {
+        $path = null;
+
+        if ($request->hasFile('signature_image')) {
+            $validated = $request->validate([
+                'signature_image' => 'image|mimes:png,jpg,jpeg|max:2048',
             ]);
-        }
-    }
-
-    /*
-     * التسعير متاح للوجستي المحدَّد في الطلب فقط (أو السوبر أدمن).
-     */
-    private function authorizePricing(PurchaseRequest $purchaseRequest): void
-    {
-        $user = auth()->user();
-
-        if ($user->type !== 'super-admin' && $user->id !== $purchaseRequest->refer_to_logistics_id) {
-            abort(403, 'أنت لست اللوجستي المسؤول عن تسعير هذا الطلب');
+            $path = $request->file('signature_image')->store('pr-signatures', 'public');
         }
 
-        if ($purchaseRequest->status !== 'pending') {
-            abort(403, 'هذا الطلب ليس بانتظار التسعير');
-        }
-    }
-
-    private const STEP_COLUMNS = [
-        'logistics' => 'refer_to_logistics_id',
-        'direct_manager' => 'refer_to_direct_manager_id',
-        'pm2' => 'refer_to_pm2_id',
-        'finance' => 'refer_to_finance_id',
-        'executive' => 'refer_to_executive_id',
-    ];
-
-    /*
-     * فحص "صاحب الخطوة الحالية" (الإحالات): المستلَم الحالي للخطوة فقط،
-     * مع التحقق من حالة الطلب المطلوبة للخطوة.
-     */
-    private function authorizeStep(PurchaseRequest $purchaseRequest, string $step, string $expectedStatus): void
-    {
-        $this->authorizeHolder($purchaseRequest, $step);
-
-        if ($purchaseRequest->status !== $expectedStatus) {
-            abort(403, 'حالة الطلب لا تسمح بهذه الخطوة');
-        }
-    }
-
-    /*
-     * المستلَم الحالي للخطوة (عبر الإحالة النشطة أو العمود القديم) —
-     * يستخدم للتصرف في الخطوة ولإعادة الإحالة.
-     */
-    private function authorizeHolder(PurchaseRequest $purchaseRequest, string $step): void
-    {
-        $user = auth()->user();
-
-        if ($user->type === 'super-admin') {
+        if ($path === null) {
             return;
         }
 
-        $column = self::STEP_COLUMNS[$step] ?? null;
+        $user = $request->user();
+
+        PurchaseRequestSignature::updateOrCreate(
+            ['purchase_request_id' => $purchaseRequest->id, 'role' => 'requested_by'],
+            [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'position' => $user->jobTitle?->title_ar,
+                'signed_at' => now(),
+                'signature_path' => $path,
+            ]
+        );
+    }
+
+    /*
+     * المرشح الافتراضي للموافقة الأولى: حامل صلاحية عرض لوحة مدير المشاريع.
+     */
+    private function defaultApproverId(): ?int
+    {
+        return Permission::whereJsonContains('model_names', 'page:admin.projects-manager.dashboard')
+            ->where('can_view', 1)
+            ->whereNull('center_id')
+            ->whereNull('project_id')
+            ->whereNotNull('user_id')
+            ->orderBy('id')
+            ->value('user_id');
+    }
+
+    /*
+     * الحصرية الصارمة: المستلم الحالي للخطوة فقط — لا super-admin ولا ملاك آخرون.
+     */
+    private function authorizeHolderStrict(PurchaseRequest $purchaseRequest, string $step): void
+    {
+        $user = auth()->user();
+
+        $column = match ($step) {
+            'approver1' => 'refer_to_approver1_id',
+            'approver2' => 'refer_to_approver2_id',
+            'approver3' => 'refer_to_approver3_id',
+            'logistics' => 'refer_to_logistics_id',
+        };
 
         $isHolder = $purchaseRequest->isCurrentRecipient($user->id)
-            || ($column !== null && (int) $purchaseRequest->{$column} === (int) $user->id);
+            || ((int) $purchaseRequest->{$column} === (int) $user->id);
 
-        if (! $isHolder) {
-            abort(403, 'هذه الخطوة ليست موجهة إليك');
-        }
+        abort_if(! $isHolder, 403, 'هذه الخطوة موجهة لشخص آخر — أنت لست صاحبها الحالي.');
     }
 
-    /*
-     * تسجيل إحالة (عقد حالي) في جدول referrals وتحديث العمود القديم معاً
-     * ليبقى كلاهما متوافقين (الإحالة هي المرجع في الرؤية والتحقق).
-     */
-    private function pushReferral(PurchaseRequest $purchaseRequest, string $step, ?int $toUserId, ?string $note): void
+    private function authorizeEditable(PurchaseRequest $purchaseRequest): void
     {
-        $column = self::STEP_COLUMNS[$step] ?? null;
+        abort_if($purchaseRequest->status !== 'review', 403, 'بدأت الموافقات — الطلب لم يعد قابلًا للتعديل.');
 
-        if ($column !== null) {
-            $purchaseRequest->update([$column => $toUserId]);
-        }
-
-        if ($toUserId !== null) {
-            $purchaseRequest->referTo($toUserId, $step, $note);
-        }
-    }
-
-    private function cycleCandidates(): \Illuminate\Support\Collection
-    {
-        return User::whereIn('type', ['employee', 'super-admin'])
-            ->with('jobTitle')
-            ->orderBy('name')
-            ->get(['id', 'name', 'type', 'job_title_id']);
-    }
-
-    /*
-     * افتراضي "لوجستي المركز" (قسم 14.7): من يملك صلاحية تسعير/اعتماد
-     * على طلبات الشراء بنطاق مركز المسؤول — قابل للتغيير يدوياً في الفورم.
-     */
-    private function defaultLogisticsId(?int $centerId): ?int
-    {
-        return Permission::whereJsonContains('model_names', 'App\Models\Admin\Logistics\PurchaseRequest')
-            ->where('can_edit', 1)
-            ->where('can_view', 1)
-            ->when($centerId, fn ($q) => $q->where('center_id', $centerId))
-            ->whereNotNull('user_id')
-            ->orderBy('id')
-            ->value('user_id');
-    }
-
-    /*
-     * افتراضي "مدير المشروع" (قسم 14.7): مَن يملك صلاحية لوحة مدير المشروع
-     * بنطاق مشروع المسؤول (أو بلا نطاق) — قابل للتغيير يدوياً.
-     */
-    private function defaultDirectManagerId(?int $projectId): ?int
-    {
-        return Permission::whereJsonContains('model_names', 'page:admin.project-manager.dashboard')
-            ->where('can_view', 1)
-            ->when($projectId, fn ($q) => $q->where(fn ($s) => $s->whereNull('project_id')->orWhere('project_id', $projectId)))
-            ->whereNotNull('user_id')
-            ->orderBy('id')
-            ->value('user_id');
+        $user = auth()->user();
+        abort_if((int) $purchaseRequest->user_id !== (int) $user->id, 403, 'تعديل الطلب متاح لمنشئه فقط أثناء المراجعة.');
     }
 }

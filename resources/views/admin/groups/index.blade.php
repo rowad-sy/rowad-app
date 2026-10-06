@@ -10,6 +10,12 @@
     </a>
 </x-page-header>
 
+<div class="alert alert-light border small py-2 mb-3">
+    <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+    أسماء المجموعات <b>فريدة على مستوى النظام كله</b> — الاسم نفسه لا يتكرر بين المجموعات أو الأدوار؛
+    إن رفض النظام اسماً فهو مستخدم في <a href="{{ route('admin.roles.index') }}" class="text-decoration-none">شاشة الأدوار</a>.
+</div>
+
 <div class="table-container">
     <x-filter-bar>
         <div class="col-12 col-md-4 filter-field">

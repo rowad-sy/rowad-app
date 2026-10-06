@@ -36,6 +36,12 @@ class Referral extends Model
         'recipient' => 'متابعة',
         'event_approve' => 'موافقة على بطاقة الفعالية',
         'event_finalize' => 'اعتماد بطاقة الفعالية',
+        'rowaduna' => 'مسؤول روادنا',
+        'reporter' => 'مراسل التغطية',
+        'publisher' => 'المونتير/الناشر',
+        'preview_review' => 'مراجعة النشر المؤقت',
+        'designer' => 'المصمم',
+        'creator' => 'صاحب الطلب',
     ];
 
     protected $fillable = [

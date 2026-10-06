@@ -95,17 +95,21 @@
     <div class="form-card mb-3">
         <h6 class="fw-bold mb-3"><i class="bi bi-people text-danger me-1"></i> تقسيم المهام على الفريق</h6>
         <div class="row">
-            <div class="col-md-4 mb-3">
+            <div class="col-md-6 mb-3">
                 <label class="form-label">إدارة المشاريع</label>
                 <textarea name="tasks_projects" rows="3" class="form-control">{{ old('tasks_projects', $card->tasks_projects ?? '') }}</textarea>
             </div>
-            <div class="col-md-4 mb-3">
+            <div class="col-md-6 mb-3">
                 <label class="form-label">إدارة العمليات</label>
                 <textarea name="tasks_operations" rows="3" class="form-control">{{ old('tasks_operations', $card->tasks_operations ?? '') }}</textarea>
             </div>
-            <div class="col-md-4 mb-3">
+            <div class="col-md-6 mb-3">
                 <label class="form-label">المراقبة والتقييم والمسائلة والتعلم</label>
                 <textarea name="tasks_mel" rows="3" class="form-control">{{ old('tasks_mel', $card->tasks_mel ?? '') }}</textarea>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">المنح والشراكات</label>
+                <textarea name="tasks_grants" rows="3" class="form-control" placeholder="الجهات المانحة والشراكات المطلوبة ومهام كل جهة">{{ old('tasks_grants', $card->tasks_grants ?? '') }}</textarea>
             </div>
         </div>
     </div>

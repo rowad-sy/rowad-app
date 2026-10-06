@@ -25,9 +25,11 @@ class LogisticsExportController extends Controller
         $this->middleware('permission:App\Models\Admin\Logistics\Asset,create')->only(['importAssets']);
     }
 
-    public function exportPurchaseRequests()
+    public function exportPurchaseRequests(Request $request)
     {
-        return Excel::download(PurchaseRequestExport::all(), 'purchase_requests.xlsx');
+        $type = in_array($request->get('type'), ['purchase', 'maintenance'], true) ? $request->get('type') : null;
+
+        return Excel::download(new PurchaseRequestExport($type), 'purchase_requests.xlsx');
     }
 
     public function importPurchaseRequests(Request $request)

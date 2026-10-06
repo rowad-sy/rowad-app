@@ -7,6 +7,7 @@ import './confirm-modal';
 import QRCode from 'qrcode';
 window.QRCode = QRCode;
 import './forms';
+import './user-picker';
 
 (function () {
     const KEY = 'rowad-…heme';

@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Cohort;
 use App\Models\Admin\Center;
 use App\Models\Admin\Group;
+use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /*
  * واجهة "الأدوار والنطاقات" (نظام الأدوار §17)
@@ -27,12 +29,88 @@ class RoleController extends Controller
     public function __construct()
     {
         $this->middleware('permission:App\Models\Admin\Group,view')->only(['index']);
-        $this->middleware('permission:App\Models\Admin\Group,edit')->only(['assign', 'store', 'edit', 'update', 'destroy']);
+        $this->middleware('permission:App\Models\Admin\Group,create')->only(['create', 'store']);
+        $this->middleware('permission:App\Models\Admin\Group,edit')->only(['assign', 'storeAssignment', 'editAssignment', 'updateAssignment', 'destroyAssignment', 'edit', 'update']);
+        $this->middleware('permission:App\Models\Admin\Group,delete')->only(['destroy']);
     }
+
+    /*
+     * --------------------------------------------
+     * تعريف الأدوار (kind=role) — التسمية والوصف فقط.
+     * «ماذا يعمل الدور» يُعرَّف من شاشة الصلاحيات (المصفوفة).
+     * --------------------------------------------
+     */
+
+    public function create()
+    {
+        return view('admin.roles.form');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('groups', 'name')],
+            'description' => 'nullable|string',
+        ], [
+            'name.unique' => 'هذا الاسم مستخدم في النظام (دور أو مجموعة) — الأسماء فريدة على مستوى النظام.',
+        ]);
+
+        $role = Group::create($validated + ['kind' => Group::KIND_ROLE]);
+
+        return redirect()->route('admin.roles.index')
+            ->with('success', "تم إنشاء الدور {$role->name} — عرّف صلاحياته من شاشة الصلاحيات ثم أسنده بالنطاق");
+    }
+
+    public function edit(Group $role)
+    {
+        $this->assertRole($role);
+
+        return view('admin.roles.form', compact('role'));
+    }
+
+    public function update(Request $request, Group $role)
+    {
+        $this->assertRole($role);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('groups', 'name')->ignore($role->id)],
+            'description' => 'nullable|string',
+        ], [
+            'name.unique' => 'هذا الاسم مستخدم في النظام (دور أو مجموعة) — الأسماء فريدة على مستوى النظام.',
+        ]);
+
+        $role->update($validated);
+
+        return redirect()->route('admin.roles.index')
+            ->with('success', 'تم تحديث تعريف الدور');
+    }
+
+    public function destroy(Group $role)
+    {
+        $this->assertRole($role);
+
+        $role->users()->detach();
+        Permission::where('group_id', $role->id)->delete();
+        $role->delete();
+
+        return redirect()->route('admin.roles.index')
+            ->with('success', 'تم حذف الدور وكل إسناداته وصلاحياته');
+    }
+
+    private function assertRole(Group $group): void
+    {
+        abort_unless($group->isRole(), 404, 'هذا الكيان ليس دوراً.');
+    }
+
+    /*
+     * --------------------------------------------
+     * إسناد الأدوار بالنطاق
+     * --------------------------------------------
+     */
 
     public function index()
     {
-        $roles = Group::withCount('users')
+        $roles = Group::roles()->withCount('users')
             ->with(['users' => fn($q) => $q->orderBy('users.name'), 'permissions'])
             ->orderBy('name')
             ->get();
@@ -59,10 +137,10 @@ class RoleController extends Controller
         return view('admin.roles.assign', $this->formData());
     }
 
-    public function store(Request $request)
+    public function storeAssignment(Request $request)
     {
         $validated = $request->validate([
-            'group_id' => 'required|exists:groups,id',
+            'group_id' => ['required', Rule::exists('groups', 'id')->where('kind', Group::KIND_ROLE)],
             'user_id' => 'required|exists:users,id',
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
@@ -99,8 +177,10 @@ class RoleController extends Controller
             ->with('success', "تم منح الدور {$group->name} للمستخدم {$user->name} بنجاح");
     }
 
-    public function edit(Group $group, User $user)
+    public function editAssignment(Group $group, User $user)
     {
+        $this->assertRole($group);
+
         $membership = $this->findMembership($group, $user);
 
         $data = $this->formData();
@@ -111,8 +191,10 @@ class RoleController extends Controller
         return view('admin.roles.edit', $data);
     }
 
-    public function update(Request $request, Group $group, User $user)
+    public function updateAssignment(Request $request, Group $group, User $user)
     {
+        $this->assertRole($group);
+
         $validated = $request->validate([
             'center_id' => 'nullable|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
@@ -146,8 +228,10 @@ class RoleController extends Controller
             ->with('success', 'تم تحديث نطاق الدور بنجاح');
     }
 
-    public function destroy(Group $group, User $user)
+    public function destroyAssignment(Group $group, User $user)
     {
+        $this->assertRole($group);
+
         $this->findMembership($group, $user);
 
         $group->users()->detach($user->id);
@@ -193,7 +277,7 @@ class RoleController extends Controller
     private function formData(): array
     {
         return [
-            'roles' => Group::orderBy('name')->get(),
+            'roles' => Group::roles()->orderBy('name')->get(),
             'users' => User::orderBy('name')->get(),
             'centers' => Center::orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),

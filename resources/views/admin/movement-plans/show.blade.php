@@ -18,6 +18,9 @@
 <x-page-header :title="'خطة الحركة ' . $plan->request_number"
                :breadcrumb="[['label' => 'خطة الحركة', 'url' => route('admin.movement-plans.index')], ['label' => $plan->request_number]]">
     <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ \App\Models\Admin\MovementPlan::STATUSES[$plan->status] ?? $plan->status }}</x-status-badge></div></x-slot:meta>
+    @if ($plan->status === 'review' && ($isSuper || $uid === (int) $plan->created_by))
+        <a href="{{ route('admin.movement-plans.edit', $plan) }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i> تعديل</a>
+    @endif
     <x-audit-history :model="'App\Models\Admin\MovementPlan'" :model-id="$plan->id" />
     @canPermission('App\Models\Admin\MovementPlan', 'delete')
     <form method="POST" action="{{ route('admin.movement-plans.destroy', $plan) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد؟')">
@@ -32,23 +35,55 @@
 
     <div class="col-lg-8">
         <div class="table-container">
-            <div class="p-3 border-bottom"><h5 class="mb-0">تفاصيل الحركة</h5></div>
+            <div class="p-3 border-bottom"><h5 class="mb-0">رأس الخطة</h5></div>
             <div class="p-3">
                 <table class="table table-bordered mb-0 small">
-                    <tr><th style="width:190px">التاريخ</th><td>{{ $plan->movement_date->format('Y-m-d') }}</td></tr>
-                    <tr><th>الوقت</th><td>{{ $plan->departure_time ? substr((string) $plan->departure_time, 0, 5) : '—' }} → {{ $plan->return_time ? substr((string) $plan->return_time, 0, 5) : '—' }}</td></tr>
-                    <tr><th>المسار</th><td>{{ $plan->from_location ?: '—' }} ← {{ $plan->to_location ?: '—' }}</td></tr>
-                    <tr><th>الغاية</th><td>{{ $plan->purpose }}</td></tr>
+                    <tr><th style="width:190px">شهر الخطة</th><td>{{ $plan->plan_month?->format('Y-m') ?? '—' }}</td></tr>
+                    <tr><th>عدد الحركات</th><td>{{ $plan->entries->count() }}</td></tr>
                     <tr><th>المركز</th><td>{{ $plan->center?->name ?? '—' }}</td></tr>
                     <tr><th>المشروع</th><td>{{ $plan->project?->name ?? '—' }}</td></tr>
                     <tr><th>أنشأها</th><td>{{ $plan->creator?->name ?? '—' }}</td></tr>
-                    <tr><th>إدارة المشاريع (المراجعة)</th><td>{{ $plan->projectsManager?->name ?? '—' }}</td></tr>
+                    <tr><th>المُحال للمراجعة</th><td>{{ $plan->projectsManager?->name ?? '—' }}</td></tr>
                     <tr><th>مسؤول الحركة</th><td>{{ $plan->movementOfficer?->name ?? '—' }}</td></tr>
                     <tr><th>وزّع المتابعة</th><td>{{ $plan->assigner?->name ?? '—' }} {{ $plan->assigned_at ? '— ' . $plan->assigned_at->format('Y-m-d H:i') : '' }}</td></tr>
                     @if ($plan->reason)
                         <tr><th>سبب الرفض/الإلغاء</th><td class="text-danger">{{ $plan->reason }}</td></tr>
                     @endif
-                    <tr><th>ملاحظات</th><td>{{ $plan->notes ?? '—' }}</td></tr>
+                    <tr><th>ملاحظات عامة</th><td>{{ $plan->notes ?? '—' }}</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="table-container mt-3">
+            <div class="p-3 border-bottom"><h5 class="mb-0">حركات الخطة ({{ $plan->entries->count() }})</h5></div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>التاريخ</th>
+                            <th>الانطلاق</th>
+                            <th>العودة</th>
+                            <th>من ← إلى</th>
+                            <th>الغاية</th>
+                            <th>ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($plan->entries as $en)
+                            <tr>
+                                <td class="num">{{ $loop->iteration }}</td>
+                                <td class="num">{{ $en->movement_date->format('Y-m-d') }}</td>
+                                <td class="num">{{ $en->departure_time ? substr((string) $en->departure_time, 0, 5) : '—' }}</td>
+                                <td class="num">{{ $en->return_time ? substr((string) $en->return_time, 0, 5) : '—' }}</td>
+                                <td>{{ $en->from_location ?: '—' }} <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ $en->to_location ?: '—' }}</td>
+                                <td style="min-width:180px">{{ $en->purpose }}</td>
+                                <td class="text-muted">{{ $en->notes ?? '—' }}</td>
+                            </tr>
+                        @empty
+                            <x-empty-row colspan="7" title="لا توجد حركات في هذه الخطة" />
+                        @endforelse
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -107,12 +142,14 @@
                     <form method="POST" action="{{ route('admin.movement-plans.approve', $plan) }}" class="mb-3">
                         @csrf
                         <label class="form-label small fw-bold">الموافقة وتحويل لمسؤول الحركة</label>
-                        <select name="movement_officer_id" class="form-select form-select-sm mb-2" required>
+                        <select name="movement_officer_id" class="user-picker form-select form-select-sm mb-1 @error('movement_officer_id') is-invalid @enderror" required
+                                data-placeholder="ابحث عن مسؤول الحركة...">
                             <option value="">— اختر مسؤول الحركة —</option>
                             @foreach ($users as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                <option value="{{ $u->id }}" @selected((int) old('movement_officer_id') === $u->id)>{{ $u->name }}</option>
                             @endforeach
                         </select>
+                        @error('movement_officer_id') <div class="invalid-feedback d-block mb-2">{{ $message }}</div> @enderror
                         <input type="text" name="note" class="form-control form-control-sm mb-2" placeholder="ملاحظة (اختياري)">
                         <button class="btn btn-sm btn-success w-100"><i class="bi bi-check-lg me-1"></i> اعتماد</button>
                     </form>
@@ -167,12 +204,14 @@
                     @csrf
                     <input type="hidden" name="step" value="{{ $plan->status === 'review' ? 'pm2' : 'movement_officer' }}">
                     <label class="form-label small fw-bold">إحالة إلى</label>
-                    <select name="to_user_id" class="form-select form-select-sm mb-2" required>
+                    <select name="to_user_id" class="user-picker form-select form-select-sm mb-1 @error('to_user_id') is-invalid @enderror" required
+                            data-placeholder="ابحث عن المستخدم...">
                         <option value="">— اختر —</option>
                         @foreach ($users as $u)
-                            <option value="{{ $u->id }}">{{ $u->name }}</option>
+                            <option value="{{ $u->id }}" @selected((int) old('to_user_id') === $u->id)>{{ $u->name }}</option>
                         @endforeach
                     </select>
+                    @error('to_user_id') <div class="invalid-feedback d-block mb-2">{{ $message }}</div> @enderror
                     <input type="text" name="note" class="form-control form-control-sm mb-2" placeholder="ملاحظة (اختياري)">
                     <button class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-send me-1"></i> إعادة إحالة</button>
                 </form>
@@ -183,10 +222,10 @@
         <div class="table-container">
             <div class="p-3 border-bottom"><h5 class="mb-0">مسار الدورة</h5></div>
             <div class="p-3 small text-muted">
-                <p>1) مدير المشروع ينشئ الخطة.</p>
-                <p>2) إدارة المشاريع تعتمد وتحيلها لمسؤول الحركة.</p>
+                <p>1) مدير المشروع ينشئ خطة شهرية تحوي عدة حركات ويحيلها للمراجعة.</p>
+                <p>2) المُحال له (عادةً إدارة المشاريع) يعتمد ويحيل لمسؤول الحركة.</p>
                 <p>3) مسؤول الحركة يحدد المتابِعين (سائق / مدير مركز / لوجستي / الجميع).</p>
-                <p>4) تُنجَز الحركة بعد المتابعة.</p>
+                <p>4) تُنجَز الخطة بعد متابعة كل الحركات.</p>
             </div>
         </div>
     </div>

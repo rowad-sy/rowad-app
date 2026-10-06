@@ -1,193 +1,176 @@
-@extends('admin.logistics.layouts.master')
+@extends('admin.layouts.master')
 
-@section('title', isset($purchaseRequest) ? 'تعديل طلب شراء' : 'إضافة طلب شراء')
+@php
+    $formType = isset($purchaseRequest)
+        ? ($purchaseRequest->request_type ?: 'purchase')
+        : ($requestType ?? 'purchase');
+    $typeLabel = $formType === 'maintenance' ? 'صيانة' : 'شراء';
+@endphp
 
-@push('styles')
-<style>
-    .signature-canvas { border: 2px dashed #ccc; border-radius: 8px; cursor: crosshair; width: 100%; height: 200px; background: #fff; }
-    .signature-tab-content { padding-top: 1rem; }
-    .item-row td { vertical-align: middle; }
-    .item-row .form-control, .item-row .form-select { font-size: 0.875rem; }
-</style>
-@endpush
+@section('title', (isset($purchaseRequest) ? 'تعديل طلب ' : 'طلب ').$typeLabel.(isset($purchaseRequest) ? '' : ' جديد'))
 
-@section('logistics-content')
-<x-page-header :title="isset($purchaseRequest) ? 'تعديل طلب شراء' : 'إضافة طلب شراء'"
-               :breadcrumb="[['label' => 'طلبات الشراء', 'url' => route('admin.logistics.purchase-requests.index')], ['label' => isset($purchaseRequest) ? '#' . $purchaseRequest->id : 'جديد']]" />
+@section('content')
+@php $pr = $purchaseRequest ?? null; @endphp
+<x-page-header :title="$pr ? 'تعديل طلب '.$typeLabel.' '.$pr->request_number : 'طلب '.$typeLabel.' جديد'"
+               :description="'يعبّئه مدير المشروع كاملاً (بنود بأسعار وعملات) ويحيله للموافقة — التسلسل: المدير المباشر ← المالية ← التنفيذي ← اللوجستي.'"
+               :breadcrumb="[['label' => 'طلبات الشراء والصيانة', 'url' => route('admin.logistics.purchase-requests.index', ['type' => $formType])], ['label' => $pr ? 'تعديل' : 'جديد']]" />
 
 <div class="row">
-    <div class="col-md-12">
+    <div class="col-lg-10">
         <div class="form-card">
-            <form method="POST"
-                  action="{{ route('admin.logistics.purchase-requests.store') }}"
-                  enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data"
+                  action="{{ $pr ? route('admin.logistics.purchase-requests.update', $pr) : route('admin.logistics.purchase-requests.store') }}">
                 @csrf
+                @if ($pr) @method('PUT') @endif
+                <input type="hidden" name="request_type" value="{{ $formType }}">
 
-                {{-- Items Table --}}
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label mb-0 fw-bold">بنود طلب الشراء <span class="text-danger">*</span></label>
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addItem()">
-                            <i class="bi bi-plus-lg me-1"></i> إضافة بند
-                        </button>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">رقم الطلب <span class="text-danger">*</span></label>
+                        <input type="text" name="request_number" dir="ltr" class="form-control text-start @error('request_number') is-invalid @enderror"
+                               value="{{ old('request_number', $pr?->request_number) }}" required>
+                        @error('request_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-                    @error('items') <div class="text-danger small mb-2">{{ $message }}</div> @enderror
-                    <div class="table-responsive">
-                        <table class="table table-bordered mb-0" id="itemsTable">
-                            <thead>
-                                <tr>
-                                    <th style="width:35%">الوصف</th>
-                                    <th style="width:10%">الكمية</th>
-                                    <th style="width:10%">الوحدة</th>
-                                    <th style="width:12%">خط الميزانية</th>
-                                    <th style="width:12%">سعر الوحدة</th>
-                                    <th style="width:12%">الإجمالي</th>
-                                    <th style="width:15%">ملاحظات</th>
-                                    <th style="width:6%"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="itemsBody">
-                            </tbody>
-                            <template id="itemTemplate">
-                                <tr class="item-row">
-                                    <td>
-                                        <textarea class="form-control item-desc" rows="2" required></textarea>
-                                    </td>
-                                    <td>
-                                        <input type="number" class="form-control item-qty" value="1" min="1" required oninput="calcRow(this)">
-                                    </td>
-                                    <td>
-                                        <input type="text" class="form-control item-unit" required placeholder="قطعة">
-                                    </td>
-                                    <td>
-                                        <input type="number" class="form-control item-budget" min="0" step="0.01" inputmode="decimal" placeholder="اختياري">
-                                    </td>
-                                    <td>
-                                        <input type="number" class="form-control item-price" value="0" min="0" step="0.01" required oninput="calcRow(this)">
-                                    </td>
-                                    <td>
-                                        <input type="text" class="form-control item-total" value="0.00" readonly>
-                                    </td>
-                                    <td>
-                                        <input type="text" class="form-control item-notes" placeholder="اختياري">
-                                    </td>
-                                    <td>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)" aria-label="حذف البند" title="حذف البند"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                                    </td>
-                                </tr>
-                            </template>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="4" class="text-start fw-bold">الإجمالي الكلي:</td>
-                                    <td class="text-start" id="grandTotal">0.00</td>
-                                    <td colspan="3"></td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                    <div class="col-md-3">
+                        <label class="form-label">تاريخ الطلب <span class="text-danger">*</span></label>
+                        <input type="date" name="pr_date" class="form-control @error('pr_date') is-invalid @enderror"
+                               value="{{ old('pr_date', optional($pr?->pr_date)->format('Y-m-d') ?? now()->format('Y-m-d')) }}" required>
+                        @error('pr_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="form-text">محدد تلقائياً باليوم — عدّله إن أردت.</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">تاريخ التنفيذ المطلوب</label>
+                        <input type="date" name="required_date" class="form-control @error('required_date') is-invalid @enderror"
+                               value="{{ old('required_date', optional($pr?->required_date)->format('Y-m-d')) }}">
+                        @error('required_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">الإحالة للموافقة الأولى <span class="text-danger">*</span></label>
+                        <select name="refer_to_approver1_id" class="user-picker @error('refer_to_approver1_id') is-invalid @enderror"
+                                data-placeholder="ابحث عن المستخدم..." required>
+                            <option value="">— اختر —</option>
+                            @foreach ($users as $u)
+                                <option value="{{ $u->id }}" @selected((int) old('refer_to_approver1_id', $pr?->refer_to_approver1_id ?? $defaultApproverId ?? 0) === $u->id)>
+                                    {{ $u->name }} ({{ $u->email }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('refer_to_approver1_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                        <div class="form-text">عادةً يكون مدير المشاريع — قابل للاختيار لأي مستخدم.</div>
                     </div>
                 </div>
 
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">المركز <span class="text-danger">*</span></label>
-                        <select name="center_id" class="form-select @error('center_id') is-invalid @enderror">
-                            <option value="">— اختر المركز —</option>
-                            @foreach ($centers ?? [] as $center)
-                                <option value="{{ $center->id }}" {{ old('center_id', $purchaseRequest->center_id ?? '') == $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">المكتب (المركز) <span class="text-danger">*</span></label>
+                        <select name="center_id" class="form-select @error('center_id') is-invalid @enderror" required>
+                            <option value="">— اختر —</option>
+                            @foreach ($centers as $c)
+                                <option value="{{ $c->id }}" data-code="{{ $c->code }}" {{ (int) old('center_id', $pr?->center_id ?? $employee?->center_id) === $c->id ? 'selected' : '' }}>
+                                    {{ $c->code ? $c->code.' - ' : '' }}{{ $c->name }}
+                                </option>
                             @endforeach
                         </select>
                         @error('center_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label">المشروع <span class="text-danger">*</span></label>
-                        <select name="project_id" class="form-select @error('project_id') is-invalid @enderror">
-                            <option value="">— اختر المشروع —</option>
-                            @foreach ($projects ?? [] as $project)
-                                <option value="{{ $project->id }}" {{ old('project_id', $purchaseRequest->project_id ?? '') == $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+                        <select name="project_id" id="projectSelect" class="form-select @error('project_id') is-invalid @enderror" required>
+                            <option value="">— اختر —</option>
+                            @foreach ($projects as $p)
+                                <option value="{{ $p->id }}" data-code="{{ $p->code }}" {{ (int) old('project_id', $pr?->project_id ?? $employee?->project_id) === $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
                             @endforeach
                         </select>
                         @error('project_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-                </div>
-
-                <div class="mb-3 mt-3">
-                    <label class="form-label fw-bold">دورة الموافقات</label>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small mb-1">اللوجستي للتسعير <span class="text-muted">(الافتراضي: لوجستي المركز — قابل للتغيير)</span></label>
-                            <select name="refer_to_logistics_id" class="form-select @error('refer_to_logistics_id') is-invalid @enderror">
-                                <option value="">— اختر اللوجستي —</option>
-                                @foreach ($candidates ?? [] as $user)
-                                    <option value="{{ $user->id }}"
-                                        {{ old('refer_to_logistics_id', $defaultLogisticsId ?? '') == $user->id ? 'selected' : '' }}>
-                                        {{ $user->name }} — {{ $user->jobTitle?->title_ar ?? ($user->type === 'super-admin' ? 'إدارة' : 'موظف') }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('refer_to_logistics_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small mb-1">المدير المباشر للتوقيع <span class="text-muted">(الافتراضي: مدير المشروع — قابل للتغيير)</span></label>
-                            <select name="refer_to_direct_manager_id" class="form-select @error('refer_to_direct_manager_id') is-invalid @enderror">
-                                <option value="">— اختر المدير المباشر —</option>
-                                @foreach ($candidates ?? [] as $user)
-                                    <option value="{{ $user->id }}"
-                                        {{ old('refer_to_direct_manager_id', $defaultDirectManagerId ?? '') == $user->id ? 'selected' : '' }}>
-                                        {{ $user->name }} — {{ $user->jobTitle?->title_ar ?? ($user->type === 'super-admin' ? 'إدارة' : 'موظف') }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('refer_to_direct_manager_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
+                    <div class="col-md-4">
+                        <label class="form-label">كود المشروع (تلقائي)</label>
+                        <input type="text" id="projectCodeDisplay" class="form-control" dir="ltr" readonly tabindex="-1"
+                               value="{{ old('project_code_display', $pr?->project?->code ?? '') }}" placeholder="يُجلب من المشروع">
                     </div>
                 </div>
 
-                <div class="mb-3 mt-3">
-                    <label class="form-label">ملاحظات</label>
-                    <textarea name="notes" rows="3"
-                              class="form-control @error('notes') is-invalid @enderror">{{ old('notes', $purchaseRequest->notes ?? '') }}</textarea>
-                    @error('notes') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-
-                {{-- Signature Section --}}
-                <div class="mb-3">
-                    <label class="form-label">التوقيع الإلكتروني</label>
-                    <ul class="nav nav-tabs" id="signatureTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#uploadSignature" type="button">رفع صورة توقيع</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="draw-tab" data-bs-toggle="tab" data-bs-target="#drawSignature" type="button">رسم التوقيع</button>
-                        </li>
-                    </ul>
-                    <div class="tab-content signature-tab-content">
-                        <div class="tab-pane fade show active" id="uploadSignature">
-                            <input type="file" name="signature_image"
-                                   class="form-control @error('signature_image') is-invalid @enderror" accept="image/*">
-                            @error('signature_image') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            @if (isset($purchaseRequest) && $purchaseRequest->signature_path)
-                                <div class="mt-2">
-                                    <img src="{{ asset('storage/' . $purchaseRequest->signature_path) }}" alt="التوقيع" style="max-height:80px;">
-                                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">الإدارة / القسم / الوحدة</label>
+                        @if ($departments->isNotEmpty())
+                            <select id="deptSelect" class="form-select">
+                                <option value="">— اختر —</option>
+                                @foreach ($departments as $d)
+                                    <option value="{{ $d->name_ar }}">{{ $d->name_ar }}</option>
+                                @endforeach
+                                <option value="__manual">أخرى — إدخال يدوي</option>
+                            </select>
+                            <input type="text" name="management_unit" id="manualUnit" class="form-control mt-2 @error('management_unit') is-invalid @enderror"
+                                   placeholder="اكتب اسم الإدارة يدوياً" value="{{ old('management_unit', $pr?->management_unit) }}">
+                            @error('management_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @else
+                            <input type="text" name="management_unit" class="form-control @error('management_unit') is-invalid @enderror"
+                                   value="{{ old('management_unit', $pr?->management_unit) }}" placeholder="مثال: إدارة المشاريع">
+                            @error('management_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @endif
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">توقيعك كطالب للطلب (صورة) <span class="text-danger">* إلزامي</span></label>
+                        @unless($pr)
+                        <input type="file" name="signature_image" accept="image/png,image/jpeg" class="form-control @error('signature_image') is-invalid @enderror" required>
+                        @error('signature_image') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @else
+                        <div class="form-control-plaintext text-muted small">
+                            @if ($pr->signatures->firstWhere('role', 'requested_by')?->signature_path)
+                                <img src="{{ asset('storage/'.$pr->signatures->firstWhere('role', 'requested_by')->signature_path) }}" alt="التوقيع" style="height:44px">
+                            @else
+                                التوقيع مسجّل مسبقاً.
                             @endif
                         </div>
-                        <div class="tab-pane fade" id="drawSignature">
-                            <canvas id="signatureCanvas" class="signature-canvas"></canvas>
-                            <input type="hidden" name="signature_data_url" id="signatureDataUrl">
-                            <div class="mt-2 d-flex gap-2">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSignature()">
-                                    <i class="bi bi-eraser me-1"></i> مسح
-                                </button>
-                            </div>
-                        </div>
+                        @endunless
                     </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">ملاحظات عامة</label>
+                    <textarea name="notes" rows="2" class="form-control">{{ old('notes', $pr?->notes) }}</textarea>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">بنود الطلب</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPrItemRow()">
+                        <i class="bi bi-plus-lg me-1"></i> إضافة بند
+                    </button>
+                </div>
+
+                @error('items') <div class="alert alert-danger py-2 small">الطلب يحتاج بنداً واحداً على الأقل.</div> @enderror
+
+                <div id="prItemsContainer">
+                    @php
+                        $oldItems = old('items');
+                        if ($pr) {
+                            $renderItems = $pr->items->mapWithKeys(fn ($row, $i) => [$i => $row]);
+                            $maxItemKey = $renderItems->keys()->max() ?? -1;
+                        } elseif (is_array($oldItems) && count($oldItems)) {
+                            // نحفظ المفاتيح الأصلية للبنود المُدخلة بعد فشل الحفظ (items[3][...], items[7][...])
+                            $renderItems = collect($oldItems)->filter(fn ($r) => is_array($r) || $r === null);
+                            $maxItemKey = $renderItems->keys()->map(fn ($k) => (int) $k)->max() ?? -1;
+                        } else {
+                            $renderItems = collect([0 => null]);
+                            $maxItemKey = 0;
+                        }
+                    @endphp
+                    @foreach ($renderItems as $rowKey => $item)
+                        @include('admin.logistics.purchase-requests._item_row', ['item' => $item, 'index' => $rowKey])
+                    @endforeach
+                </div>
+
+                <div class="alert alert-light border small mt-2 mb-3 d-flex justify-content-between">
+                    <span>الإجمالي التقديري:</span>
+                    <span><strong class="ltr-cell" id="grandUsd">0.00 $</strong> &nbsp; <strong class="ltr-cell" id="grandSyp">0.00 SYP</strong></span>
                 </div>
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg me-1"></i> حفظ
+                        <i class="bi bi-send me-1"></i> {{ $pr ? 'حفظ التعديلات' : 'إنشاء وإحالة للموافقة' }}
                     </button>
-                    <a href="{{ route('admin.logistics.purchase-requests.index') }}" class="btn btn-outline-secondary">إلغاء</a>
+                    <a href="{{ $pr ? route('admin.logistics.purchase-requests.show', $pr) : route('admin.logistics.purchase-requests.index') }}" class="btn btn-outline-secondary">إلغاء</a>
                 </div>
             </form>
         </div>
@@ -195,140 +178,70 @@
 </div>
 @endsection
 
-@php
-    $oldItemRows = collect(old('items', []))->filter(fn ($r) => is_array($r))->map(fn ($r, $k) => ['key' => (string) $k, 'data' => $r])->values()->all();
-    $itemErrorRows = collect($errors->getMessages())->filter(fn ($m, $k) => str_starts_with($k, 'items.'))->all();
-@endphp
 @push('scripts')
 <script>
-    var itemIndex = 0;
-    // بعد محاولة حفظ فاشلة: البنود المُرسلة بمفاتيحها الأصلية (items.N.*) وأخطاء الخادم المرتبطة بها كما أُرجعت
-    var oldItems = {!! json_encode($oldItemRows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) !!};
-    var itemErrors = {!! json_encode($itemErrorRows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) !!};
-    var ITEM_FIELDS = [['description', '.item-desc', 'وصف البند'], ['quantity', '.item-qty', 'الكمية'], ['unit', '.item-unit', 'الوحدة'],
-        ['budget_line', '.item-budget', 'خط الميزانية'], ['unit_price', '.item-price', 'سعر الوحدة'], ['notes', '.item-notes', 'ملاحظات']];
+let prItemIndex = {{ $maxItemKey + 1 }};
 
-    function addItem(data, key) {
-        var template = document.getElementById('itemTemplate');
-        var clone = template.content.cloneNode(true);
-        var row = clone.querySelector('.item-row');
-        // مفتاح الصف: الأصلي عند الاستعادة، وإلا أكبر مفتاح مستخدم + 1 (لا يعتمد على عدد الصفوف)
-        var k = (key !== undefined && key !== null && key !== '') ? String(key) : String(itemIndex);
-        if (/^\d+$/.test(k)) itemIndex = Math.max(itemIndex, parseInt(k, 10) + 1);
-        var n = document.querySelectorAll('#itemsBody .item-row').length + 1;
-        row.dataset.key = k;
+function prItemTemplate() {
+    return {!! json_encode(view('admin.logistics.purchase-requests._item_row', ['item' => null, 'index' => '__INDEX__'])->render()) !!};
+}
 
-        ITEM_FIELDS.forEach(function (f) {
-            var el = row.querySelector(f[1]);
-            el.setAttribute('name', 'items[' + k + '][' + f[0] + ']');
-            el.id = 'pr-item-' + k + '-' + f[0];
-            el.setAttribute('aria-label', f[2] + ' — بند ' + n);
-            if (data) {
-                // القيمة كما أُرسلت (صفر/فارغ/غير صالح) دون أي بديل تلقائي
-                var v = data[f[0]];
-                el.value = (typeof v === 'string' || typeof v === 'number') ? String(v) : '';
-            }
-        });
-        row.querySelector('.item-total').setAttribute('aria-label', 'الإجمالي — بند ' + n);
+function addPrItemRow() {
+    const container = document.getElementById('prItemsContainer');
+    const html = prItemTemplate().replace(/__INDEX__/g, prItemIndex++);
+    container.insertAdjacentHTML('beforeend', html);
+    container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    recalcPrTotals();
+}
 
-        // أخطاء الخادم بجوار الحقل وفق المفتاح الأصلي، وتُنشأ بـtextContent (لا HTML)
-        ITEM_FIELDS.forEach(function (f) {
-            var msgs = itemErrors['items.' + k + '.' + f[0]];
-            if (!msgs || !msgs.length) return;
-            var el = row.querySelector(f[1]);
-            var fb = document.createElement('div');
-            fb.className = 'invalid-feedback d-block';
-            fb.id = el.id + '-error';
-            fb.textContent = msgs.join(' ');
-            el.classList.add('is-invalid');
-            el.setAttribute('aria-invalid', 'true');
-            el.setAttribute('aria-describedby', fb.id);
-            el.insertAdjacentElement('afterend', fb);
-        });
+function removePrItemRow(btn) {
+    btn.closest('.pr-item-card').remove();
+    recalcPrTotals();
+}
 
-        if (data) calcRow(row.querySelector('.item-qty'));
-        document.getElementById('itemsBody').appendChild(clone);
-        if (!/^\d+$/.test(k)) itemIndex++;
-        calcGrandTotal();
-    }
-
-    function removeItem(btn) {
-        var row = btn.closest('tr');
-        if (document.querySelectorAll('#itemsBody .item-row').length <= 1) {
-            alert('يجب أن يحتوي الطلب على بند واحد على الأقل');
-            return;
-        }
-        row.remove();
-        calcGrandTotal();
-    }
-
-    function calcRow(el) {
-        var row = el.closest('tr');
-        var qty = parseFloat(row.querySelector('.item-qty').value) || 0;
-        var price = parseFloat(row.querySelector('.item-price').value) || 0;
-        row.querySelector('.item-total').value = (qty * price).toFixed(2);
-        calcGrandTotal();
-    }
-
-    function calcGrandTotal() {
-        var total = 0;
-        document.querySelectorAll('#itemsBody .item-row:not([style*="display:none"])').forEach(function (row) {
-            total += parseFloat(row.querySelector('.item-total').value) || 0;
-        });
-        document.getElementById('grandTotal').textContent = total.toFixed(2);
-    }
-
-    // Add first row on load
-    document.addEventListener('DOMContentLoaded', function () {
-        if (oldItems.length) { oldItems.forEach(function (it) { addItem(it.data, it.key); }); } else { addItem(); }
-
-        // Signature canvas
-        var canvas = document.getElementById('signatureCanvas');
-        if (!canvas) return;
-        var ctx = canvas.getContext('2d');
-        var drawing = false;
-        var rect = canvas.getBoundingClientRect();
-
-        function getPos(e) {
-            if (e.touches) {
-                return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-            }
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        }
-
-        canvas.addEventListener('mousedown', function (e) {
-            drawing = true;
-            var pos = getPos(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-        });
-
-        canvas.addEventListener('mousemove', function (e) {
-            if (!drawing) return;
-            var pos = getPos(e);
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-        });
-
-        canvas.addEventListener('mouseup', function () {
-            drawing = false;
-            document.getElementById('signatureDataUrl').value = canvas.toDataURL();
-        });
-
-        canvas.addEventListener('mouseleave', function () {
-            drawing = false;
-        });
+function recalcPrTotals() {
+    let usd = 0, syp = 0;
+    document.querySelectorAll('.pr-item-card').forEach(card => {
+        const qty = parseFloat(card.querySelector('[data-qty]').value) || 0;
+        const price = parseFloat(card.querySelector('[data-price]').value) || 0;
+        const total = qty * price;
+        const cell = card.querySelector('[data-rowtotal]');
+        if (cell) cell.value = total.toFixed(2);
+        if (card.querySelector('[data-currency]').value === 'USD') usd += total; else syp += total;
     });
+    document.getElementById('grandUsd').textContent = usd.toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' $';
+    document.getElementById('grandSyp').textContent = syp.toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' SYP';
+}
 
-    function clearSignature() {
-        var canvas = document.getElementById('signatureCanvas');
-        if (!canvas) return;
-        var ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        document.getElementById('signatureDataUrl').value = '';
-    }
+document.addEventListener('input', e => {
+    if (e.target.closest('.pr-item-card')) recalcPrTotals();
+});
+
+const projectSelect = document.getElementById('projectSelect');
+function syncProjectCode() {
+    const opt = projectSelect.selectedOptions[0];
+    document.getElementById('projectCodeDisplay').value = opt && opt.dataset.code ? opt.dataset.code : '';
+}
+projectSelect.addEventListener('change', syncProjectCode);
+if (projectSelect.value) syncProjectCode();
+
+const deptSelect = document.getElementById('deptSelect');
+if (deptSelect) {
+    const manualUnit = document.getElementById('manualUnit');
+    // مزامنة: اختيار إدارة يكتبها في الحقل؛ «أخرى» تفرّغه للكتابة اليدوية
+    const current = manualUnit.value;
+    if (current && [...deptSelect.options].some(o => o.value === current)) deptSelect.value = current;
+    else if (current) deptSelect.value = '__manual';
+    deptSelect.addEventListener('change', () => {
+        if (deptSelect.value === '' || deptSelect.value === '__manual') {
+            manualUnit.value = deptSelect.value === '' ? manualUnit.value : '';
+            manualUnit.focus();
+        } else {
+            manualUnit.value = deptSelect.value;
+        }
+    });
+}
+
+recalcPrTotals();
 </script>
 @endpush

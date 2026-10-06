@@ -18,7 +18,7 @@ class MonthlyReport extends Model
 
     protected $fillable = [
         'template_id', 'template_version', 'title',
-        'project_id', 'period', 'status', 'page_count', 'data',
+        'project_id', 'period', 'status', 'page_count', 'data', 'cover_path',
         'created_by', 'assigned_to', 'signed_at',
     ];
 

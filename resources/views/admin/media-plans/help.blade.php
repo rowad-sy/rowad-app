@@ -1,128 +1,59 @@
 @extends('admin.layouts.master')
 
-@section('title', 'معلومات ونصائح — الخطة الإعلامية')
+@section('title', 'دليل الخطة الإعلامية')
 
 @section('content')
-<x-page-header :title="'معلومات ونصائح — الخطة الإعلامية'" :description="'دليل شامل لدورة حياة الخطة الإعلامية الشهرية وفعاليات التغطية.'"
-               :breadcrumb="[['label' => 'المشاريع'], ['label' => 'معلومات ونصائح — الخطة الإعلامية']]">
-    <a href="{{ route('admin.media-plans.index') }}" class="btn btn-outline-primary">
-        <i class="bi bi-arrow-right me-1"></i> العودة للخطة الإعلامية
-    </a>
-</x-page-header>
+<x-page-header title="دليل الخطة الإعلامية — دورة روادنا" description="من إنشاء الخطة حتى النشر النهائي على المنصات"
+               :breadcrumb="[['label' => 'الخطة الإعلامية', 'url' => route('admin.media-plans.index')], ['label' => 'مساعدة']]" />
 
-<div class="row g-3">
+<div class="form-card p-4">
+    <h5>ما هي الخطة الإعلامية؟</h5>
+    <p class="text-muted">خطة شهرية بفعالياتها وتغطياتها؛ تُعبَّأ عادةً بين 25 و30 من الشهر. تمرّ بدورة اعتماد ثم
+    خط أنابيب تنفيذ لكل فعالية يديره قسم <strong>روادنا</strong> حتى النشر الدائم.</p>
 
-    <div class="col-lg-8">
+    <h6 class="mt-4">دورة الخطة (على مستوى الخطة كاملة):</h6>
+    <ol>
+        <li><strong>الإنشاء:</strong> مسؤول المشروع (أو مدير المشروع) يدخل الخطة وفعاليتها.</li>
+        <li><strong>المدير المباشر</strong> (عادةً مدير المشروع) يوافق — <em>هنا تُقفل الخطة</em>.
+            إذا كان منشئ الخطة هو <strong>مدير المشروع نفسه</strong> فتُرسَل مباشرة إلى مدير المشاريع وتتخطى هذه الخطوة
+            (اكتشاف تلقائي من الصلاحيات).</li>
+        <li><strong>مدير المشاريع</strong> يوافق ويحوّل الخطة إلى <strong>مسؤول روادنا</strong>.</li>
+        <li>تصبح الخطة <em>قيد التنفيذ</em> حتى تُغلق كل فعالياتها.</li>
+    </ol>
 
-        <div class="table-container mb-3">
-            <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-diagram-3 me-1"></i> ما هي الخطة الإعلامية؟</h5></div>
-            <div class="p-3">
-                <p class="mb-2">خطة شهرية تُعِدّ فريق التواصل للفعاليات والأنشطة الإعلامية والتغطية، تمر بأربع مراحل اعتماد ثم تنفيذ:</p>
-                <div class="bg-light rounded p-3 mb-0">
-                    <p class="mb-1"><strong><i class="bi bi-file-earmark-plus text-primary"></i> الإنشاء</strong> — إعداد الخطة مع فعالياتها (التاريخ، الساعة، المكان، المسؤول، ملخص، نوع التغطية).</p>
-                    <p class="mb-1"><strong><i class="bi bi-person-check text-primary"></i> المدير المباشر</strong> — موافقة أولى، وعندها <strong>تُقفل الخطة</strong>.</p>
-                    <p class="mb-1"><strong><i class="bi bi-diagram-2 text-primary"></i> مدير المشاريع ثم مدير الإعلام</strong> — موافقتان متتاليتان.</p>
-                    <p class="mb-0"><strong><i class="bi bi-camera text-primary"></i> المسؤول الإعلامي</strong> — يحدد مصير كل فعالية (نُفِّذت / لم تُنفَّذ) ثم يغلق الخطة كمنجزة.</p>
-                </div>
-            </div>
-        </div>
+    <h6 class="mt-4">خط أنابيب كل فعالية:</h6>
+    <ol>
+        <li><strong>مسؤول روادنا يُسند الفعالية لمراسل</strong> من قائمة منسدلة. يرفض النظام إسناد تغطيتين
+            لنفس المراسل <strong>في نفس التاريخ والساعة</strong> (عبر كل الخطط)، كما يمنع تكرار الموعد داخل الخطة الواحدة.</li>
+        <li><strong>المراسل</strong> يقرر:
+            <ul>
+                <li><em>تمت التغطية</em> ← يلصق رابط المواد المرفوعة على جوجل درايف، ويختار المونتير/الناشر.</li>
+                <li><em>لم تتم</em> ← يكتب السبب. تبقى الفعالية قابلة <strong>لإعادة الجدولة</strong> لموعد ومراسل آخرين.</li>
+            </ul>
+        </li>
+        <li><strong>المونتير/الناشر</strong> يقوم بـ<em>نشر مؤقت</em> ويلصق رابط المعاينة، ويحوّله لمدير المشروع.</li>
+        <li><strong>مدير المشروع</strong> (صاحب الخطة — أول معتمد عليها) يفتح رابط المعاينة:
+            <em>سليم</em> ← اعتماد للنشر الدائم، أو <em>إعادة</em> مع ملاحظات للمونتير.</li>
+        <li><strong>المونتير/الناشر</strong> بعد الاعتماد يدخل <strong>روابط النشر الدائم</strong>
+            (فيسبوك، إنستغرام، يوتيوب، وغيرها) فتُغلق الفعالية، وتُغلق الخطة تلقائياً عند اكتمال جميع فعالياتها.</li>
+    </ol>
 
-        <div class="table-container mb-3">
-            <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-list-check me-1"></i> خطوة بخطوة</h5></div>
-            <div class="p-3">
-                <ol class="small mb-0 ps-3">
-                    <li class="mb-1"><strong>إنشاء الخطة:</strong> زر «إضافة خطة» ← الشهر، المركز، المشروع، وملاحظات. أضِف <strong>الفعاليات</strong> (التاريخ، الساعة، المكان، المسؤول، نوع التغطية...). حدد المدير المباشر ومدير الإعلام ثم حفظ.</li>
-                    <li class="mb-1"><strong>موافقة المدير المباشر:</strong> يوافق فيُقفل كل شي («موافقة وإحالة لمدير المشاريع») أو يرفض مع السبب.</li>
-                    <li class="mb-1"><strong>موافقة مدير المشاريع:</strong> يوافق ويحيل لمدير الإعلام.</li>
-                    <li class="mb-1"><strong>موافقة مدير الإعلام:</strong> يوافق ويحيل للمسؤول الإعلامي في مركز الخطة.</li>
-                    <li class="mb-1"><strong>تنفيذ الفعاليات:</strong> المسؤول الإعلامي يضغط على كل فعالية ويحدد <x-status-badge tone="success">نُفِّذت</x-status-badge> أو <x-status-badge tone="danger">لم تُنفَّذ</x-status-badge> مع ملاحظة.</li>
-                    <li class="mb-0"><strong>إغلاق الخطة:</strong> بعد وضع علامات كل الفعاليات ← «إغلاق الخطة كمنجزة».</li>
-                </ol>
-            </div>
-        </div>
+    <h6 class="mt-4">قاعدة الحصرية (مثل طلب الشراء):</h6>
+    <p>كل خطوة — على مستوى الخطة أو الفعالية — يملكها <strong>المُحال إليه وحده</strong>؛ لا غيره ولا حتى إدارة النظام
+    تتخذ قراره. ويمكنه وحده إعادة إحالة خطوته لشخص آخر.</p>
 
-        <div class="table-container mb-3">
-            <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-arrow-repeat me-1"></i> حالات الخطة وسير العمل</h5></div>
-            <div class="p-3">
-                <div class="row text-center small g-1 mb-3">
-                    <div class="col"><x-status-badge tone="warning">بانتظار موافقة المدير المباشر</x-status-badge></div>
-                    <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><x-status-badge>وافق المدير المباشر</x-status-badge></div>
-                    <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><x-status-badge>وافق مدير المشاريع</x-status-badge></div>
-                    <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><x-status-badge>وافق مدير الإعلام</x-status-badge></div>
-                    <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><x-status-badge tone="brand">قيد التنفيذ</x-status-badge></div>
-                    <div class="col-auto align-self-center"><i class="bi bi-arrow-left"></i></div>
-                    <div class="col"><x-status-badge tone="success">منجزة</x-status-badge></div>
-                </div>
-                <div class="table-responsive small">
-                    <table class="table table-sm table-bordered align-middle mb-0">
-                        <thead><tr><th>الحالة</th><th>ماذا تعني؟</th><th>مَن يتصرف؟</th></tr></thead>
-                        <tbody>
-                            <tr><td><x-status-badge tone="warning">بانتظار موافقة المدير المباشر</x-status-badge></td><td>أُنشئت الخطة وأُحيلت للموافقة الأولى</td><td>المدير المباشر</td></tr>
-                            <tr><td><x-status-badge>وافق المدير المباشر</x-status-badge></td><td>الموافقة الأولى — <strong>أُقفلت الخطة نهائياً عن التعديل</strong></td><td>مدير المشاريع</td></tr>
-                            <tr><td><x-status-badge>وافق مدير المشاريع</x-status-badge></td><td>الموافقة الثانية</td><td>مدير الإعلام</td></tr>
-                            <tr><td><x-status-badge>وافق مدير الإعلام</x-status-badge></td><td>الموافقة الثالثة — جاهزة للتنفيذ</td><td>المسؤول الإعلامي (وضع علامات الفعاليات)</td></tr>
-                            <tr><td><x-status-badge tone="brand">قيد التنفيذ</x-status-badge></td><td>بُدئ بوضع علامات التنفيذ</td><td>المسؤول الإعلامي</td></tr>
-                            <tr><td><x-status-badge tone="success">منجزة</x-status-badge></td><td>أُغلقت الخطة بعد التنفيذ</td><td>— (رؤية فقط)</td></tr>
-                            <tr><td><x-status-badge tone="danger">مرفوضة</x-status-badge></td><td>رُفضت من أي مرحلة مع السبب</td><td>— (رؤية فقط)</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <h6 class="mt-4">التصدير والطباعة:</h6>
+    <p>من صفحة الخطة أو قائمة الخطط: <i class="bi bi-printer"></i> طباعة/PDF بهوية <strong>مؤسسة الرواد للتعاون والتنمية</strong>،
+    و <i class="bi bi-file-earmark-spreadsheet"></i> تصدير Excel بالجدول الكامل. أما عند الطباعة أو التصدير من
+    <strong>لوحة روادنا</strong> فتخرج المستندات تلقائياً بهوية <strong>روادنا</strong> البصرية.</p>
 
-        <div class="table-container mb-3">
-            <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-lock me-1"></i> القفل والتعديل</h5></div>
-            <div class="p-3 small">
-                <ul class="mb-0 ps-3">
-                    <li class="mb-1">بعد موافقة <strong>المدير المباشر</strong> تُقفل الخطة تلقائياً: لا تعديل، لا حذف، لا إضافة/حذف فعاليات.</li>
-                    <li class="mb-1">قبل القفل يمكن تعديل الخطة وفعالياتها بحرية.</li>
-                    <li class="mb-1">منع <strong>تعارض المواعيد</strong>: لا يمكن إضافة فعاليتين بنفس التاريخ والساعة في الخطة نفسها، ويُفحص التعارض أيضاً عند الحفظ الجماعي للفعاليات.</li>
-                    <li class="mb-0">يمكن إضافة <strong>تعليقات</strong> على كل فعالية لأي مستخدم مخوّل.</li>
-                </ul>
-            </div>
-        </div>
+    <h6 class="mt-4">طلبات التصميم الإعلاني:</h6>
+    <p>دورة موازية للإعلانات (دورات/أنشطة): مدير المشروع ← مدير المشاريع ← روادنا ← <strong>المصمم</strong> (يرفع رابط
+    التصميم على درايف) ← اعتماد صاحب الطلب (مع إمكانية إعادة بملاحظات) ← روابط النشر ثم الإغلاق.
+    شاهدها من <a href="{{ route('admin.ad-design-requests.index') }}">طلبات التصميم الإعلاني</a>.</p>
 
-    </div>
-
-    <div class="col-lg-4">
-
-        <div class="table-container mb-3">
-            <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-hourglass-split me-1"></i> ماذا يظهر في صفحة الخطة؟</h5></div>
-            <div class="p-3 small">
-                <ul class="mb-0 ps-3">
-                    <li class="mb-1">بيانات الخطة وحالتها والجهة التي بيدها حالياً.</li>
-                    <li class="mb-1"><strong>جدول الفعاليات</strong> بوضع تنفيذ كل واحدة (نُفِّذت / لم تُنفَّذ / لم يحدَّد).</li>
-                    <li class="mb-1"><strong>الشريط الزمني</strong> بكل موافقة وإحالة وتعليق.</li>
-                    <li class="mb-0"><strong>سجل الإحالات</strong> بين الجهات على طول الدورة.</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="table-container mb-3">
-            <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-bell me-1"></i> الإشعارات</h5></div>
-            <div class="p-3 small">
-                <p class="mb-0">كل مرحلة تمرر الخطة للجهة التالية تلقائياً، فتصل إليها في <strong>بريدها</strong> داخل النظام جاهزة للتصرف.</p>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-exclamation-triangle me-1"></i> ملاحظات مهمة</h5></div>
-            <div class="p-3 small">
-                <ul class="mb-0 ps-3">
-                    <li class="mb-1">لا يوافق المدير المباشر إلا وهو محدد أمامه <strong>الجهة التالية</strong> (مدير المشاريع) — تظهر تلقائياً ويمكن تغييرها.</li>
-                    <li class="mb-1">الخطة المقفلة لا تعني توقف التنفيذ — الوضع يُحدَّد لكل فعالية.</li>
-                    <li class="mb-1">رفض أي مرحلة يرجع الخطة «مرفوضة» ويسجل السبب، ولا يعيد إرسالها إلا بإنشاء جديدة.</li>
-                    <li class="mb-1">«لم تُنفَّذ» تتطلب <strong>ملاحظة</strong> توضح السبب.</li>
-                    <li class="mb-0">كل الإجراءات <strong>موثقة في الشريط الزمني</strong> ولا يمكن حذفها.</li>
-                </ul>
-            </div>
-        </div>
-
-    </div>
-
+    <h6 class="mt-4">لوحة روادنا:</h6>
+    <p>صفحة موحّدة لكل فريق روادنا تعرض ما يخص دورك فقط (إسناد، تغطيات، طابور نشر، مراجعات، تصاميم) حسب الصلاحيات:
+    <a href="{{ route('admin.rowaduna.dashboard') }}">فتح لوحة روادنا</a>.</p>
 </div>
 @endsection

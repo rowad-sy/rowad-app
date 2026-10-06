@@ -9,9 +9,16 @@ class PurchaseRequestItem extends Model
 {
     protected $table = 'logistics_purchase_request_items';
 
+    public const UNITS = [
+        'قطعة', 'صندوق', 'كرتونة', 'ماعون', 'عبوة', 'كيس', 'طقم', 'لفة', 'دزينة', 'زوج',
+        'زجاجة', 'علبة', 'غرام', 'كيلو غرام', 'طن', 'رطل', 'أوقية',
+        'متر', 'سنتيميتر', 'ميليميتر', 'بوصة', 'قدم', 'متر مربع', 'سنتيميتر مربع',
+        'ليتر', 'ميليلتر', 'متر مكعب', 'سنتيميتر مكعب', 'برميل',
+    ];
+
     protected $fillable = [
-        'purchase_request_id', 'description', 'quantity', 'unit',
-        'unit_price', 'total_price', 'notes', 'budget_line',
+        'purchase_request_id', 'description', 'quantity', 'unit', 'currency',
+        'unit_price', 'total_price', 'notes', 'budget_line', 'executed_at', 'executed_by',
     ];
 
     protected function casts(): array
@@ -20,8 +27,13 @@ class PurchaseRequestItem extends Model
             'quantity' => 'integer',
             'unit_price' => 'decimal:2',
             'total_price' => 'decimal:2',
-            'budget_line' => 'decimal:2',
+            'executed_at' => 'datetime',
         ];
+    }
+
+    public function executor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'executed_by');
     }
 
     public function purchaseRequest(): BelongsTo

@@ -62,6 +62,7 @@ class PermissionModelCatalog
                 'App\Models\Admin\MovementPlan' => 'خطة الحركة',
                 'App\Models\Admin\ProjectDocs\AnnexTemplate' => 'قوالب وثائق المشروع',
                 'App\Models\Admin\ProjectDocs\AnnexDocument' => 'وثائق المشروع',
+                'App\Models\Admin\ProjectDocs\UploadedDocument' => 'أرشيف الوثائق (PDF)',
                 'App\Models\Admin\MonthlyReports\MonthlyReport' => 'التقارير الشهرية',
                 'App\Models\Admin\MonthlyReports\MonthlyReportTemplate' => 'قوالب التقارير الشهرية',
                 'App\Models\Admin\ProjectActivity' => 'الأنشطة',
@@ -85,6 +86,10 @@ class PermissionModelCatalog
                 'page:admin.logistics.statistics' => 'إحصائيات اللوجستي',
                 'page:admin.projects-manager.dashboard' => 'لوحة مديري المشاريع',
                 'App\Models\Admin\Logistics\WarehouseItem' => 'أصناف المخزن',
+            ],
+            'روادنا' => [
+                'App\Models\Admin\AdDesignRequest' => 'طلبات التصميم الإعلاني',
+                'page:admin.rowaduna.dashboard' => 'لوحة روادنا',
             ],
         ];
     }

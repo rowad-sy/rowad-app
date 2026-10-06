@@ -29,11 +29,13 @@ class ProjectController extends Controller
         return view('admin.projects.index', compact('projects', 'search'));
     }
 
-    public function create()
+    public function create(\Illuminate\Http\Request $request)
     {
         $centers = Center::orderBy('name')->get();
         $paths = \App\Models\Admin\ProjectPath::orderBy('name')->get();
-        return view('admin.projects.form', compact('centers', 'paths'));
+        $defaultPathId = $request->filled('path') ? (int) $request->input('path') : null;
+
+        return view('admin.projects.form', compact('centers', 'paths', 'defaultPathId'));
     }
 
     public function store(Request $request)

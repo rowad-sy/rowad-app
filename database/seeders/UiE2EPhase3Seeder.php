@@ -12,6 +12,7 @@ use App\Models\Admin\Logistics\WarehouseItem;
 use App\Models\Admin\MediaPlan;
 use App\Models\Admin\MediaPlanEvent;
 use App\Models\Admin\MovementPlan;
+use App\Models\Admin\MovementPlanEntry;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Physiotherapy\PhysioPatient;
 use App\Models\Admin\Physiotherapy\PhysioRoom;
@@ -83,8 +84,9 @@ class UiE2EPhase3Seeder extends Seeder
         $plan = MediaPlan::firstOrCreate(['month_date' => now()->startOfMonth()->toDateString(), 'center_id' => $c1->id, 'project_id' => $project->id],
             ['created_by' => $admin->id, 'status' => 'draft', 'note' => 'خطة إعلامية تجريبية']);
         MediaPlanEvent::firstOrCreate(['media_plan_id' => $plan->id, 'event_name' => 'فعالية تغطية اختبارية'], ['event_date' => now()->addDays(3)->toDateString(), 'event_time' => '10:00', 'location' => 'قاعة الاختبار']);
-        MovementPlan::firstOrCreate(['request_number' => 'MV-TEST-1'], ['created_by' => $admin->id, 'center_id' => $c1->id, 'project_id' => $project->id,
-            'movement_date' => now()->addDays(2)->toDateString(), 'from_location' => 'دمشق', 'to_location' => 'حلب', 'purpose' => 'زيارة ميدانية', 'status' => 'review']);
+        $mv = MovementPlan::firstOrCreate(['request_number' => 'MV-TEST-1'], ['created_by' => $admin->id, 'center_id' => $c1->id, 'project_id' => $project->id,
+            'plan_month' => now()->startOfMonth()->toDateString(), 'status' => 'review']);
+        MovementPlanEntry::firstOrCreate(['movement_plan_id' => $mv->id, 'purpose' => 'زيارة ميدانية'], ['movement_date' => now()->addDays(2)->toDateString(), 'from_location' => 'دمشق', 'to_location' => 'حلب']);
         EventCard::firstOrCreate(['name' => 'بطاقة فعالية اختبارية'], ['project_id' => $project->id, 'center_id' => $c1->id, 'event_date' => now()->addDays(10)->toDateString(),
             'location' => 'قاعة', 'organizer' => 'المنظم', 'status' => 'draft', 'created_by' => $admin->id]);
 
@@ -94,7 +96,7 @@ class UiE2EPhase3Seeder extends Seeder
         WarehouseItem::firstOrCreate(['warehouse_id' => $wh->id, 'name' => 'ورق A4'], ['quantity' => 120, 'unit' => 'رزمة', 'status' => 'active', 'description' => 'مادة اختبارية']);
         Asset::firstOrCreate(['asset_code' => 'AST-001'], ['name' => 'حاسوب محمول', 'type' => 'أجهزة', 'center_id' => $c1->id, 'status' => 'جيد', 'room_number' => '12']);
         Asset::firstOrCreate(['asset_code' => 'AST-002'], ['name' => 'طاولة اجتماعات', 'type' => 'أثاث', 'center_id' => $c2->id, 'status' => 'صيانة']);
-        foreach ([['PR-P3-1', 'pending', $c1, 1250.75], ['PR-P3-2', 'priced', $c1, 480.0], ['PR-P3-3', 'approved', $c2, 9800.5]] as [$no, $st, $c, $total]) {
+        foreach ([['PR-P3-1', 'review', $c1, 1250.75], ['PR-P3-2', 'approved1', $c1, 480.0], ['PR-P3-3', 'approved', $c2, 9800.5]] as [$no, $st, $c, $total]) {
             $pr = PurchaseRequest::firstOrCreate(['request_number' => $no], ['user_id' => $ops->id, 'specifications' => 'مواصفات '.$no, 'status' => $st, 'center_id' => $c->id,
                 'project_id' => $project->id, 'quantity' => 5, 'unit' => 'قطعة', 'expected_unit_price' => $total / 5, 'expected_total_price' => $total]);
             PurchaseRequestItem::firstOrCreate(['purchase_request_id' => $pr->id, 'description' => 'بند '.$no], ['quantity' => 5, 'unit' => 'قطعة', 'unit_price' => $total / 5, 'total_price' => $total]);

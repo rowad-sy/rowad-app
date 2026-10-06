@@ -87,7 +87,7 @@
 
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
-        <x-kpi label="بانتظار التسعير" :value="$pendingPricingCount" tone="warning" />
+        <x-kpi label="قيد الموافقات" :value="$pendingPricingCount" tone="warning" />
     </div>
     <div class="col-md-3 col-6">
         <x-kpi label="بموجودي للتوقيع" :value="$awaitingMySignCount" tone="info" />
@@ -107,8 +107,8 @@
     <div class="p-3">
         @php
             $statusColors = [
-                'pending' => 'warning', 'priced' => 'info', 'pm_approved' => 'primary',
-                'pm2_approved' => 'primary', 'approved' => 'success', 'rejected' => 'danger', 'executed' => 'dark',
+                'review' => 'warning', 'approved1' => 'info', 'approved2' => 'primary',
+                'approved' => 'success', 'rejected' => 'danger', 'executed' => 'dark',
             ];
         @endphp
         <div class="d-flex flex-wrap gap-2">
@@ -152,9 +152,9 @@
                         <td>{{ $request->project?->name ?? '—' }}</td>
                         <td>
                             @php $statusLabel = \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$request->status] ?? $request->status; @endphp
-                            @if ($request->status === 'pending')
+                            @if ($request->status === 'review')
                                 <span class="badge bg-warning text-dark">{{ $statusLabel }}</span>
-                            @elseif ($request->status === 'priced')
+                            @elseif ($request->status === 'approved1' || $request->status === 'approved2')
                                 <span class="badge bg-info">{{ $statusLabel }}</span>
                             @elseif ($request->status === 'rejected')
                                 <span class="badge bg-danger">{{ $statusLabel }}</span>

@@ -52,9 +52,10 @@
         <div class="form-card mb-3">
             <h6 class="fw-bold mb-3"><i class="bi bi-people text-danger me-1"></i> تقسيم المهام على الفريق</h6>
             <div class="row small">
-                <div class="col-md-4"><div class="text-muted">إدارة المشاريع</div><div>{{ $eventCard->tasks_projects ?: '—' }}</div></div>
-                <div class="col-md-4"><div class="text-muted">إدارة العمليات</div><div>{{ $eventCard->tasks_operations ?: '—' }}</div></div>
-                <div class="col-md-4"><div class="text-muted">المراقبة والتقييم</div><div>{{ $eventCard->tasks_mel ?: '—' }}</div></div>
+                <div class="col-md-6"><div class="text-muted">إدارة المشاريع</div><div>{{ $eventCard->tasks_projects ?: '—' }}</div></div>
+                <div class="col-md-6"><div class="text-muted">إدارة العمليات</div><div>{{ $eventCard->tasks_operations ?: '—' }}</div></div>
+                <div class="col-md-6"><div class="text-muted">المراقبة والتقييم</div><div>{{ $eventCard->tasks_mel ?: '—' }}</div></div>
+                <div class="col-md-6"><div class="text-muted">المنح والشراكات</div><div>{{ $eventCard->tasks_grants ?: '—' }}</div></div>
             </div>
         </div>
 

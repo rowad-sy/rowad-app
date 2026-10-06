@@ -117,8 +117,10 @@ class ProjectPathController extends Controller
      */
     public function tree(Request $request)
     {
-        $query = ProjectPath::with(['projects' => fn ($q) => $q->orderBy('name')])
-            ->orderBy('name');
+        $query = ProjectPath::with(['projects' => fn ($q) => $q
+            ->when($request->filled('status'), fn ($s) => $s->where('status', $request->status))
+            ->orderBy('name')])
+            ->orderBy('id');
 
         if ($request->filled('status')) {
             $query->whereHas('projects', fn ($q) => $q->where('status', $request->status));
@@ -135,56 +137,78 @@ class ProjectPathController extends Controller
         return view('admin.paths.tree', compact('paths', 'orphanProjects', 'statuses', 'statusCounts'));
     }
 
-    public function exportExcel()
+    public function exportExcel(Request $request)
     {
+        $columns = $this->columnsQuery($request);
+        $width = $columns->max(fn (array $col) => count($col['items'])) ?: 0;
+
+        $headings = $columns->map(fn (array $col) => $col['title'])->all();
         $rows = [];
-        $i = 0;
 
-        $paths = ProjectPath::with(['projects' => fn ($q) => $q->orderBy('name')])->orderBy('name')->get();
+        for ($i = 0; $i < $width; $i++) {
+            $rows[] = $columns->map(function (array $col) use ($i) {
+                $item = $col['items'][$i] ?? null;
 
-        foreach ($paths as $path) {
-            foreach ($path->projects as $project) {
-                $rows[] = [
-                    'no' => ++$i,
-                    'path' => $path->name,
-                    'name' => $project->name,
-                    'code' => $project->code,
-                    'status' => $project->statusLabel(),
-                ];
-            }
+                return $item ? sprintf('%d. %s%s — %s', $i + 1, $item['name'], $item['code'] ? ' ('.$item['code'].')' : '', $item['status']) : '';
+            })->all();
         }
 
-        $orphanProjects = Project::whereNull('path_id')->orderBy('name')->get();
-        foreach ($orphanProjects as $project) {
-            $rows[] = [
-                'no' => ++$i,
-                'path' => 'بدون مسار',
-                'name' => $project->name,
-                'code' => $project->code,
-                'status' => $project->statusLabel(),
-            ];
-        }
-
-        $collection = collect($rows);
+        $columns_closures = array_map(
+            fn ($index) => fn (array $row) => $row[$index] ?? '',
+            array_keys($headings)
+        );
 
         return Excel::download(
-            new BaseExport(
-                $collection,
-                ['م/ت', 'المسار', 'اسم المشروع', 'كود المشروع', 'حالة المشروع'],
-                ['no', 'path', 'name', 'code', 'status'],
-            ),
+            new BaseExport(collect($rows), $headings, $columns_closures),
             'paths-projects-' . now()->format('Y_m_d') . '.xlsx',
         );
     }
 
     /*
-     * نسخة PDF عبر window.print — A4 أفقي مع لوغو المؤسسة على اليسار.
+     * عمود لكل مسار (تنسيق «قائمة المشاريع» المرجعي). كل عنصر: اسم/كود/حالة خام لتستفيد
+     * منه صفحة الطباعة (شارات ملونة) وتصدير Excel (سطر نصي) معاً.
      */
-    public function exportPdf()
+    private function columnsQuery(Request $request): \Illuminate\Support\Collection
     {
-        $paths = ProjectPath::with(['projects' => fn ($q) => $q->orderBy('name')])->orderBy('name')->get();
-        $orphanProjects = Project::whereNull('path_id')->orderBy('name')->get();
+        $status = $request->filled('status') ? $request->status : null;
 
-        return view('admin.paths.print', compact('paths', 'orphanProjects'));
+        $map = fn ($projects) => $projects
+            ->when($status, fn ($p) => $p->where('status', $status))
+            ->map(fn (Project $project) => [
+                'name' => $project->name,
+                'code' => $project->code,
+                'status' => $project->statusLabel(),
+                'status_key' => $project->status,
+            ])
+            ->values()
+            ->all();
+
+        $query = ProjectPath::with(['projects' => fn ($q) => $q->orderBy('name')])
+            ->orderBy('id');
+
+        if ($status) {
+            $query->whereHas('projects', fn ($q) => $q->where('status', $status));
+        }
+
+        $columns = $query->get()->map(fn (ProjectPath $path) => [
+            'title' => trim($path->name . ' (' . ($path->code ?? '') . ')'),
+            'code' => $path->code,
+            'items' => $map($path->projects),
+        ]);
+
+        $orphans = $map(Project::whereNull('path_id')->orderBy('name')->get());
+
+        if ($orphans) {
+            $columns->push(['title' => 'مشاريع بدون مسار', 'code' => null, 'items' => $orphans]);
+        }
+
+        return $columns->filter(fn (array $col) => $col['items'] !== [])->values();
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $columns = $this->columnsQuery($request);
+
+        return view('admin.paths.print', compact('columns'));
     }
 }

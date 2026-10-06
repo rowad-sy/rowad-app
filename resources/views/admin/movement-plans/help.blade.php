@@ -17,14 +17,14 @@
         <div class="table-container mb-3">
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-diagram-3 me-1"></i> ما هي خطة الحركة؟</h5></div>
             <div class="p-3">
-                <p class="mb-2">خطة الحركة هي <strong>طلب حركة بين المراكز</strong> — انتقال فريق/موظفين من مكان إلى مكان (أو ميداني) لغاية محددة، تمر بسلسلة موافقات قبل التنفيذ:</p>
+                <p class="mb-2">خطة الحركة هي <strong>خطة شهرية واحدة تحوي عدة حركات</strong> — انتقالات فريق/موظفين بين الأماكن لغايات محددة، تُكتب عادةً لشهر كامل، وتمر بسلسلة موافقات قبل التنفيذ:</p>
                 <div class="bg-light rounded p-3 mb-0">
-                    <p class="mb-1"><strong><i class="bi bi-person-plus text-primary"></i> مدير المشروع / الموظف</strong> — ينشئ الخطة ويحدد التاريخ والمسار والغاية.</p>
+                    <p class="mb-1"><strong><i class="bi bi-person-plus text-primary"></i> مدير المشروع / الموظف</strong> — ينشئ الخطة الشهرية ويضيف بنود الحركات (تاريخ/مسار/غاية لكل حركة) ويختار من يُحيل إليه المراجعة من قائمة قابلة للبحث.</p>
                     <p class="mb-1"><strong><i class="bi bi-person-check text-primary"></i> إدارة المشاريع</strong> — تراجع وتصادق أو ترفض مع ذكر السبب.</p>
-                    <p class="mb-1"><strong><i class="bi bi-people text-primary"></i> مسؤول الحركة</strong> — يوزّع الخطة على المتابِعين (من ينفّذ المهمة فعلياً).</p>
-                    <p class="mb-0"><strong><i class="bi bi-flag text-primary"></i> المتابِعون</strong> — ينفّذون الحركة ثم يغلقها مسؤول الحركة كمنجزة.</p>
+                    <p class="mb-1"><strong><i class="bi bi-people text-primary"></i> مسؤول الحركة</strong> — يوزّع الخطة على المتابِعين (من ينفّذ المهام فعلياً).</p>
+                    <p class="mb-0"><strong><i class="bi bi-flag text-primary"></i> المتابِعون</strong> — ينفّذون الحركات ثم يغلقها مسؤول الحركة كمنجزة.</p>
                 </div>
-                <p class="small text-muted mt-2 mb-0">كل خطة تحمل <strong>رقم طلب تلقائياً</strong> بصيغة <code>MOV-YYYY-NNNN</code>.</p>
+                <p class="small text-muted mt-2 mb-0">كل خطة تحمل <strong>رقم طلب تلقائياً</strong> بصيغة <code>MOV-YYYY-NNNN</code>، وتضم جدول <strong>حركات الخطة</strong> بعدة بنود.</p>
             </div>
         </div>
 
@@ -32,7 +32,7 @@
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-list-check me-1"></i> خطوة بخطوة</h5></div>
             <div class="p-3">
                 <ol class="small mb-0 ps-3">
-                    <li class="mb-1"><strong>إنشاء:</strong> زر «خطة حركة جديدة» ← التاريخ، وقت الانطلاق والعودة، المسار (من/إلى)، الغاية وملاحظات. تُحال الخطة تلقائياً لإدارة المشاريع.</li>
+                    <li class="mb-1"><strong>إنشاء:</strong> زر «خطة حركة جديدة» ← شهر الخطة، المركز/المشروع، ثم <strong>بنود الحركات</strong> (زر «إضافة حركة» للتكرار: التاريخ، من/إلى، الأوقات، الغاية) واسم المُحال له في <strong>قائمة منسدلة قابلة للبحث</strong> (تُرشَّح إدارة المشاريع افتراضياً).</li>
                     <li class="mb-1"><strong>مراجعة إدارة المشاريع:</strong> تفتح صفحة الخطة وتراجعها، ثم «اعتماد» مع اختيار <strong>مسؤول الحركة</strong>، أو «رفض» مع كتابة السبب.</li>
                     <li class="mb-1"><strong>توزيع مسؤول الحركة:</strong> يحدد «المتابِعون» (فريق التنفيذ) ووظيفة كل واحد، فتغدو الخطة <x-status-badge tone="brand">قيد المتابعة</x-status-badge>.</li>
                     <li class="mb-1"><strong>المتابعة:</strong> يتابع المتابِعون الخطة من بريد كل منهم (<x-status-badge tone="info">خطة حركة</x-status-badge>), ويمكنهم إعادة إحالتها لمسؤول الحركة إن لزم.</li>
@@ -109,7 +109,8 @@
             <div class="p-3 border-bottom"><h5 class="mb-0"><i class="bi bi-exclamation-triangle me-1"></i> ملاحظات مهمة</h5></div>
             <div class="p-3 small">
                 <ul class="mb-0 ps-3">
-                    <li class="mb-1">وقت العودة يجب أن يكون <strong>بعد</strong> وقت الانطلاق — وإلا يرفض النظام الحفظ.</li>
+                    <li class="mb-1">وقت العودة يجب أن يكون <strong>بعد</strong> وقت الانطلاق — يُفحص لكل بند حركة على حدة.</li>
+                    <li class="mb-1">تعديل بنود الخطة متاح <strong>لمنشئها فقط</strong> ما دامت في مرحلة المراجعة.</li>
                     <li class="mb-1">لا تستطيع المراجعة/التوزيع/الإنجاز إلا إذا كانت الخطة <strong>بيدك</strong> حالياً.</li>
                     <li class="mb-1">الرفض يُسجل <strong>السبب</strong> ويظهر إلى الأبد في سجل الخطة.</li>
                     <li class="mb-0">كل الإجراءات <strong>موثقة في الشريط الزمني</strong> ولا يمكن حذفها.</li>

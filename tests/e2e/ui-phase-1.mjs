@@ -91,11 +91,14 @@ const active = (p) => p.evaluate(() => { const a = document.activeElement; retur
   await p.goto(BASE + '/admin/users');
   await p.evaluate(() => localStorage.removeItem('rowad-sidebar-rail'));
   await p.reload();
-  await p.click('#sidebarToggle');
   await p.waitForTimeout(400);
   const rail = () => p.evaluate(() => ({ collapsed: document.getElementById('sidebar').classList.contains('collapsed'), w: Math.round(document.getElementById('sidebar').getBoundingClientRect().width), heads: [...document.querySelectorAll('#sidebar .nav-section')].every((h) => h.getAttribute('tabindex') === '-1' && h.getAttribute('aria-hidden') === 'true'), noHeads: [...document.querySelectorAll('#sidebar .nav-section')].every((h) => !h.hasAttribute('tabindex') && !h.hasAttribute('aria-hidden')) }));
   let r = await rail();
-  ok('الشريط المصغّر: العرض 64 وعناوين الأقسام tabindex=-1 وaria-hidden', r.collapsed && r.w === 64 && r.heads, JSON.stringify(r));
+  ok('بلا تفضيل محفوظ: القائمة مطوية افتراضياً — شريط أيقونات بعرض 64 وعناوين الأقسام tabindex=-1 وaria-hidden', r.collapsed && r.w === 64 && r.heads, JSON.stringify(r));
+  await p.click('#sidebarToggle'); await p.waitForTimeout(400);
+  r = await rail();
+  ok('التوسيع اليدوي يفتح القائمة ويحفظ التفضيل', !r.collapsed && r.noHeads && r.w === 260, JSON.stringify(r));
+  await p.click('#sidebarToggle'); await p.waitForTimeout(400);
   await p.evaluate(() => document.querySelector('#sidebar a[href]').focus());
   let onHead = 0, n = 0;
   for (let i = 0; i < 40; i++) { await p.keyboard.press('Tab'); const a = await active(p); if (a.cls.includes('nav-section')) onHead++; n++; }

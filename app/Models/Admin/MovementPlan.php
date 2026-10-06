@@ -16,9 +16,8 @@ class MovementPlan extends Model
     protected $table = 'movement_plans';
 
     protected $fillable = [
-        'request_number', 'created_by', 'center_id', 'project_id',
-        'movement_date', 'departure_time', 'return_time',
-        'from_location', 'to_location', 'purpose', 'notes',
+        'request_number', 'created_by', 'center_id', 'project_id', 'plan_month',
+        'notes',
         'refer_to_movement_officer_id', 'refer_to_pm2_id', 'assigned_by', 'assigned_at',
         'completed_at', 'status', 'reason',
     ];
@@ -26,7 +25,7 @@ class MovementPlan extends Model
     protected function casts(): array
     {
         return [
-            'movement_date' => 'date',
+            'plan_month' => 'date',
             'assigned_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
@@ -34,7 +33,7 @@ class MovementPlan extends Model
 
     /*
      * دورة خطة الحركة:
-     * مدير المشروع ينشئ → إدارة المشاريع توافق وتحيل لمسؤول الحركة →
+     * مدير المشروع ينشئ خطة شهرية تحوي عدة حركات → إدارة المشاريع توافق وتحيل لمسؤول الحركة →
      * مسؤول الحركة يحدد المستفيدين/المتابعين (سائق/مدير مركز/لوجستي...) → المتابعة → منجزة
      */
     public const STATUSES = [
@@ -74,6 +73,13 @@ class MovementPlan extends Model
     public function assigner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');
+    }
+
+    public function entries(): HasMany
+    {
+        return $this->hasMany(MovementPlanEntry::class, 'movement_plan_id')
+            ->orderBy('movement_date')
+            ->orderBy('departure_time');
     }
 
     public function recipients(): HasMany

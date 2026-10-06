@@ -61,7 +61,7 @@ test('matrix store creates one record per model with independent flags', functio
     expect(PermissionHelper::can($user, $course, 'view'))->toBeFalse();
 });
 
-test('shared scope is applied to every generated record', function () {
+test('v2: نطاق مُرسل في طلب المنح يُتجاهل — السجلات تُنشأ بلا نطاق مدمج', function () {
     $user = User::factory()->create();
     $student = 'App\Models\Admin\Student\Student';
     $course = 'App\Models\Admin\Student\Course';
@@ -81,10 +81,9 @@ test('shared scope is applied to every generated record', function () {
 
     foreach ([$student, $course] as $model) {
         $record = Permission::where('user_id', $user->id)->whereJsonContains('model_names', $model)->first();
-        expect($record)->not->toBeNull();
-        expect($record->center_id)->toBe($this->center->id);
-        expect($record->project_id)->toBe($this->project->id);
-        expect($record->cohort_id)->toBe($this->cohort->id);
+        expect($record->center_id)->toBeNull();
+        expect($record->project_id)->toBeNull();
+        expect($record->cohort_id)->toBeNull();
     }
 });
 

@@ -13,9 +13,12 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class PurchaseRequestExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithStyles
 {
+    public function __construct(private ?string $type = null) {}
+
     public function collection(): Collection
     {
         return PurchaseRequest::with(['user', 'center', 'project', 'items'])
+            ->when(in_array($this->type, ['purchase', 'maintenance'], true), fn ($q) => $q->where('request_type', $this->type))
             ->orderBy('created_at', 'desc')
             ->get()
             ->flatMap(function ($pr) {
@@ -37,7 +40,7 @@ class PurchaseRequestExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'رقم الطلب', 'الوصف', 'الكمية', 'الوحدة', 'خط الميزانية', 'سعر الوحدة',
+            'رقم الطلب', 'النوع', 'الوصف', 'الكمية', 'الوحدة', 'خط الميزانية', 'سعر الوحدة',
             'الإجمالي', 'ملاحظات البند', 'إجمالي الطلب', 'المركز', 'المشروع',
             'الحالة', 'المستخدم', 'ملاحظات الطلب', 'تاريخ الإنشاء',
         ];
@@ -47,17 +50,18 @@ class PurchaseRequestExport implements FromCollection, WithHeadings, WithMapping
     {
         return [
             $row->request_number,
+            $row->request_type === 'maintenance' ? 'صيانة' : 'شراء',
             $row->item_description,
             $row->item_quantity,
             $row->item_unit,
-            $row->item_budget_line !== null ? number_format($row->item_budget_line, 0) : '—',
+            $row->item_budget_line ?? '—',
             number_format($row->item_unit_price, 2),
             number_format($row->item_total, 2),
             $row->item_notes,
             number_format($row->expected_total_price, 2),
             $row->center?->name ?? '—',
             $row->project?->name ?? '—',
-            match ($row->status) { 'pending' => 'قيد الانتظار', 'approved' => 'معتمد', 'rejected' => 'مرفوض', 'executed' => 'منفذ', default => $row->status },
+            \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$row->status] ?? $row->status,
             $row->user?->name ?? '—',
             $row->notes ?? '—',
             $row->created_at?->format('Y-m-d'),

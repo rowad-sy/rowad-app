@@ -3,7 +3,7 @@
 use App\Http\Controllers\Admin\BeneficiaryController;
 use App\Http\Controllers\Admin\CenterController;
 use App\Http\Controllers\Admin\CohortController;
-use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\WorkspaceController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\ExportController;
@@ -55,6 +55,8 @@ use App\Http\Controllers\Admin\Logistics\AssetController;
 use App\Http\Controllers\Admin\Logistics\LogisticsStatisticsController;
 use App\Http\Controllers\Admin\Logistics\LogisticsExportController;
 use App\Http\Controllers\Admin\MediaPlanController;
+use App\Http\Controllers\Admin\AdDesignRequestController;
+use App\Http\Controllers\Admin\RowadunaController;
 use App\Http\Controllers\Admin\MovementPlanController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\UserController;
@@ -107,7 +109,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [HomeController::class, 'index'])->name('home');
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard', [WorkspaceController::class, 'index'])->name('dashboard');
 
         Route::get('beneficiary/dashboard', [BeneficiaryController::class, 'dashboard'])->name('beneficiary.dashboard');
         Route::get('project-manager', [ProjectManagerController::class, 'dashboard'])->name('project-manager.dashboard');
@@ -131,6 +133,8 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::get('create', [MediaPlanController::class, 'create'])->name('create');
             Route::post('/', [MediaPlanController::class, 'store'])->name('store');
             Route::get('help', [MediaPlanController::class, 'help'])->name('help');
+            Route::get('{plan}/print', [MediaPlanController::class, 'printForm'])->name('print');
+            Route::get('{plan}/export', [MediaPlanController::class, 'exportExcel'])->name('export');
             Route::get('{plan}', [MediaPlanController::class, 'show'])->name('show');
             Route::get('{plan}/edit', [MediaPlanController::class, 'edit'])->name('edit');
             Route::put('{plan}', [MediaPlanController::class, 'update'])->name('update');
@@ -138,19 +142,44 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::post('{plan}/events', [MediaPlanController::class, 'storeEvent'])->name('events.store');
             Route::delete('events/{event}', [MediaPlanController::class, 'destroyEvent'])->name('events.destroy');
             Route::post('events/{event}/comment', [MediaPlanController::class, 'addComment'])->name('events.comment');
-            Route::post('events/{event}/mark', [MediaPlanController::class, 'markEvent'])->name('events.mark');
+            Route::post('events/{event}/assign', [MediaPlanController::class, 'assignEvent'])->name('events.assign');
+            Route::post('events/{event}/reporter-decide', [MediaPlanController::class, 'reporterDecide'])->name('events.reporter-decide');
+            Route::post('events/{event}/publisher-preview', [MediaPlanController::class, 'publisherPreview'])->name('events.publisher-preview');
+            Route::post('events/{event}/reviewer-decide', [MediaPlanController::class, 'reviewerDecide'])->name('events.reviewer-decide');
+            Route::post('events/{event}/publish-final', [MediaPlanController::class, 'publishFinal'])->name('events.publish-final');
+            Route::post('events/{event}/reschedule', [MediaPlanController::class, 'rescheduleEvent'])->name('events.reschedule');
             Route::post('{plan}/direct-manager-decide', [MediaPlanController::class, 'directManagerDecide'])->name('direct-manager-decide');
             Route::post('{plan}/pm2-decide', [MediaPlanController::class, 'pm2Decide'])->name('pm2-decide');
-            Route::post('{plan}/media-manager-decide', [MediaPlanController::class, 'mediaManagerDecide'])->name('media-manager-decide');
             Route::post('{plan}/finalize', [MediaPlanController::class, 'finalize'])->name('finalize');
             Route::post('{plan}/refer', [MediaPlanController::class, 'refer'])->name('refer');
         });
+        Route::prefix('ad-design-requests')->name('ad-design-requests.')->group(function () {
+            Route::get('/', [AdDesignRequestController::class, 'index'])->name('index');
+            Route::get('create', [AdDesignRequestController::class, 'create'])->name('create');
+            Route::post('/', [AdDesignRequestController::class, 'store'])->name('store');
+            Route::get('help', [AdDesignRequestController::class, 'help'])->name('help');
+            Route::get('{ad}', [AdDesignRequestController::class, 'show'])->name('show');
+            Route::get('{ad}/edit', [AdDesignRequestController::class, 'edit'])->name('edit');
+            Route::put('{ad}', [AdDesignRequestController::class, 'update'])->name('update');
+            Route::delete('{ad}', [AdDesignRequestController::class, 'destroy'])->name('destroy');
+            Route::post('{ad}/pm2-decide', [AdDesignRequestController::class, 'pm2Decide'])->name('pm2-decide');
+            Route::post('{ad}/rowaduna-decide', [AdDesignRequestController::class, 'rowadunaDecide'])->name('rowaduna-decide');
+            Route::post('{ad}/designer-submit', [AdDesignRequestController::class, 'designerSubmit'])->name('designer-submit');
+            Route::post('{ad}/requester-decide', [AdDesignRequestController::class, 'requesterDecide'])->name('requester-decide');
+            Route::post('{ad}/publish-final', [AdDesignRequestController::class, 'publishFinal'])->name('publish-final');
+            Route::post('{ad}/refer', [AdDesignRequestController::class, 'refer'])->name('refer');
+        });
+        Route::get('rowaduna', [RowadunaController::class, 'dashboard'])->name('rowaduna.dashboard');
         Route::prefix('movement-plans')->name('movement-plans.')->group(function () {
             Route::get('/', [MovementPlanController::class, 'index'])->name('index');
-            Route::get('create', [MovementPlanController::class, 'create'])->name('create');
-            Route::post('/', [MovementPlanController::class, 'store'])->name('store');
-            Route::get('help', [MovementPlanController::class, 'help'])->name('help');
-            Route::get('{movement_plan}', [MovementPlanController::class, 'show'])->name('show');
+        Route::get('create', [MovementPlanController::class, 'create'])->name('create');
+        Route::post('/', [MovementPlanController::class, 'store'])->name('store');
+        Route::get('help', [MovementPlanController::class, 'help'])->name('help');
+        Route::get('export', [MovementPlanController::class, 'exportExcel'])->name('export');
+        Route::get('print', [MovementPlanController::class, 'exportPdf'])->name('print');
+        Route::get('{movement_plan}/edit', [MovementPlanController::class, 'edit'])->name('edit');
+        Route::put('{movement_plan}', [MovementPlanController::class, 'update'])->name('update');
+        Route::get('{movement_plan}', [MovementPlanController::class, 'show'])->name('show');
             Route::post('{movement_plan}/approve', [MovementPlanController::class, 'approve'])->name('approve');
             Route::post('{movement_plan}/reject', [MovementPlanController::class, 'reject'])->name('reject');
             Route::post('{movement_plan}/assign', [MovementPlanController::class, 'assign'])->name('assign');
@@ -195,6 +224,16 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::get('portal', [PortalController::class, 'portal'])->name('portal');
         Route::get('identities', [PortalController::class, 'identities'])->name('identities');
         Route::get('events-calendar', [PortalController::class, 'calendar'])->name('events-calendar');
+        Route::prefix('documents-archive')->name('documents-archive.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'index'])->name('index');
+            Route::get('create', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'store'])->name('store');
+            Route::get('{document}', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'show'])->name('show');
+            Route::get('{document}/edit', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'edit'])->name('edit');
+            Route::put('{document}', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'update'])->name('update');
+            Route::delete('{document}', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'destroy'])->name('destroy');
+            Route::get('{document}/download', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'download'])->name('download');
+        });
         Route::prefix('project-docs')->name('project-docs.')->group(function () {
             Route::resource('templates', \App\Http\Controllers\Admin\ProjectDocs\AnnexTemplateController::class)->except(['show']);
             Route::get('documents', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'index'])->name('documents.index');
@@ -242,14 +281,19 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::resource('cohorts', CohortController::class)->except(['show']);
         Route::resource('permissions', PermissionController::class)->except(['show']);
 
-        // الأدوار والنطاقات (نظام الأدوار §17) — منح الأدوار مع تحديد المركز/المشروع/الفوج
+        // الأدوار والنطاقات (الترتيبة v2) — تعريف الأدوار وإسنادها بالنطاق (مركز/مشروع/فوج)
         Route::prefix('roles')->name('roles.')->group(function () {
             Route::get('/', [RoleController::class, 'index'])->name('index');
-            Route::get('assign', [RoleController::class, 'assign'])->name('assign');
+            Route::get('create', [RoleController::class, 'create'])->name('create');
             Route::post('/', [RoleController::class, 'store'])->name('store');
-            Route::get('{group}/{user}/edit', [RoleController::class, 'edit'])->name('edit');
-            Route::put('{group}/{user}', [RoleController::class, 'update'])->name('update');
-            Route::delete('{group}/{user}', [RoleController::class, 'destroy'])->name('destroy');
+            Route::get('assign', [RoleController::class, 'assign'])->name('assign');
+            Route::post('assign', [RoleController::class, 'storeAssignment'])->name('assign.store');
+            Route::delete('{role}', [RoleController::class, 'destroy'])->name('destroy');
+            Route::get('{role}/edit', [RoleController::class, 'edit'])->name('edit');
+            Route::put('{role}', [RoleController::class, 'update'])->name('update');
+            Route::get('{group}/{user}/edit', [RoleController::class, 'editAssignment'])->name('assignment.edit');
+            Route::put('{group}/{user}', [RoleController::class, 'updateAssignment'])->name('assignment.update');
+            Route::delete('{group}/{user}', [RoleController::class, 'destroyAssignment'])->name('assignment.destroy');
         });
 
         // Audit Log
@@ -348,17 +392,13 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');
             Route::resource('approval-rules', ApprovalRuleController::class)->except(['show']);
             Route::get('purchase-requests/help', [PurchaseRequestController::class, 'help'])->name('purchase-requests.help');
-            Route::resource('purchase-requests', PurchaseRequestController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
-            Route::get('purchase-requests/{purchaseRequest}/price', [PurchaseRequestController::class, 'priceForm'])->name('purchase-requests.price-form');
-            Route::post('purchase-requests/{purchaseRequest}/price', [PurchaseRequestController::class, 'price'])->name('purchase-requests.price');
-            Route::post('purchase-requests/{purchaseRequest}/manager-decide', [PurchaseRequestController::class, 'managerDecide'])->name('purchase-requests.manager-decide');
-            Route::post('purchase-requests/{purchaseRequest}/pm2-decide', [PurchaseRequestController::class, 'pm2Decide'])->name('purchase-requests.pm2-decide');
-            Route::post('purchase-requests/{purchaseRequest}/finance-decide', [PurchaseRequestController::class, 'financeDecide'])->name('purchase-requests.finance-decide');
-            Route::post('purchase-requests/{purchaseRequest}/executive-decide', [PurchaseRequestController::class, 'executiveDecide'])->name('purchase-requests.executive-decide');
+            Route::resource('purchase-requests', PurchaseRequestController::class)->only(['index', 'create', 'store', 'edit', 'update', 'show', 'destroy']);
+            Route::post('purchase-requests/{purchaseRequest}/approve', [PurchaseRequestController::class, 'approve'])->name('purchase-requests.approve');
+            Route::post('purchase-requests/{purchaseRequest}/reject', [PurchaseRequestController::class, 'reject'])->name('purchase-requests.reject');
             Route::post('purchase-requests/{purchaseRequest}/refer', [PurchaseRequestController::class, 'refer'])->name('purchase-requests.refer');
-            Route::post('purchase-requests/{purchaseRequest}/execute', [PurchaseRequestController::class, 'execute'])->name('purchase-requests.execute');
-            Route::post('purchase-requests/{purchaseRequest}/approve', [PurchaseRequestApprovalController::class, 'approve'])->name('purchase-requests.approve');
-            Route::post('purchase-requests/{purchaseRequest}/reject', [PurchaseRequestApprovalController::class, 'reject'])->name('purchase-requests.reject');
+            Route::post('purchase-requests/{purchaseRequest}/execute-items', [PurchaseRequestController::class, 'executeItems'])->name('purchase-requests.execute-items');
+            Route::get('purchase-requests/{purchaseRequest}/print', [PurchaseRequestController::class, 'printForm'])->name('purchase-requests.print');
+            Route::get('purchase-requests/{purchaseRequest}/export', [PurchaseRequestController::class, 'exportExcel'])->name('purchase-requests.export');
             Route::resource('warehouses', WarehouseController::class)->except(['show']);
             Route::get('warehouses/{warehouse}/items', [WarehouseItemController::class, 'index'])->name('warehouses.items.index');
             Route::get('warehouses/{warehouse}/items/create', [WarehouseItemController::class, 'create'])->name('warehouses.items.create');

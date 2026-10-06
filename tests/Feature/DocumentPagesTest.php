@@ -149,6 +149,79 @@ it('inherits section pages from annex template on document creation', function (
         ->assertSee('صفحة 2 من 2');
 });
 
+it('attaches an A4 cover printed as the first page of an annex document, and removes it', function () {
+    $user = pagesSuperAdmin();
+
+    $template = AnnexTemplate::create([
+        'key' => 'smr-cover-annex',
+        'title_ar' => 'قالب غلاف',
+        'version' => 1,
+        'default_page_count' => 1,
+        'is_active' => true,
+        'json_definition' => ['sections' => [['key' => 'a', 'title' => 'قسم أ', 'type' => 'paragraph', 'page' => 1]]],
+    ]);
+
+    $this->actingAs($user)->post(route('admin.project-docs.documents.store'), [
+        'template_id' => $template->id,
+        'title' => 'وثيقة بغلاف',
+        'page_count' => 1,
+    ])->assertStatus(302);
+
+    $document = AnnexDocument::firstWhere('title', 'وثيقة بغلاف');
+
+    $this->actingAs($user)->put(route('admin.project-docs.documents.update', $document), [
+        'cover_image' => \Illuminate\Http\UploadedFile::fake()->image('cover.jpg', 1240, 1754),
+    ])->assertStatus(302);
+
+    $document->refresh();
+    expect($document->cover_path)->not->toBeNull()
+        ->and($document->cover_path)->toStartWith('doc-covers/');
+
+    $print = $this->actingAs($user)->get(route('admin.project-docs.documents.print', $document));
+    $print->assertStatus(200)
+        ->assertSee('print-sheet cover-sheet', false)
+        ->assertSee(e('storage/'.$document->cover_path), false)
+        ->assertSee('branding/logo.png', false); // صفحات المحتوى تحفظ ترويسة الشعار كما هي
+
+    // الغلاف أول صفحة قبل المحتوى
+    $html = $print->getContent();
+    expect(strpos($html, 'print-sheet cover-sheet'))->toBeLessThan(strpos($html, 'class="sheet-head"'));
+
+    $this->actingAs($user)->put(route('admin.project-docs.documents.update', $document), [
+        'remove_cover' => '1',
+    ])->assertStatus(302);
+    expect($document->refresh()->cover_path)->toBeNull();
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.print', $document))
+        ->assertStatus(200)
+        ->assertDontSee('print-sheet cover-sheet', false);
+});
+
+it('attaches an A4 cover printed as the first page of a monthly report', function () {
+    $user = pagesSuperAdmin();
+    $template = monthlyTemplate();
+
+    $this->actingAs($user)->post(route('admin.monthly-reports.store'), [
+        'template_id' => $template->id,
+        'title' => 'تقرير بغلاف',
+        'page_count' => 3,
+    ])->assertStatus(302);
+
+    $report = MonthlyReport::firstWhere('title', 'تقرير بغلاف');
+
+    $this->actingAs($user)->put(route('admin.monthly-reports.update', $report), [
+        'cover_image' => \Illuminate\Http\UploadedFile::fake()->image('cover.png', 1240, 1754),
+    ])->assertStatus(302);
+
+    $report->refresh();
+    expect($report->cover_path)->not->toBeNull()->and($report->cover_path)->toStartWith('doc-covers/');
+
+    $this->actingAs($user)->get(route('admin.monthly-reports.print', $report))
+        ->assertStatus(200)
+        ->assertSee('print-sheet cover-sheet', false)
+        ->assertSee(e('storage/'.$report->cover_path), false);
+});
+
 it('keeps empty middle cells aligned when saving monthly report table rows', function () {
     $user = pagesSuperAdmin();
     $template = MonthlyReportTemplate::create([

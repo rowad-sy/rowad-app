@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\MovementPlan;
+use App\Models\Admin\MovementPlanEntry;
 use App\Models\Admin\MovementPlanRecipient;
 use App\Models\Admin\Permission;
 use App\Models\Admin\Project;
@@ -16,7 +17,7 @@ class MovementPlanController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\MovementPlan,view')->only(['index', 'show', 'help']);
+        $this->middleware('permission:App\Models\Admin\MovementPlan,view')->only(['index', 'show', 'help', 'exportExcel', 'exportPdf']);
         $this->middleware('permission:App\Models\Admin\MovementPlan,create')->only(['create', 'store']);
         $this->middleware('permission:App\Models\Admin\MovementPlan,edit')->only(['approve', 'reject', 'assign', 'complete', 'refer']);
         $this->middleware('permission:App\Models\Admin\MovementPlan,delete')->only(['destroy']);
@@ -24,10 +25,26 @@ class MovementPlanController extends Controller
 
     public function index(Request $request)
     {
-        $user = auth()->user();
+        $plans = $this->scopedQuery($request)
+            ->orderBy('plan_month', 'desc')
+            ->orderBy('id', 'desc')
+            ->paginate(15)
+            ->withQueryString();
+
+        $centers = Center::orderBy('name')->get();
+
+        return view('admin.movement-plans.index', compact('plans', 'centers'));
+    }
+
+    /*
+     * نطاق رؤية خطط الحركة: غير الأدمن يرى ما له فيه علاقة (إنشاء/إحالة/توزيع/متابعة).
+     */
+    private function scopedQuery(Request $request)
+    {
+        $user = $request->user();
 
         $query = MovementPlan::with(['center', 'project', 'creator', 'movementOfficer'])
-            ->withCount('recipients');
+            ->withCount(['entries', 'recipients']);
 
         if ($user->type !== 'super-admin') {
             $query->where(function ($q) use ($user) {
@@ -49,11 +66,68 @@ class MovementPlanController extends Controller
         if ($request->filled('project_id')) {
             $query->where('project_id', $request->project_id);
         }
+        if ($request->filled('month')) {
+            $query->where('plan_month', 'like', $request->month.'%');
+        }
 
-        $plans = $query->orderBy('movement_date', 'desc')->paginate(15)->withQueryString();
-        $centers = Center::orderBy('name')->get();
+        return $query;
+    }
 
-        return view('admin.movement-plans.index', compact('plans', 'centers'));
+    /*
+     * أسطر التصدير: بند حركة واحد لكل سطر مع بيانات خطته.
+     */
+    private function exportRows(Request $request)
+    {
+        $plans = $this->scopedQuery($request)
+            ->with(['entries', 'recipients.user'])
+            ->orderBy('plan_month', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return $plans->flatMap(fn ($plan) => $plan->entries->map(fn ($entry) => [
+            'request_number' => $plan->request_number,
+            'plan_month' => $plan->plan_month?->format('Y-m') ?? '',
+            'movement_date' => $entry->movement_date->format('Y-m-d'),
+            'day_name' => $entry->movement_date->dayName,
+            'departure_time' => $entry->departure_time ? substr((string) $entry->departure_time, 0, 5) : '',
+            'return_time' => $entry->return_time ? substr((string) $entry->return_time, 0, 5) : '',
+            'from_location' => $entry->from_location ?? '',
+            'to_location' => $entry->to_location ?? '',
+            'purpose' => $entry->purpose,
+            'entry_notes' => $entry->notes ?? '',
+            'status_key' => $plan->status,
+            'status' => MovementPlan::STATUSES[$plan->status] ?? $plan->status,
+            'center' => $plan->center?->name ?? '',
+            'project' => $plan->project?->name ?? '',
+            'creator' => $plan->creator?->name ?? '',
+            'officer' => $plan->movementOfficer?->name ?? '',
+            'recipients' => $plan->recipients->pluck('user.name')->filter()->implode('، '),
+        ]));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $rows = $this->exportRows($request);
+
+        $export = new \App\Exports\BaseExport(
+            $rows,
+            ['رقم الخطة', 'شهر الخطة', 'التاريخ', 'اليوم', 'الانطلاق', 'العودة', 'من', 'إلى', 'الغاية', 'ملاحظات البند', 'حالة الخطة', 'المركز', 'المشروع', 'أنشأها', 'مسؤول الحركة', 'المتابِعون'],
+            ['request_number', 'plan_month', 'movement_date', 'day_name', 'departure_time', 'return_time', 'from_location', 'to_location', 'purpose', 'entry_notes', 'status', 'center', 'project', 'creator', 'officer', 'recipients'],
+        );
+
+        // BaseExport يفترض data_get على الكائنات؛ المصفولات الترابطية تعمل معه مباشرة
+        return \Maatwebsite\Excel\Facades\Excel::download($export, 'خطط-الحركة-'.now()->format('Y-m-d').'.xlsx');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $rows = $this->exportRows($request);
+
+        return view('admin.movement-plans.print', [
+            'rows' => $rows,
+            'month' => $request->month,
+            'status' => $request->filled('status') ? MovementPlan::STATUSES[$request->status] : null,
+        ]);
     }
 
     public function create()
@@ -62,36 +136,38 @@ class MovementPlanController extends Controller
         $projects = Project::orderBy('name')->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
 
-        return view('admin.movement-plans.form', compact('centers', 'projects', 'users'));
+        $employee = Employee::where('user_id', auth()->id())->first();
+        $defaultReferralId = $this->defaultProjectsManagerId($employee?->project_id);
+        if ($defaultReferralId !== null && (int) $defaultReferralId === (int) auth()->id()) {
+            $defaultReferralId = null;
+        }
+
+        return view('admin.movement-plans.form', compact('centers', 'projects', 'users', 'defaultReferralId'));
     }
 
-    public function help()
+    public function edit(MovementPlan $movementPlan)
     {
-        return view('admin.movement-plans.help');
+        $this->authorizeEditable($movementPlan);
+
+        $centers = Center::orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
+        $users = User::where('type', 'employee')->orderBy('name')->get();
+
+        $movementPlan->load('entries');
+        $defaultReferralId = $movementPlan->refer_to_pm2_id;
+
+        return view('admin.movement-plans.form', compact('movementPlan', 'centers', 'projects', 'users', 'defaultReferralId'));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'movement_date' => 'required|date',
-            'departure_time' => 'nullable|date_format:H:i',
-            'return_time' => 'nullable|date_format:H:i',
-            'from_location' => 'nullable|string|max:255',
-            'to_location' => 'nullable|string|max:255',
-            'purpose' => 'required|string|max:2000',
-            'notes' => 'nullable|string|max:2000',
-            'center_id' => 'nullable|exists:centers,id',
-            'project_id' => 'nullable|exists:projects,id',
-        ]);
+        $validated = $this->validatePlan($request);
 
         $employee = Employee::where('user_id', auth()->id())->first();
 
-        if (
-            ($validated['departure_time'] ?? null)
-            && ($validated['return_time'] ?? null)
-            && $validated['return_time'] < $validated['departure_time']
-        ) {
-            return back()->withInput()->withErrors(['return_time' => 'وقت العودة يجب أن يكون بعد وقت الانطلاق.']);
+        $referralId = $validated['refer_to_pm2_id'] ?? $this->defaultProjectsManagerId($validated['project_id'] ?? $employee?->project_id);
+        if ($referralId !== null && (int) $referralId === (int) auth()->id()) {
+            $referralId = null;
         }
 
         $plan = MovementPlan::create([
@@ -99,26 +175,142 @@ class MovementPlanController extends Controller
             'created_by' => auth()->id(),
             'center_id' => $validated['center_id'] ?? $employee?->center_id,
             'project_id' => $validated['project_id'] ?? $employee?->project_id,
-            'movement_date' => $validated['movement_date'],
-            'departure_time' => $validated['departure_time'] ?? null,
-            'return_time' => $validated['return_time'] ?? null,
-            'from_location' => $validated['from_location'] ?? null,
-            'to_location' => $validated['to_location'] ?? null,
-            'purpose' => $validated['purpose'],
+            'plan_month' => $validated['plan_month'],
             'notes' => $validated['notes'] ?? null,
-            'refer_to_pm2_id' => $this->defaultProjectsManagerId($validated['project_id'] ?? $employee?->project_id),
+            'refer_to_pm2_id' => $referralId,
             'status' => 'review',
         ]);
 
-        $pm2Id = $plan->refer_to_pm2_id;
-        $plan->logWorkflow('create', $pm2Id, 'تم إنشاء خطة الحركة وإحالتها لإدارة المشاريع', 'review');
+        $this->syncEntries($plan, $validated['entries']);
 
-        if ($pm2Id !== null) {
-            $plan->referTo($pm2Id, 'pm2');
+        $plan->logWorkflow('create', $plan->refer_to_pm2_id, 'تم إنشاء خطة الحركة وإحالتها للمراجعة', 'review');
+
+        if ($plan->refer_to_pm2_id !== null) {
+            $plan->referTo($plan->refer_to_pm2_id, 'pm2');
         }
 
         return redirect()->route('admin.movement-plans.show', $plan)
-            ->with('success', 'تم إنشاء خطة الحركة وإحالتها لإدارة المشاريع');
+            ->with('success', 'تم إنشاء خطة الحركة وإحالتها للمراجعة');
+    }
+
+    public function update(Request $request, MovementPlan $movementPlan)
+    {
+        $this->authorizeEditable($movementPlan);
+
+        $validated = $this->validatePlan($request);
+
+        $newReferral = $validated['refer_to_pm2_id'] ?? null;
+
+        if (
+            $newReferral !== null
+            && (int) $newReferral !== (int) $movementPlan->refer_to_pm2_id
+        ) {
+            if ((int) $newReferral === (int) $movementPlan->created_by) {
+                return back()->withInput()->withErrors(['refer_to_pm2_id' => 'لا يمكن إحالة الخطة إلى منشئها.']);
+            }
+
+            $movementPlan->completeReferral('pm2');
+            $movementPlan->update(['refer_to_pm2_id' => $newReferral]);
+            $movementPlan->referTo($newReferral, 'pm2');
+            $movementPlan->logWorkflow('referred', $newReferral, 'غيّر المنشئ وجهة الإحالة عند التعديل');
+        }
+
+        $movementPlan->update([
+            'center_id' => $validated['center_id'] ?? $movementPlan->center_id,
+            'project_id' => $validated['project_id'] ?? $movementPlan->project_id,
+            'plan_month' => $validated['plan_month'],
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        $this->syncEntries($movementPlan, $validated['entries']);
+
+        return redirect()->route('admin.movement-plans.show', $movementPlan)
+            ->with('success', 'تم تحديث خطة الحركة وبنودها.');
+    }
+
+    /**
+     * التحقق المشترك بين الإنشاء والتعديل: رأس الخطة + بنود الحركات المتعددة
+     * مع فحص وقت العودة مقابل الانطلاق لكل بند.
+     */
+    private function validatePlan(Request $request): array
+    {
+        $validated = $request->validate([
+            'plan_month' => 'required|date_format:Y-m',
+            'center_id' => 'nullable|exists:centers,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'refer_to_pm2_id' => 'nullable|exists:users,id',
+            'notes' => 'nullable|string|max:2000',
+            'entries' => 'required|array|min:1',
+            'entries.*.id' => 'nullable|exists:movement_plan_entries,id',
+            'entries.*.movement_date' => 'required|date',
+            'entries.*.departure_time' => 'nullable|date_format:H:i',
+            'entries.*.return_time' => 'nullable|date_format:H:i',
+            'entries.*.from_location' => 'nullable|string|max:255',
+            'entries.*.to_location' => 'nullable|string|max:255',
+            'entries.*.purpose' => 'required|string|max:2000',
+            'entries.*.notes' => 'nullable|string|max:2000',
+        ]);
+
+        $validated['plan_month'] = $validated['plan_month'].'-01';
+
+        foreach ($validated['entries'] as $i => $entry) {
+            if (
+                ($entry['departure_time'] ?? null)
+                && ($entry['return_time'] ?? null)
+                && $entry['return_time'] < $entry['departure_time']
+            ) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    "entries.$i.return_time" => 'وقت العودة يجب أن يكون بعد وقت الانطلاق.',
+                ]);
+            }
+        }
+
+        return $validated;
+    }
+
+    /**
+     * مزامنة بنود الحركات: تحديث الموجود (بالـ id) وإنشاء الجديد وحذف الغائب —
+     * الحذف قبل الإنشاء (نمط CourseController).
+     */
+    private function syncEntries(MovementPlan $plan, array $entries): void
+    {
+        $keepIds = [];
+
+        $existing = $plan->entries()->pluck('id')->all();
+
+        foreach ($entries as $row) {
+            $data = [
+                'movement_date' => $row['movement_date'],
+                'departure_time' => $row['departure_time'] ?? null,
+                'return_time' => $row['return_time'] ?? null,
+                'from_location' => $row['from_location'] ?? null,
+                'to_location' => $row['to_location'] ?? null,
+                'purpose' => $row['purpose'],
+                'notes' => $row['notes'] ?? null,
+            ];
+
+            if (! empty($row['id']) && in_array((int) $row['id'], $existing, true)) {
+                MovementPlanEntry::where('id', $row['id'])->where('movement_plan_id', $plan->id)->update($data);
+                $keepIds[] = (int) $row['id'];
+            } else {
+                $keepIds[] = $plan->entries()->create($data)->id;
+            }
+        }
+
+        $plan->entries()->whereNotIn('id', $keepIds)->delete();
+    }
+
+    private function authorizeEditable(MovementPlan $movementPlan): void
+    {
+        abort_if($movementPlan->status !== 'review', 403, 'الخطة لم تعد في مرحلة المراجعة — لا يمكن تعديل بنودها.');
+
+        $user = auth()->user();
+        abort_if($user->type !== 'super-admin' && (int) $movementPlan->created_by !== (int) $user->id, 403, 'تعديل الخطة متاح لمنشئها فقط أثناء المراجعة.');
+    }
+
+    public function help()
+    {
+        return view('admin.movement-plans.help');
     }
 
     public function show(MovementPlan $movementPlan)
@@ -130,7 +322,7 @@ class MovementPlanController extends Controller
 
         $movementPlan->load([
             'creator', 'center', 'project', 'movementOfficer', 'projectsManager', 'assigner',
-            'recipients.user', 'workflowActions.fromUser', 'workflowActions.toUser',
+            'entries', 'recipients.user', 'workflowActions.fromUser', 'workflowActions.toUser',
         ]);
 
         $users = User::where('type', 'employee')->orderBy('name')->get();

@@ -19,12 +19,14 @@ class PurchaseRequest extends Model
     protected $table = 'logistics_purchase_requests';
 
     protected $fillable = [
-        'request_number', 'user_id', 'specifications', 'quantity', 'unit',
+        'request_number', 'request_type', 'user_id', 'specifications', 'quantity', 'unit',
         'expected_unit_price', 'expected_total_price',
-        'center_id', 'project_id', 'status', 'notes', 'signature_path',
+        'center_id', 'project_id', 'pr_date', 'required_date', 'management_unit',
+        'status', 'notes', 'signature_path',
         'budget_number', 'locked_at', 'locked_by',
         'refer_to_logistics_id', 'refer_to_direct_manager_id', 'refer_to_pm2_id', 'refer_to_finance_id',
-        'refer_to_executive_id', 'finance_at',
+        'refer_to_executive_id', 'refer_to_approver1_id', 'refer_to_approver2_id', 'refer_to_approver3_id',
+        'finance_at',
         'approved_at',
     ];
 
@@ -34,6 +36,8 @@ class PurchaseRequest extends Model
             'quantity' => 'integer',
             'expected_unit_price' => 'decimal:2',
             'expected_total_price' => 'decimal:2',
+            'pr_date' => 'date',
+            'required_date' => 'date',
             'locked_at' => 'datetime',
             'approved_at' => 'datetime',
             'finance_at' => 'datetime',
@@ -41,19 +45,35 @@ class PurchaseRequest extends Model
     }
 
     /*
-     * الحالات المعتمدة (قسم 14.6): pending / priced / pm_approved /
-     * pm2_approved / approved / rejected / executed
+     * الدورة الجديدة (2026-10): مدير المشروع يعبئ الطلب كاملا ويحيل ←
+     * موافقة 1 (المدير المباشر، عادة مدير المشاريع) بتوقيع صورة ←
+     * موافقة 2 (المالية) بتوقيع ← موافقة 3 (التنفيذي) بتوقيع ويختار اللوجستي ←
+     * اللوجستي يعلّم بنود التنفيذ ويطبع PDF/Excel دون توقيع.
+     * الاعتماد محصور بالمحال اليه حصرا — حتى super-admin لا يعتمد.
      */
     public const STATUSES = [
-        'pending' => 'بانتظار التسعير',
-        'priced' => 'مُسعَّر',
-        'pm_approved' => 'وافق مدير المشروع',
-        'pm2_approved' => 'وافق مدير المشاريع',
-        'finance_approved' => 'وافق المسؤول المالي',
-        'approved' => 'معتمد',
+        'review' => 'بانتظار موافقة المدير المباشر',
+        'approved1' => 'بانتظار موافقة المالية',
+        'approved2' => 'بانتظار موافقة المدير التنفيذي',
+        'approved' => 'معتمد — بانتظار تنفيذ اللوجستي',
+        'executed' => 'منفذ',
         'rejected' => 'مرفوض',
-        'executed' => 'منفَّذ',
     ];
+
+    public const CURRENCIES = [
+        'USD' => 'دولار أمريكي ($)',
+        'SYP' => 'ليرة سورية (SYP)',
+    ];
+
+    public const TYPES = [
+        'purchase' => 'طلب شراء',
+        'maintenance' => 'طلب صيانة',
+    ];
+
+    public function typeLabel(): string
+    {
+        return self::TYPES[$this->request_type] ?? $this->request_type;
+    }
 
     public function user(): BelongsTo
     {
@@ -110,6 +130,26 @@ class PurchaseRequest extends Model
         return $this->belongsTo(User::class, 'locked_by');
     }
 
+    public function approver1User(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'refer_to_approver1_id');
+    }
+
+    public function approver2User(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'refer_to_approver2_id');
+    }
+
+    public function approver3User(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'refer_to_approver3_id');
+    }
+
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(PurchaseRequestSignature::class, 'purchase_request_id');
+    }
+
     public function getTotalPriceAttribute(): float
     {
         return (float) $this->items()->sum('total_price');
@@ -121,8 +161,26 @@ class PurchaseRequest extends Model
     }
 
     /*
-     * الطلب مقفول نهائياً: بمجرد اعتماد المدير التنفيذي لا تقبل أي
-     * تعديلات/حذف. (نُقل القفل من موافقة مدير المشروع إلى الاعتماد النهائي.)
+     * الإجماليات حسب العملة (USD / SYP).
+     */
+    public function totalsByCurrency(): array
+    {
+        $totals = ['USD' => 0.0, 'SYP' => 0.0];
+
+        foreach ($this->items as $item) {
+            $totals[strtoupper((string) $item->currency)] += (float) $item->total_price;
+        }
+
+        return $totals;
+    }
+
+    public function executedItemsCount(): int
+    {
+        return $this->items()->whereNotNull('executed_at')->count();
+    }
+
+    /*
+     * الطلب مقفول: بعد توقيع المدير التنفيذي لا يقبل تعديلا ولا حجفا.
      */
     public function isLocked(): bool
     {
@@ -131,24 +189,32 @@ class PurchaseRequest extends Model
     }
 
     /*
-     * المستلم الحالي للخطوة حسب الحالة — تُستخدم للتحقق في الكونترولر
-     * (فحص صلاحية الطرف المستقبِل عند كل إحالة).
+     * الخطوة الحالية للمستلم الحصري.
      */
+    public function currentStep(): ?string
+    {
+        return match ($this->status) {
+            'review' => 'approver1',
+            'approved1' => 'approver2',
+            'approved2' => 'approver3',
+            'approved' => 'logistics',
+            default => null,
+        };
+    }
+
     public function stepRecipientId(): ?int
     {
         return match ($this->status) {
-            'pending' => $this->refer_to_logistics_id,
-            'priced' => $this->refer_to_direct_manager_id,
-            'pm_approved' => $this->refer_to_pm2_id,
-            'pm2_approved' => $this->refer_to_finance_id,
-            'finance_approved' => $this->refer_to_executive_id,
+            'review' => $this->refer_to_approver1_id,
+            'approved1' => $this->refer_to_approver2_id,
+            'approved2' => $this->refer_to_approver3_id,
+            'approved' => $this->refer_to_logistics_id,
             default => null,
         };
     }
 
     /*
-     * حصرية الرؤية (الإحالات): المنشئ + المستلَمون الحاليون (عبر
-     * الإحالات النشطة أو الأعمدة القديمة المتوافقة) هم من يرون الطلب فقط.
+     * حصرية الرؤية: المنشئ + المستلمون الحاليون + من مر الطلب بيده.
      */
     public function isVisibleToUserId(?int $userId): bool
     {
@@ -164,12 +230,15 @@ class PurchaseRequest extends Model
             return true;
         }
 
-        return in_array($userId, [
+        return in_array($userId, array_filter([
+            (int) $this->refer_to_approver1_id,
+            (int) $this->refer_to_approver2_id,
+            (int) $this->refer_to_approver3_id,
             (int) $this->refer_to_logistics_id,
             (int) $this->refer_to_direct_manager_id,
             (int) $this->refer_to_pm2_id,
             (int) $this->refer_to_finance_id,
             (int) $this->refer_to_executive_id,
-        ], true);
+        ]), true);
     }
 }

@@ -284,8 +284,11 @@
             ['page:admin.project-officer.dashboard', 'view'],
             ['App\Models\Admin\ProjectTask', 'view'],
             ['App\Models\Admin\MediaPlan', 'view'],
+            ['App\Models\Admin\AdDesignRequest', 'view'],
+            ['page:admin.rowaduna.dashboard', 'view'],
             ['App\Models\Admin\MovementPlan', 'view'],
             ['App\Models\Admin\ProjectDocs\AnnexDocument', 'view'],
+            ['App\Models\Admin\ProjectDocs\UploadedDocument', 'view'],
             ['App\Models\Admin\MonthlyReports\MonthlyReport', 'view'],
             ['App\Models\Admin\MonthlyReports\MonthlyReportTemplate', 'create'],
             ['App\Models\Admin\ProjectActivity', 'view'],
@@ -339,6 +342,16 @@
                     <i class="bi bi-megaphone"></i> <span>الخطة الإعلامية</span>
                 </a>
                 @endcanPermission
+                @canPermission('App\Models\Admin\AdDesignRequest', 'view')
+                <a href="{{ route('admin.ad-design-requests.index') }}" class="nav-link {{ request()->routeIs('admin.ad-design-requests.*') ? 'active' : '' }}">
+                    <i class="bi bi-brush"></i> <span>طلبات التصميم الإعلاني</span>
+                </a>
+                @endcanPermission
+                @canPermission('page:admin.rowaduna.dashboard', 'view')
+                <a href="{{ route('admin.rowaduna.dashboard') }}" class="nav-link {{ request()->routeIs('admin.rowaduna.*') ? 'active' : '' }}">
+                    <i class="bi bi-broadcast"></i> <span>روادنا</span>
+                </a>
+                @endcanPermission
                 @canPermission('App\Models\Admin\MovementPlan', 'view')
                 <a href="{{ route('admin.movement-plans.index') }}" class="nav-link {{ request()->routeIs('admin.movement-plans.*') ? 'active' : '' }}">
                     <i class="bi bi-truck"></i> <span>خطة الحركة</span>
@@ -357,6 +370,11 @@
                 @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'view')
                 <a href="{{ route('admin.project-docs.documents.index') }}" class="nav-link {{ request()->routeIs('admin.project-docs.documents.*') ? 'active' : '' }}">
                     <i class="bi bi-file-earmark-text"></i> <span>وثائق المشروع</span>
+                </a>
+                @endcanPermission
+                @canPermission('App\Models\Admin\ProjectDocs\UploadedDocument', 'view')
+                <a href="{{ route('admin.documents-archive.index') }}" class="nav-link {{ request()->routeIs('admin.documents-archive.*') ? 'active' : '' }}">
+                    <i class="bi bi-file-earmark-pdf"></i> <span>أرشيف الوثائق (PDF)</span>
                 </a>
                 @endcanPermission
                 @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'view')
@@ -770,8 +788,8 @@
                 if (restoreFocus !== false) (lastFocus && lastFocus.focus ? lastFocus : toggleBtn).focus();
             }
 
-            // التفضيل المحفوظ يخص سطح المكتب فقط، ولا يؤثر في قائمة الجوال
-            if (!MOBILE.matches && store(function () { return localStorage.getItem(RAIL_KEY); }) === '1') {
+            // التفضيل المحفوظ يخص سطح المكتب فقط، ولا يؤثر في قائمة الجوال — الافتراضي بلا تفضيل: مطوية (شريط أيقونات)
+            if (!MOBILE.matches && store(function () { return localStorage.getItem(RAIL_KEY); }) !== '0') {
                 sidebar.classList.add('collapsed');
             }
 
@@ -807,7 +825,7 @@
             MOBILE.addEventListener('change', function () {
                 closeMobile(false);
                 if (!MOBILE.matches) {
-                    var pref = store(function () { return localStorage.getItem(RAIL_KEY); }) === '1';
+                    var pref = store(function () { return localStorage.getItem(RAIL_KEY); }) !== '0';
                     sidebar.classList.toggle('collapsed', pref);
                 }
                 syncToggle();

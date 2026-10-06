@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exports\UserExport;
+use App\Helpers\PermissionHelper;
 use App\Http\Controllers\Controller;
 use App\Imports\UserImport;
 use App\Models\Admin\Center;
+use App\Models\Admin\Group;
 use App\Models\Admin\Hr\JobPosition;
 use App\Models\Admin\Project;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
@@ -96,7 +99,11 @@ class UserController extends Controller
         $projects = Project::orderBy('name')->get();
         $jobTitles = JobPosition::orderBy('title_ar')->get();
 
-        return view('admin.users.form', compact('centers', 'projects', 'jobTitles'));
+        return view('admin.users.form', $this->roleAssignmentData([
+            'centers' => $centers,
+            'projects' => $projects,
+            'jobTitles' => $jobTitles,
+        ]));
     }
 
     public function store(Request $request)
@@ -123,6 +130,7 @@ class UserController extends Controller
         $user = User::create($validated);
 
         $this->linkRecord($user, $validated);
+        $this->syncRoleAssignments($user, $request);
 
         return redirect()->route('admin.users.index')
             ->with('success', 'تم إضافة المستخدم بنجاح. المستخدم غير نشط ويجب عليه تغيير كلمة المرور عند أول تسجيل دخول');
@@ -136,7 +144,111 @@ class UserController extends Controller
         $projects = Project::orderBy('name')->get();
         $jobTitles = JobPosition::orderBy('title_ar')->get();
 
-        return view('admin.users.form', compact('user', 'centers', 'projects', 'jobTitles'));
+        return view('admin.users.form', $this->roleAssignmentData([
+            'user' => $user,
+            'centers' => $centers,
+            'projects' => $projects,
+            'jobTitles' => $jobTitles,
+        ]));
+    }
+
+    /*
+     * بيانات كتلة «الأدوار والنطاقات» في شاشة المستخدم (الترتيبة v2):
+     * قائمة الأدوار + إسنادات المستخدم الحالي مع نطاقاتها + من يستطيع الإسناد.
+     * الإسناد هنا لا يعتمد على أي جدول HR — users + groups + group_user فقط.
+     */
+    private function roleAssignmentData(array $data): array
+    {
+        $actor = auth()->user();
+
+        $current = collect();
+        if (isset($data['user'])) {
+            $current = $data['user']->groups()->where('groups.kind', Group::KIND_ROLE)->get()->keyBy('id');
+        }
+
+        return $data + [
+            'roles' => Group::roles()->orderBy('name')->get(),
+            'roleAssignments' => $current,
+            'canAssignRoles' => $actor->type === 'super-admin' || PermissionHelper::can($actor, Group::class, 'edit'),
+            'cohorts' => \App\Models\Admin\Cohort::orderBy('name')->get(),
+        ];
+    }
+
+    /*
+     * مزامنة أدوار المستخدم مع نطاقاتها من نفس شاشة حفظ المستخدم.
+     * تتجاهل الطلب تماماً إن لم تكن كتلة الأدوار معروضة في النموذج (لا صلاحية إدارة أدوار).
+     */
+    private function syncRoleAssignments(User $user, Request $request): void
+    {
+        if (!$request->has('roles')) {
+            return;
+        }
+
+        $actor = $request->user();
+
+        $canManage = $actor->type === 'super-admin' || PermissionHelper::can($actor, Group::class, 'edit');
+        if (!$canManage) {
+            return; // الشاشة لم تُظهر الكتلة أصلاً — تجاهل أي تسريب يدوي للـ payload
+        }
+
+        if ($actor->type !== 'super-admin' && $user->id === $actor->id) {
+            abort(403, 'لا يمكنك تغيير أدوار حسابك من شاشة المستخدمين — اطلب ذلك من مشرف أعلى.');
+        }
+
+        if ($user->type === 'super-admin') {
+            abort(403, 'حسابات السوبر-أدن تتجاوز نظام الصلاحيات ولا تُسنَد لها أدوار.');
+        }
+
+        $request->validate([
+            'roles' => 'nullable|array',
+            'roles.*.center_id' => 'nullable|integer|exists:centers,id',
+            'roles.*.project_id' => 'nullable|integer|exists:projects,id',
+            'roles.*.cohort_id' => 'nullable|integer|exists:cohorts,id',
+        ]);
+
+        $roleIds = Group::roles()->pluck('id');
+
+        $wanted = collect($request->input('roles', []))
+            ->filter(fn($row) => is_array($row) && !empty($row['enabled'] ?? null))
+            ->only($roleIds->all());
+
+        $current = $user->groups()->where('groups.kind', Group::KIND_ROLE)->get();
+
+        $summary = [];
+
+        foreach ($current as $role) {
+            if (!$wanted->has($role->id)) {
+                $user->groups()->detach($role->id);
+                $summary[] = "سحب: {$role->name}";
+            }
+        }
+
+        foreach ($wanted as $roleId => $row) {
+            $scope = [
+                'center_id' => $row['center_id'] ?: null,
+                'project_id' => $row['project_id'] ?: null,
+                'cohort_id' => $row['cohort_id'] ?: null,
+            ];
+
+            if ($current->contains('id', $roleId)) {
+                $user->groups()->updateExistingPivot($roleId, $scope);
+            } else {
+                $user->groups()->attach($roleId, $scope);
+            }
+
+            $summary[] = 'إسناد: ' . ($roleIds->contains($roleId) ? Group::find($roleId)->name : "#$roleId");
+        }
+
+        if ($summary) {
+            AuditLogger::recordEvent(
+                modelClass: User::class,
+                modelId: $user->id,
+                event: 'roles_synced',
+                description: 'تحديث أدوار المستخدم ' . $user->name . ' من شاشة المستخدم: ' . implode(' | ', $summary),
+                oldValues: $current->mapWithKeys(fn($r) => [$r->id => [$r->pivot->center_id, $r->pivot->project_id, $r->pivot->cohort_id]])->all(),
+                newValues: $wanted->all(),
+            );
+        }
     }
 
     public function update(Request $request, User $user)
@@ -176,6 +288,7 @@ class UserController extends Controller
         $user->update($validated);
 
         $this->linkRecord($user, $validated);
+        $this->syncRoleAssignments($user, $request);
 
         return redirect()->route('admin.users.index')
             ->with('success', 'تم تحديث المستخدم بنجاح');

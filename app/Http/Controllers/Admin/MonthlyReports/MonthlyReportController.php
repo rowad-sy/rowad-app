@@ -109,6 +109,7 @@ class MonthlyReportController extends Controller
             'status' => 'draft',
             'page_count' => $pageCount,
             'data' => $report->data,
+            'cover_path' => $report->cover_path,
             'created_by' => auth()->id(),
             'assigned_to' => null,
             'signed_at' => null,
@@ -172,6 +173,21 @@ class MonthlyReportController extends Controller
 
         $user = auth()->user();
         $isCreator = $user->id === (int) $report->created_by;
+
+        $coverInput = $request->validate([
+            'cover_image' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:8192',
+            'remove_cover' => 'nullable|boolean',
+        ]);
+
+        if ($request->hasFile('cover_image')) {
+            if ($report->cover_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($report->cover_path);
+            }
+            $report->update(['cover_path' => $request->file('cover_image')->store('doc-covers', 'public')]);
+        } elseif (! empty($coverInput['remove_cover']) && $report->cover_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($report->cover_path);
+            $report->update(['cover_path' => null]);
+        }
 
         $pageCount = max(1, (int) $report->page_count);
         if ($request->filled('page_count')) {

@@ -9,7 +9,7 @@ class Center extends Model
 {
     protected $table = 'centers';
 
-    protected $fillable = ['name', 'address', 'phone'];
+    protected $fillable = ['name', 'code', 'address', 'phone'];
 
     public function projects(): BelongsToMany
     {

@@ -62,8 +62,9 @@ class ProjectsManagerController extends Controller
 
         $movementTotal = $movementStatusCounts->sum();
         $movementAwaitingReview = MovementPlan::with(['creator', 'center', 'project'])
+            ->withCount('entries')
             ->where('status', 'review')
-            ->orderBy('movement_date')
+            ->orderBy('plan_month')
             ->limit(8)
             ->get();
 
@@ -102,15 +103,15 @@ class ProjectsManagerController extends Controller
             ->pluck('total', 'status');
         $prTotal = $prStatusCounts->sum();
         $prAwaitingPm2Sign = (clone $prQuery)
-            ->where('status', 'pm_approved')
-            ->where('refer_to_pm2_id', auth()->id())
+            ->where('status', 'review')
+            ->where('refer_to_approver1_id', auth()->id())
             ->count();
-        // نفس شرط العدّاد أعلاه (محالة إلى المستخدم الحالي وحالتها pm_approved) لعرض العناصر نفسها
+        // نفس شرط العدّاد أعلاه (محالة إلى المستخدم الحالي وحالتها بانتظار موافقته الأولى) لعرض العناصر نفسها
         $awaitingMyPm2Requests = (clone $prQuery)
             ->with(['user', 'center', 'project', 'items'])
-            ->where('status', 'pm_approved')
-            ->where('refer_to_pm2_id', auth()->id())
-            ->orderBy('created_at')
+            ->where('status', 'review')
+            ->where('refer_to_approver1_id', auth()->id())
+            ->orderBy('pr_date')
             ->limit(8)
             ->get();
         $recentPurchaseRequests = (clone $prQuery)
