@@ -265,7 +265,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::get('{report}/print', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'printDocument'])->name('print');
             Route::delete('{report}', [\App\Http\Controllers\Admin\MonthlyReports\MonthlyReportController::class, 'destroy'])->name('destroy');
         });
-        Route::resource('project-activities', ProjectActivityController::class)->except(['show'])->parameters(['project-activities' => 'activity']);
+        Route::resource('project-activities', ProjectActivityController::class)->except(['show']);
         Route::prefix('physiotherapy')->name('physiotherapy.')->group(function () {
             Route::resource('rooms', \App\Http\Controllers\Admin\Physiotherapy\PhysioRoomController::class)->except(['show']);
             Route::resource('patients', \App\Http\Controllers\Admin\Physiotherapy\PhysioPatientController::class);
@@ -354,9 +354,8 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::post('students/import-full', [StudentExportController::class, 'importFull'])->name('students.import-full');
 
         Route::prefix('hr')->name('hr.')->group(function () {
-            // ثابت قبل المورد حتى لا يلتقطه employees/{employee} (كان يعطي 404)
-            Route::get('employees/statistics', [EmployeeStatisticsController::class, 'index'])->name('employees.statistics');
             Route::resource('employees', EmployeeController::class);
+            Route::get('employees/statistics', [EmployeeStatisticsController::class, 'index'])->name('employees.statistics');
             Route::resource('job-positions', JobPositionController::class)->except(['show']);
             Route::post('employees/export', [ExportController::class, 'employees'])->name('employees.export');
             Route::post('employees/export-full', [ExportController::class, 'employeesFullExport'])->name('employees.export-full');
@@ -406,7 +405,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::get('warehouses/{warehouse}/items/{item}/edit', [WarehouseItemController::class, 'edit'])->name('warehouses.items.edit');
             Route::put('warehouses/{warehouse}/items/{item}', [WarehouseItemController::class, 'update'])->name('warehouses.items.update');
             Route::post('warehouses/{warehouse}/items/{item}/delete', [WarehouseItemController::class, 'destroy'])->name('warehouses.items.destroy');
-            Route::get('warehouses/{warehouse}/deleted-items', [WarehouseItemController::class, 'deleted'])->name('warehouses.items.deleted');
+            Route::get('deleted-items', [WarehouseItemController::class, 'deleted'])->name('warehouses.items.deleted');
             Route::resource('assets', AssetController::class);
 
             // Export/Import

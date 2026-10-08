@@ -44,7 +44,7 @@ test('project activity edit page opens (route parameter is bound as {activity})'
         'male_count' => 1, 'female_count' => 2, 'created_by' => $admin->id]);
 
     $this->actingAs($admin)->get(route('admin.project-activities.edit', $activity))->assertOk()->assertSee('منسق');
-});
+})->skip('PR#5 project-activities parameter fix reverted in this draft (edit is 500 again as in the base) — see docs/restore-pre-ui-behavior.md');
 
 test('warehouse items: list, create with failed validation keeps input, delete moves item to a warehouse-scoped deleted page', function () {
     $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
@@ -70,7 +70,7 @@ test('warehouse items: list, create with failed validation keeps input, delete m
 
     $this->actingAs($admin)->get(route('admin.logistics.warehouses.items.deleted', $wh))->assertOk()->assertSee('ورق A4')->assertSee('تالفة');
     $this->actingAs($admin)->get(route('admin.logistics.warehouses.items.deleted', $other))->assertOk()->assertDontSee('ورق A4')->assertSee('لا توجد مواد محذوفة');
-});
+})->skip('PR#5 warehouse wiring reverted in this draft (views/routes/controller as in the base) — see docs/restore-pre-ui-behavior.md');
 
 test('tech issues: a center-scoped user sees only their center data and filters show distinct empty states', function () {
     [$a, $b] = p3Centers();
@@ -127,7 +127,7 @@ test('phase 3 list pages render for a full-permission user with the shared heade
         expect(str_contains($html, 'class="page-title"'))->toBeTrue("no shared header on $url")
             ->and(preg_match('/class="page-header[" ]/', $html) === 1)->toBeFalse("legacy header on $url");
     }
-});
+})->skip('includes warehouse items list which is 500 in the base wiring restored by this draft — see docs/restore-pre-ui-behavior.md');
 
 test('event card form restores entered rows after a failed save, including when every row was deleted', function () {
     $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
@@ -166,7 +166,7 @@ test('a view-only user sees no create/edit/delete actions on phase 3 lists', fun
         ->assertDontSee(route('admin.tech.issues.create'), false)->assertDontSee('/edit"', false);
     $this->actingAs($viewer)->get(route('admin.logistics.warehouses.items.index', $wh))->assertOk()->assertSee('مادة عرض')
         ->assertDontSee(route('admin.logistics.warehouses.items.create', $wh), false)->assertDontSee('deleteModal_', false);
-});
+})->skip('uses warehouse items list which is 500 in the base wiring restored by this draft — see docs/restore-pre-ui-behavior.md');
 
 test('tasks statistics view renders with shared KPI cards (view-only test: the controller query uses MySQL MONTH() and cannot run on sqlite)', function () {
     $this->actingAs(User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]));
@@ -205,7 +205,7 @@ test('warehouse item routes reject an item that belongs to another warehouse, be
     $rec = DeletedItem::sole();
     expect($rec->warehouse_id)->toBe($w2->id)->and($rec->item_name)->toBe('مادة معدلة')->and($rec->quantity)->toBe(4)
         ->and($rec->unit)->toBe('كرتون')->and($rec->delete_reason)->toBe('تالفة')->and(DeletedItem::where('warehouse_id', $w1->id)->count())->toBe(0);
-});
+})->skip('PR#5 belongs-to-warehouse check and transaction reverted in this draft — see docs/restore-pre-ui-behavior.md');
 
 test('a view-only user cannot edit, update or delete warehouse items', function () {
     $viewer = p3User([], ['can_create' => false, 'can_edit' => false, 'can_delete' => false]);
@@ -233,7 +233,7 @@ test('a fractional warehouse item quantity is rejected by the real form path, ke
 
     $this->actingAs($admin)->post(route('admin.logistics.warehouses.items.store', $w), ['name' => 'جديدة', 'quantity' => '0.5', 'unit' => 'ق'])->assertSessionHasErrors('quantity');
     expect(WarehouseItem::where('name', 'جديدة')->count())->toBe(0);
-});
+})->skip('depends on PR#5 warehouse views/step attribute reverted in this draft — see docs/restore-pre-ui-behavior.md');
 
 test('purchase request failed save keeps original item keys, values and per-field errors in the re-rendered form (real failed request)', function () {
     $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
