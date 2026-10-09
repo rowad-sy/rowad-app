@@ -118,7 +118,7 @@ class PurchaseRequestController extends Controller
 
         $approver1 = $validated['refer_to_approver1_id'] ?? $this->defaultApproverId();
         if ($approver1 !== null && (int) $approver1 === (int) auth()->id()) {
-            $approver1 = null;
+            return back()->withInput()->withErrors(['refer_to_approver1_id' => 'لا يمكن إحالة الطلب إلى نفسك — اختر موافقًا آخر.']);
         }
 
         $totalPrice = 0;
@@ -501,13 +501,13 @@ class PurchaseRequestController extends Controller
                     ->ignore($purchaseRequest?->id),
             ],
             'pr_date' => 'required|date',
-            'required_date' => 'nullable|date',
+            'required_date' => 'required|date',
             'request_type' => ['nullable', Rule::in(['purchase', 'maintenance'])],
-            'center_id' => 'nullable|exists:centers,id',
-            'project_id' => 'nullable|exists:projects,id',
-            'management_unit' => 'nullable|string|max:255',
-            'refer_to_approver1_id' => 'nullable|exists:users,id',
-            'notes' => 'nullable|string|max:1000',
+            'center_id' => 'required|exists:centers,id',
+            'project_id' => 'required|exists:projects,id',
+            'management_unit' => 'required|string|max:255',
+            'refer_to_approver1_id' => 'required|exists:users,id',
+            'notes' => 'required|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.id' => 'nullable|integer',
             'items.*.description' => 'required|string|max:2000',
@@ -515,8 +515,8 @@ class PurchaseRequestController extends Controller
             'items.*.unit' => ['required', 'in:'.implode(',', \App\Models\Admin\Logistics\PurchaseRequestItem::UNITS)],
             'items.*.currency' => 'required|in:USD,SYP',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.budget_line' => 'nullable|string|max:60',
-            'items.*.notes' => 'nullable|string|max:1000',
+            'items.*.budget_line' => 'required|string|max:60',
+            'items.*.notes' => 'required|string|max:1000',
         ]);
     }
 

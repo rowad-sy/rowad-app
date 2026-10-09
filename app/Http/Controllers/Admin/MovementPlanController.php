@@ -17,7 +17,7 @@ class MovementPlanController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\MovementPlan,view')->only(['index', 'show', 'help', 'exportExcel', 'exportPdf']);
+        $this->middleware('permission:App\Models\Admin\MovementPlan,view')->only(['index', 'show', 'help', 'exportExcel', 'exportPdf', 'printOne', 'exportExcelOne']);
         $this->middleware('permission:App\Models\Admin\MovementPlan,create')->only(['create', 'store']);
         $this->middleware('permission:App\Models\Admin\MovementPlan,edit')->only(['approve', 'reject', 'assign', 'complete', 'refer']);
         $this->middleware('permission:App\Models\Admin\MovementPlan,delete')->only(['destroy']);
@@ -109,13 +109,16 @@ class MovementPlanController extends Controller
     {
         $rows = $this->exportRows($request);
 
-        $export = new \App\Exports\BaseExport(
-            $rows,
+        $export = new \App\Exports\MovementPlanExport(
+            collect($rows->all()),
             ['رقم الخطة', 'شهر الخطة', 'التاريخ', 'اليوم', 'الانطلاق', 'العودة', 'من', 'إلى', 'الغاية', 'ملاحظات البند', 'حالة الخطة', 'المركز', 'المشروع', 'أنشأها', 'مسؤول الحركة', 'المتابِعون'],
-            ['request_number', 'plan_month', 'movement_date', 'day_name', 'departure_time', 'return_time', 'from_location', 'to_location', 'purpose', 'entry_notes', 'status', 'center', 'project', 'creator', 'officer', 'recipients'],
+            [
+                'month' => $request->month,
+                'status' => $request->filled('status') ? MovementPlan::STATUSES[$request->status] : null,
+                'count' => $rows->count(),
+            ],
         );
 
-        // BaseExport يفترض data_get على الكائنات؛ المصفولات الترابطية تعمل معه مباشرة
         return \Maatwebsite\Excel\Facades\Excel::download($export, 'خطط-الحركة-'.now()->format('Y-m-d').'.xlsx');
     }
 
@@ -128,6 +131,74 @@ class MovementPlanController extends Controller
             'month' => $request->month,
             'status' => $request->filled('status') ? MovementPlan::STATUSES[$request->status] : null,
         ]);
+    }
+
+    /*
+     * التصدير/الطباعة الفردية لخطة واحدة — بنود الخطة فقط، مع فحص الرؤية نفسه في show.
+     */
+    public function printOne(MovementPlan $movementPlan)
+    {
+        $this->ensureVisiblePlan($movementPlan);
+
+        return view('admin.movement-plans.print', [
+            'rows' => collect($this->rowsOfPlan($movementPlan)),
+            'month' => $movementPlan->plan_month?->format('Y-m'),
+            'status' => MovementPlan::STATUSES[$movementPlan->status] ?? null,
+            'plan' => $movementPlan,
+        ]);
+    }
+
+    public function exportExcelOne(MovementPlan $movementPlan)
+    {
+        $this->ensureVisiblePlan($movementPlan);
+
+        $rows = collect($this->rowsOfPlan($movementPlan));
+
+        $export = new \App\Exports\MovementPlanExport(
+            $rows,
+            ['رقم الخطة', 'شهر الخطة', 'التاريخ', 'اليوم', 'الانطلاق', 'العودة', 'من', 'إلى', 'الغاية', 'ملاحظات البند', 'حالة الخطة', 'المركز', 'المشروع', 'أنشأها', 'مسؤول الحركة', 'المتابِعون'],
+            [
+                'month' => $movementPlan->plan_month?->format('Y-m'),
+                'status' => MovementPlan::STATUSES[$movementPlan->status] ?? null,
+                'count' => $rows->count(),
+                'plan' => $movementPlan->request_number,
+            ],
+        );
+
+        return \Maatwebsite\Excel\Facades\Excel::download($export, $movementPlan->request_number.'.xlsx');
+    }
+
+    private function ensureVisiblePlan(MovementPlan $movementPlan): void
+    {
+        $user = auth()->user();
+        if ($user->type !== 'super-admin' && ! $movementPlan->isVisibleToUserId($user->id)) {
+            abort(403, 'هذه الخطة ليست موجهة إليك');
+        }
+    }
+
+    private function rowsOfPlan(MovementPlan $plan): array
+    {
+        $plan->loadMissing(['entries', 'recipients.user', 'center', 'project', 'creator', 'movementOfficer']);
+
+        return $plan->entries->map(fn ($entry) => [
+            'request_number' => $plan->request_number,
+            'plan_month' => $plan->plan_month?->format('Y-m') ?? '',
+            'movement_date' => $entry->movement_date->format('Y-m-d'),
+            'day_name' => $entry->movement_date->dayName,
+            'departure_time' => $entry->departure_time ? substr((string) $entry->departure_time, 0, 5) : '',
+            'return_time' => $entry->return_time ? substr((string) $entry->return_time, 0, 5) : '',
+            'from_location' => $entry->from_location ?? '',
+            'to_location' => $entry->to_location ?? '',
+            'purpose' => $entry->purpose,
+            'entry_notes' => $entry->notes ?? '',
+            'status_key' => $plan->status,
+            'status' => MovementPlan::STATUSES[$plan->status] ?? $plan->status,
+            'center' => $plan->center?->name ?? '',
+            'project' => $plan->project?->name ?? '',
+            'creator' => $plan->creator?->name ?? '',
+            'officer' => $plan->movementOfficer?->name ?? '',
+            'recipients' => $plan->recipients->pluck('user.name')->filter()->implode('، '),
+        ])->all();
     }
 
     public function create()

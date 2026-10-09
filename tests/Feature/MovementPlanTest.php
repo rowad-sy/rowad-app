@@ -516,3 +516,22 @@ test('show page renders a rejected plan with its reason', function () {
         ->assertSeeText('مرفوضة')
         ->assertSeeText('نقص الحافلة');
 });
+
+test('per-plan print and excel exports respect visibility', function () {
+    $pm = movementUser();
+    movementPermission($pm, ['can_create' => true]);
+    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
+    $plan = MovementPlan::first();
+
+    $this->actingAs($pm)->get(route('admin.movement-plans.print-one', $plan))
+        ->assertOk()
+        ->assertSee($plan->request_number)
+        ->assertSee('خطة الحركة '.$plan->request_number);
+
+    $this->actingAs($pm)->get(route('admin.movement-plans.export-one', $plan))->assertOk();
+
+    $outsider = movementUser();
+    movementPermission($outsider);
+    $this->actingAs($outsider)->get(route('admin.movement-plans.print-one', $plan))->assertStatus(403);
+    $this->actingAs($outsider)->get(route('admin.movement-plans.export-one', $plan))->assertStatus(403);
+});

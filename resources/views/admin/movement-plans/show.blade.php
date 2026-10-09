@@ -18,6 +18,14 @@
 <x-page-header :title="'خطة الحركة ' . $plan->request_number"
                :breadcrumb="[['label' => 'خطة الحركة', 'url' => route('admin.movement-plans.index')], ['label' => $plan->request_number]]">
     <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ \App\Models\Admin\MovementPlan::STATUSES[$plan->status] ?? $plan->status }}</x-status-badge></div></x-slot:meta>
+    <div class="btn-group">
+        <a href="{{ route('admin.movement-plans.print-one', $plan) }}" target="_blank" class="btn btn-outline-secondary"><i class="bi bi-printer me-1"></i> طباعة / PDF</a>
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="خيارات التصدير"><span class="visually-hidden">خيارات</span></button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{{ route('admin.movement-plans.print-one', $plan) }}" target="_blank"><i class="bi bi-printer me-2"></i>طباعة / PDF</a></li>
+            <li><a class="dropdown-item" href="{{ route('admin.movement-plans.export-one', $plan) }}"><i class="bi bi-file-earmark-excel me-2"></i>تصدير Excel</a></li>
+        </ul>
+    </div>
     @if ($plan->status === 'review' && ($isSuper || $uid === (int) $plan->created_by))
         <a href="{{ route('admin.movement-plans.edit', $plan) }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i> تعديل</a>
     @endif

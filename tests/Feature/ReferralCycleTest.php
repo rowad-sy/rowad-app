@@ -91,8 +91,8 @@ test('PR: full approval cycle with signatures flows to lock and executes', funct
         'notes' => 'اختبار الدورة',
         'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('req.png'),
         'items' => [
-            ['description' => 'حاسوب محمول', 'quantity' => 2, 'unit' => 'قطعة', 'currency' => 'USD', 'unit_price' => 500, 'budget_line' => '3.1.29'],
-            ['description' => 'حبر', 'quantity' => 5, 'unit' => 'علبة', 'currency' => 'SYP', 'unit_price' => 120000],
+            ['description' => 'حاسوب محمول', 'quantity' => 2, 'unit' => 'قطعة', 'currency' => 'USD', 'unit_price' => 500, 'budget_line' => '3.1.29', 'notes' => '—'],
+            ['description' => 'حبر', 'quantity' => 5, 'unit' => 'علبة', 'currency' => 'SYP', 'unit_price' => 120000, 'budget_line' => '3.1.30', 'notes' => '—'],
         ],
     ])->assertRedirect();
 
@@ -189,11 +189,14 @@ test('PR: super-admin cannot approve because step is strictly exclusive', functi
     $this->actingAs($creator)->post('/admin/logistics/purchase-requests', [
         'request_number' => 'PR-TEST-0002',
         'pr_date' => now()->toDateString(),
+        'required_date' => now()->addDays(5)->toDateString(),
+        'management_unit' => 'إدارة المشاريع',
+        'notes' => 'اختبار',
         'center_id' => $center->id,
         'project_id' => $project->id,
         'refer_to_approver1_id' => $a1->id,
         'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('req.png'),
-        'items' => [['description' => 'ورق', 'quantity' => 1, 'unit' => 'علبة', 'currency' => 'USD', 'unit_price' => 10]],
+        'items' => [['description' => 'ورق', 'quantity' => 1, 'unit' => 'علبة', 'currency' => 'USD', 'unit_price' => 10, 'budget_line' => '1.1', 'notes' => '—']],
     ]);
 
     $pr = PurchaseRequest::first();
@@ -220,11 +223,14 @@ test('PR: show visibility is scoped to creator, approvers and super-admin', func
     $this->actingAs($creator)->post('/admin/logistics/purchase-requests', [
         'request_number' => 'PR-TEST-0003',
         'pr_date' => now()->toDateString(),
+        'required_date' => now()->addDays(5)->toDateString(),
+        'management_unit' => 'إدارة المشاريع',
+        'notes' => 'اختبار',
         'center_id' => $center->id,
         'project_id' => $project->id,
         'refer_to_approver1_id' => $a1->id,
         'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('req.png'),
-        'items' => [['description' => 'ورق', 'quantity' => 1, 'unit' => 'علبة', 'currency' => 'SYP', 'unit_price' => 10000]],
+        'items' => [['description' => 'ورق', 'quantity' => 1, 'unit' => 'علبة', 'currency' => 'SYP', 'unit_price' => 10000, 'budget_line' => '1.1', 'notes' => '—']],
     ])->assertRedirect();
 
     $pr = PurchaseRequest::first();
@@ -254,11 +260,14 @@ test('Maintenance: same cycle, separated by type and tabs, exports filtered by t
         'request_number' => 'PM-TEST-0001',
         'request_type' => 'maintenance',
         'pr_date' => now()->toDateString(),
+        'required_date' => now()->addDays(5)->toDateString(),
+        'management_unit' => 'إدارة المشاريع',
+        'notes' => 'اختبار صيانة',
         'center_id' => $center->id,
         'project_id' => $project->id,
         'refer_to_approver1_id' => $a1->id,
         'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('req.png'),
-        'items' => [['description' => 'صيانة مضخة', 'quantity' => 1, 'unit' => 'قطعة', 'currency' => 'SYP', 'unit_price' => 40000]],
+        'items' => [['description' => 'صيانة مضخة', 'quantity' => 1, 'unit' => 'قطعة', 'currency' => 'SYP', 'unit_price' => 40000, 'budget_line' => '5.2.10', 'notes' => '—']],
     ])->assertRedirect();
 
     $pr = PurchaseRequest::where('request_number', 'PM-TEST-0001')->first();

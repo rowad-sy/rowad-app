@@ -5,13 +5,20 @@
 @section('content')
 @php
     $colors = ['review' => 'bg-warning text-dark', 'approved' => 'bg-info', 'assigned' => 'bg-primary', 'completed' => 'bg-success', 'rejected' => 'bg-danger', 'cancelled' => 'bg-secondary'];
+    $exportQuery = request()->only(['status', 'center_id', 'project_id', 'month']);
 @endphp
 
 <x-page-header :title="'خطة الحركة'" :description="'خطط شهرية كلٌّ منها يحوي عدة حركات بين المراكز: مدير مشروع → إدارة المشاريع → مسؤول الحركة → المتابِعون'"
                :breadcrumb="[['label' => 'المشاريع'], ['label' => 'خطة الحركة']]">
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('admin.movement-plans.help') }}" class="btn btn-outline-info">
             <i class="bi bi-question-circle me-1"></i> معلومات ونصائح
+        </a>
+        <a href="{{ route('admin.movement-plans.print', $exportQuery) }}" target="_blank" class="btn btn-outline-secondary">
+            <i class="bi bi-printer me-1"></i> طباعة / PDF
+        </a>
+        <a href="{{ route('admin.movement-plans.export', $exportQuery) }}" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel me-1"></i> تصدير Excel
         </a>
         @canPermission('App\Models\Admin\MovementPlan', 'create')
         <a href="{{ route('admin.movement-plans.create') }}" class="btn btn-primary">
@@ -77,6 +84,15 @@
                         <td>
                             <a href="{{ route('admin.movement-plans.show', $plan) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
                             <x-audit-history :model="'App\Models\Admin\MovementPlan'" :model-id="$plan->id" />
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="تصدير الخطة" title="تصدير">
+                                    <i class="bi bi-download" aria-hidden="true"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{{ route('admin.movement-plans.print-one', $plan) }}" target="_blank"><i class="bi bi-printer me-2"></i>طباعة / PDF</a></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.movement-plans.export-one', $plan) }}"><i class="bi bi-file-earmark-excel me-2"></i>تصدير Excel</a></li>
+                                </ul>
+                            </div>
                             @canPermission('App\Models\Admin\MovementPlan', 'delete')
                             <form method="POST" action="{{ route('admin.movement-plans.destroy', $plan) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد؟')">
                                 @csrf @method('DELETE')

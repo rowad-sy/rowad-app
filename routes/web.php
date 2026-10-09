@@ -177,6 +177,8 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::get('help', [MovementPlanController::class, 'help'])->name('help');
         Route::get('export', [MovementPlanController::class, 'exportExcel'])->name('export');
         Route::get('print', [MovementPlanController::class, 'exportPdf'])->name('print');
+        Route::get('{movement_plan}/print', [MovementPlanController::class, 'printOne'])->name('print-one');
+        Route::get('{movement_plan}/export', [MovementPlanController::class, 'exportExcelOne'])->name('export-one');
         Route::get('{movement_plan}/edit', [MovementPlanController::class, 'edit'])->name('edit');
         Route::put('{movement_plan}', [MovementPlanController::class, 'update'])->name('update');
         Route::get('{movement_plan}', [MovementPlanController::class, 'show'])->name('show');

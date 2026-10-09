@@ -50,7 +50,13 @@
                     <tr><th style="width:170px">العنوان</th><td>{{ $ad->title }}</td></tr>
                     <tr><th>المتطلبات</th><td>{{ $ad->description ?? '—' }}</td></tr>
                     <tr><th>المشروع</th><td>{{ $ad->project?->name ?? '—' }}</td></tr>
-                    <tr><th>المركز</th><td>{{ $ad->center?->name ?? '—' }}</td></tr>
+                    <tr><th>المراكز</th><td>
+                        @forelse ($ad->centers as $c)
+                            <x-status-badge tone="{{ $c->id === $ad->center_id ? 'brand' : 'neutral' }}">{{ $c->name }}</x-status-badge>
+                        @empty
+                            {{ $ad->center?->name ?? '—' }}
+                        @endforelse
+                    </td></tr>
                     <tr><th>المطلوب قبل</th><td>{{ optional($ad->due_date)->format('Y-m-d') ?? '—' }}</td></tr>
                     <tr><th>أنشأه</th><td>{{ $ad->creator?->name ?? '—' }}</td></tr>
                     <tr><th>عهدة الدورة</th>

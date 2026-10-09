@@ -31,7 +31,7 @@ class AdDesignRequestController extends Controller
     {
         $user = auth()->user();
 
-        $query = AdDesignRequest::with(['center', 'project', 'creator', 'pm2User', 'rowadunaUser', 'designer', 'publisher']);
+        $query = AdDesignRequest::with(['centers', 'project', 'creator', 'pm2User', 'rowadunaUser', 'designer', 'publisher']);
 
         if ($user->type !== 'super-admin') {
             $query->where(function ($q) use ($user) {
@@ -51,7 +51,10 @@ class AdDesignRequestController extends Controller
             $query->where('project_id', $request->project_id);
         }
         if ($request->filled('center_id')) {
-            $query->where('center_id', $request->center_id);
+            $query->where(function ($q) use ($request) {
+                $q->where('center_id', $request->center_id)
+                    ->orWhereHas('centers', fn ($c) => $c->where('centers.id', $request->center_id));
+            });
         }
 
         $adRequests = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
@@ -66,8 +69,9 @@ class AdDesignRequestController extends Controller
         $projects = Project::orderBy('name')->get();
         $users = User::orderBy('name')->get();
         $tentativePm2Id = $this->defaultProjectsManagerId();
+        $selectedCenterIds = [];
 
-        return view('admin.ad-design-requests.form', compact('centers', 'projects', 'users', 'tentativePm2Id'));
+        return view('admin.ad-design-requests.form', compact('centers', 'projects', 'users', 'tentativePm2Id', 'selectedCenterIds'));
     }
 
     public function help()
@@ -82,13 +86,15 @@ class AdDesignRequestController extends Controller
         $pm2Id = $validated['refer_to_pm2_id'] ?? $this->defaultProjectsManagerId();
 
         if ($pm2Id === null || (int) $pm2Id === (int) auth()->id()) {
-            throw ValidationException::withMessages(['refer_to_pm2_id' => 'اختر مدير المشاريع (لا يمكن أن تكون نفسك).']);
+            throw ValidationException::withMessages(['refer_to_pm2_id' => 'اختر موافقاً من مدير المشاريع (غيرك وألا يكون فارغاً).']);
         }
+
+        $centerIds = $this->resolveCenterIds($validated, [$this->employeeCenterId()]);
 
         $ad = AdDesignRequest::create([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'center_id' => $validated['center_id'] ?? $this->employeeCenterId(),
+            'center_id' => $centerIds[0] ?? null,
             'project_id' => $validated['project_id'] ?? $this->employeeProjectId(),
             'created_by' => auth()->id(),
             'due_date' => $validated['due_date'] ?? null,
@@ -96,6 +102,8 @@ class AdDesignRequestController extends Controller
             'refer_to_rowaduna_id' => $this->defaultRowadunaId(),
             'status' => 'pm2_review',
         ]);
+
+        $ad->centers()->sync($centerIds);
 
         $ad->logWorkflow('create', $pm2Id, 'تم إنشاء طلب التصميم وإحالته لمدير المشاريع', 'pm2_review');
         $ad->referTo($pm2Id, 'pm2');
@@ -112,7 +120,7 @@ class AdDesignRequestController extends Controller
         }
 
         $ad->load([
-            'center', 'project', 'creator', 'pm2User', 'rowadunaUser', 'designer', 'publisher',
+            'centers', 'project', 'creator', 'pm2User', 'rowadunaUser', 'designer', 'publisher',
             'approvedByUser', 'publishedByUser', 'workflowActions.fromUser', 'workflowActions.toUser',
         ]);
 
@@ -130,8 +138,9 @@ class AdDesignRequestController extends Controller
         $projects = Project::orderBy('name')->get();
         $users = User::orderBy('name')->get();
         $tentativePm2Id = $ad->refer_to_pm2_id;
+        $selectedCenterIds = $ad->centers()->pluck('centers.id')->all();
 
-        return view('admin.ad-design-requests.form', compact('ad', 'centers', 'projects', 'users', 'tentativePm2Id'));
+        return view('admin.ad-design-requests.form', compact('ad', 'centers', 'projects', 'users', 'tentativePm2Id', 'selectedCenterIds'));
     }
 
     public function update(Request $request, AdDesignRequest $ad)
@@ -139,13 +148,17 @@ class AdDesignRequestController extends Controller
         abort_if($ad->isLocked(), 403, 'الطلب مُقفل بعد موافقة مدير المشاريع');
         $validated = $this->validateRequest($request);
 
+        $centerIds = $this->resolveCenterIds($validated, [$ad->center_id]);
+
         $ad->update([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'center_id' => $validated['center_id'] ?? $ad->center_id,
+            'center_id' => $centerIds[0] ?? null,
             'project_id' => $validated['project_id'] ?? $ad->project_id,
             'due_date' => $validated['due_date'] ?? null,
         ]);
+
+        $ad->centers()->sync($centerIds);
 
         return redirect()->route('admin.ad-design-requests.show', $ad)
             ->with('success', 'تم تحديث طلب التصميم');
@@ -374,11 +387,32 @@ class AdDesignRequestController extends Controller
         return $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:4000',
-            'center_id' => 'nullable|exists:centers,id',
+            'center_ids' => 'nullable|array',
+            'center_ids.*' => 'distinct|exists:centers,id',
             'project_id' => 'nullable|exists:projects,id',
             'due_date' => 'nullable|date',
             'refer_to_pm2_id' => 'nullable|exists:users,id',
         ]);
+    }
+
+    /*
+     * قائمة المراكز الفعّالة: center_ids إن وُجدت، وإلا center_id المفرد/مركز الموظف.
+     * يعيد قائمة فريدة غير فارغة (أو [] إن لا شيء متاح).
+     */
+    private function resolveCenterIds(array $validated, array $fallback = []): array
+    {
+        $ids = collect($validated['center_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids !== []) {
+            return $ids;
+        }
+
+        return collect($fallback)->map(fn ($id) => (int) $id)->filter()->unique()->values()->all();
     }
 
     private function defaultProjectsManagerId(): ?int

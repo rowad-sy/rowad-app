@@ -2,12 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>خطط الحركة</title>
+    <title>{{ isset($plan) && $plan ? 'خطة الحركة '.$plan->request_number : 'خطط الحركة' }}</title>
     <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700&display=swap" rel="stylesheet">
     <style>
         @page { size: A4 landscape; margin: 10mm; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Tajawal', sans-serif; color: #1F2937; padding: 4mm; }
+        body { font-family: 'Sakkal Majalla', 'Tajawal', sans-serif; color: #1F2937; padding: 4mm; }
         .print-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #F37021; padding-bottom: 10px; margin-bottom: 14px; }
         .print-header .title h1 { font-size: 20px; color: #D95300; }
         .print-header .title p { font-size: 12px; color: #64748b; }
@@ -37,10 +37,11 @@
 
     <div class="print-header">
         <div class="title">
-            <h1>خطط الحركة</h1>
+            <h1>{{ isset($plan) && $plan ? 'خطة الحركة '.$plan->request_number : 'خطط الحركة' }}</h1>
             <p>مؤسسة الرواد للتعاون والتنمية</p>
         </div>
         <div class="meta">
+            @if (isset($plan) && $plan)<div>المكتب: <strong>{{ $plan->center?->name ?? '—' }}</strong></div>@endif
             @if ($month)<div>الشهر: <strong>{{ $month }}</strong></div>@endif
             @if ($status)<div>الحالة: <strong>{{ $status }}</strong></div>@endif
             <div>عدد البنود: {{ $rows->count() }}</div>

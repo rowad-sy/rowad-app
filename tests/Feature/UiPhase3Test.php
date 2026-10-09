@@ -247,7 +247,10 @@ test('purchase request failed save keeps original item keys, values and per-fiel
     $res = $this->actingAs($admin)->from(route('admin.logistics.purchase-requests.create'))->followingRedirects()
         ->post(route('admin.logistics.purchase-requests.store'), [
             'request_number' => 'PR-UI-1', 'pr_date' => now()->toDateString(),
+            'required_date' => now()->addDays(3)->toDateString(),
+            'management_unit' => 'إدارة', 'notes' => 'ملاحظات',
             'center_id' => $c1->id, 'project_id' => $project->id,
+            'refer_to_approver1_id' => User::factory()->create(['type' => 'employee'])->id,
             'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('req.png'),
             'items' => $items,
         ]);
@@ -267,15 +270,19 @@ test('purchase request failed save keeps original item keys, values and per-fiel
 
 test('purchase request saves corrected items with their keys, quantities, prices and totals', function () {
     $admin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
+    $approver = User::factory()->create(['type' => 'employee']);
     [$c1] = p3Centers();
     $project = Project::create(['name' => 'مشروع']);
     $this->actingAs($admin)->post(route('admin.logistics.purchase-requests.store'), [
         'request_number' => 'PR-UI-2', 'pr_date' => now()->toDateString(),
+        'required_date' => now()->addDays(3)->toDateString(),
+        'management_unit' => 'إدارة', 'notes' => 'ملاحظات',
         'center_id' => $c1->id, 'project_id' => $project->id,
+        'refer_to_approver1_id' => $approver->id,
         'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('req.png'),
         'items' => [
-            3 => ['description' => 'بند أول', 'quantity' => 4, 'unit' => 'علبة', 'currency' => 'USD', 'unit_price' => '2.50'],
-            7 => ['description' => 'بند ثانٍ', 'quantity' => 2, 'unit' => 'قطعة', 'currency' => 'SYP', 'unit_price' => '10'],
+            3 => ['description' => 'بند أول', 'quantity' => 4, 'unit' => 'علبة', 'currency' => 'USD', 'unit_price' => '2.50', 'budget_line' => '3.1.29', 'notes' => '—'],
+            7 => ['description' => 'بند ثانٍ', 'quantity' => 2, 'unit' => 'قطعة', 'currency' => 'SYP', 'unit_price' => '10', 'budget_line' => '3.1.30', 'notes' => '—'],
         ],
     ])->assertRedirect();
     $pr = \App\Models\Admin\Logistics\PurchaseRequest::with('items')->sole();

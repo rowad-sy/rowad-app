@@ -46,6 +46,13 @@ class AdDesignRequest extends Model
         return $this->belongsTo(Center::class);
     }
 
+    public function centers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Center::class, 'ad_design_request_center')
+            ->withTimestamps()
+            ->orderBy('centers.name');
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);

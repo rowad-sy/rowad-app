@@ -40,7 +40,7 @@ class PurchaseRequestFormExport implements FromCollection, WithHeadings, WithMap
     public function headings(): array
     {
         return [
-            'م', '#',
+            'م / #',
             'المنتج / ITEM',
             'الكمية / Qty',
             'الوحدة / Unit',
@@ -74,30 +74,91 @@ class PurchaseRequestFormExport implements FromCollection, WithHeadings, WithMap
         ];
     }
 
+    private const ORANGE = 'FFF37021';
+    private const ORANGE_DARK = 'FFD96A10';
+    private const SOFT_BG = 'FFFFF6EE';
+    private const LABEL_BG = 'FFFFF3EC';
+    private const INK = 'FF1F2937';
+    private const DARK = 'FF2B2D42';
+
     private function decorate($sheet): void
     {
-        $header = [
-            [($this->pr->typeLabel()).' — '.($this->pr->request_type === 'maintenance' ? 'Maintenance Request' : 'Purchase Request').' — '.($this->pr->project?->name ?? ''), '', '', '', '', '', 'مؤسسة الرواد للتعاون والتنمية', ''],
-            ['رقم طلب الشراء / PR Ref No:', $this->pr->request_number, '', '', 'اسم ورمز المشروع / Project:', ($this->pr->project?->name ?? '—').' - '.($this->pr->project?->code ?? '—'), '', ''],
-            ['اسم وكود المكتب / Office:', trim(($this->pr->center?->code ?? '').' - '.($this->pr->center?->name ?? ''), ' -'), '', '', 'تاريخ الطلب / PR Date:', optional($this->pr->pr_date)->format('Y-m-d'), '', ''],
-            ['الإدارة/القسم/الوحدة / Department:', $this->pr->management_unit ?? '—', '', '', 'تاريخ التنفيذ المطلوب / Date Required:', optional($this->pr->required_date)->format('Y-m-d'), '', ''],
-            ['حالة الطلب / Status:', PurchaseRequest::STATUSES[$this->pr->status] ?? $this->pr->status, '', '', 'حالة التنفيذ / Execution:', $this->pr->executedItemsCount().' / '.count($this->rows).'  بنود', '', ''],
+        $col = fn (int $i) => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+
+        // ضبط صفحة A4 أفقي مناسب للنموذج (يعرضها Excel بالاتجاه الطبيعي للنصوص العربية)
+        $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4)
+            ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)
+            ->setFitToPage(true)->setFitToWidth(1)->setFitToHeight(0);
+
+        /* ── الترويسة: صف عنوان برتقالي + اللوغو (كما في PDF) ── */
+        $typeEn = $this->pr->request_type === 'maintenance' ? 'Maintenance Request' : 'Purchase Request';
+        $insert = 5;
+        $sheet->insertNewRowBefore(1, $insert);
+        $sheet->mergeCells('A1:J1');
+        $sheet->setCellValue('A1', 'مؤسسة الرواد للتعاون والتنمية — '.$typeEn.' — '.$this->pr->typeLabel());
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle('A1:J1')->getFill()->setFillType('solid')->getStartColor()->setARGB(self::ORANGE);
+        $sheet->getRowDimension(1)->setRowHeight(46);
+
+        $logo = public_path('images/logo.png');
+        if (is_file($logo)) {
+            try {
+                $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+                $drawing->setPath($logo);
+                $drawing->setHeight(40);
+                $drawing->setCoordinates('H1');
+                $drawing->setOffsetX(8);
+                $drawing->setWorksheet($sheet);
+            } catch (\Throwable) {
+            }
+        }
+
+        /* ── شبكة معلومات الرأس (2×3 + صف الحالة) مطابقة لـ .info في الـ PDF ── */
+        $info = [
+            ['رقم طلب الشراء / PR Reference No.', (string) $this->pr->request_number, 'اسم ورمز المشروع / Project Name and Code', trim(($this->pr->project?->name ?? '—').' - '.($this->pr->project?->code ?? '—'), ' -')],
+            ['اسم وكود المكتب / Office Name and Code', trim(($this->pr->center?->code ?? '').' - '.($this->pr->center?->name ?? '—'), ' -'), 'تاريخ الطلب / PR Date', optional($this->pr->pr_date)->format('Y-m-d') ?: '—'],
+            ['الإدارة / القسم / الوحدة / Department', $this->pr->management_unit ?: '—', 'تاريخ التنفيذ المطلوب / Date Items Required', optional($this->pr->required_date)->format('Y-m-d') ?: '—'],
         ];
 
-        $insert = count($header);
-        $sheet->insertNewRowBefore(1, $insert);
-
-        foreach ($header as $i => $line) {
-            $sheet->fromArray($line, null, 'A'.($i + 1));
+        foreach ($info as $i => [$l1, $v1, $l2, $v2]) {
+            $r = $i + 2;
+            $sheet->setCellValue($col(0).$r, $l1); $sheet->mergeCells($col(0).$r.':'.$col(1).$r);
+            $sheet->setCellValue($col(2).$r, $v1); $sheet->mergeCells($col(2).$r.':'.$col(4).$r);
+            $sheet->setCellValue($col(5).$r, $l2); $sheet->mergeCells($col(5).$r.':'.$col(7).$r);
+            $sheet->setCellValue($col(8).$r, $v2); $sheet->mergeCells($col(8).$r.':'.$col(9).$r);
         }
+
+        // صف الحالة (ختم الطابع كما في الـ PDF)
+        $executedCount = collect($this->rows)->where('executed', true)->count();
+        $statusRow = 5;
+        $stamp = \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$this->pr->status] ?? $this->pr->status;
+        if (in_array($this->pr->status, ['approved', 'executed'], true)) {
+            $stamp .= ' — البنود المنفذة: '.$executedCount.' / '.count($this->rows);
+        }
+        $sheet->setCellValue('A'.$statusRow, 'حالة الطلب / Status: '.$stamp);
+        $sheet->mergeCells('A'.$statusRow.':J'.$statusRow);
+        $sheet->getStyle('A'.$statusRow)->getFont()->setBold(true)->getColor()->setARGB(self::ORANGE_DARK);
+        $sheet->getStyle('A'.$statusRow)->getAlignment()->setHorizontal('center');
+
+        // تنسيق شبكة المعلومات: حدود + خلفيات التسميات
+        $sheet->getStyle('A2:J'.$statusRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        foreach ([['A', 'B'], ['F', 'H']] as [$a, $b]) {
+            foreach (['2', '3', '4'] as $r) {
+                $style = $sheet->getStyle($a.$r.':'.$b.$r);
+                $style->getFill()->setFillType('solid')->getStartColor()->setARGB(self::LABEL_BG);
+                $style->getFont()->setBold(true)->setSize(9);
+            }
+        }
+        $sheet->getStyle('A2:J4')->getFont()->setSize(10);
+        $sheet->getStyle('A2:J5')->getAlignment()->setVertical('center')->setWrapText(true);
 
         $lastRow = $sheet->getHighestRow();
 
-        // ترويسة وتلوين
-        $sheet->getStyle("A1:H1")->getFont()->setBold(true)->setSize(13);
-        $sheet->getStyle("A1")->getFill()->setFillType('solid')->getStartColor()->setARGB('FFF37021');
-        $sheet->getStyle("A2:H".($insert - 1))->getFont()->setSize(10);
-        $sheet->getStyle("A2:H2")->getFont()->setBold(true);
+        // ترويسة جدول البنود برتقالية + نص أبيض (مثل thead في الـ PDF)
+        $headRow = $insert + 1;
+        $sheet->getStyle("A{$headRow}:J{$headRow}")->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A{$headRow}:J{$headRow}")->getFill()->setFillType('solid')->getStartColor()->setARGB(self::ORANGE);
+        $sheet->getStyle("A{$headRow}:J{$headRow}")->getAlignment()->setHorizontal('center')->setWrapText(true);
 
         // شبكة الحدود حول جدول البنود (ترويسة + بنود + إجماليان)
         $sheet->getStyle("A".($insert + 1).":J{$lastRow}")
@@ -105,27 +166,39 @@ class PurchaseRequestFormExport implements FromCollection, WithHeadings, WithMap
             ->getAllBorders()
             ->setBorderStyle(Border::BORDER_THIN);
 
-        $sheet->getStyle("A".($insert + 1).":J".($insert + 1))->getFont()->setBold(true);
+        // أسطر الإجمالي: خلفية فاتحة + عريض
+        $sheet->getStyle('A'.($lastRow - 1).":J{$lastRow}")->getFont()->setBold(true);
+        $sheet->getStyle('A'.($lastRow - 1).":J{$lastRow}")->getFill()->setFillType('solid')->getStartColor()->setARGB(self::SOFT_BG);
 
-        // كتلة التواقيع
+        // تنسيق الأرقام داخل الجدول
+        $numCols = 'F'.($insert + 1).':H'.$lastRow;
+        $sheet->getStyle($numCols)->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet->getStyle($numCols)->getAlignment()->setHorizontal('center');
+
+        /* ── شبكة التواقيع الأربعة (كما في .signs بالـ PDF) ── */
         $sigStart = $lastRow + 2;
         $blocks = [
-            ['تم الطلب من قبل / Requested By', $this->signatures['requested_by']],
-            ['موافقة المدير المباشر / Direct Manager', $this->signatures['direct_manager']],
-            ['موافقة الموارد المالية / Finance', $this->signatures['finance']],
-            ['موافقة المدير التنفيذي / CEO', $this->signatures['ceo']],
+            [['تم الطلب من قبل', 'Requested By'], $this->signatures['requested_by']],
+            [['موافقة المدير المباشر', 'Direct Manager Approval'], $this->signatures['direct_manager']],
+            [['موافقة قسم الموارد المالية', 'Finance Dept. Approval'], $this->signatures['finance']],
+            [['موافقة المدير التنفيذي', 'CEO Approval'], $this->signatures['ceo']],
         ];
 
-        foreach ($blocks as $j => [$label, $sig]) {
-            $col = chr(ord('A') + $j * 2);
-            $col2 = chr(ord('A') + $j * 2 + 1);
-            $sheet->setCellValue("{$col}{$sigStart}", $label);
-            $sheet->mergeCells("{$col}{$sigStart}:{$col2}{$sigStart}");
-            $sheet->getStyle("{$col}{$sigStart}")->getFont()->setBold(true);
-            $sheet->setCellValue("{$col}".($sigStart + 1), 'الاسم / Name: '.($sig['name'] ?? ''));
-            $sheet->setCellValue("{$col}".($sigStart + 2), 'الصفة / Position: '.($sig['position'] ?? ''));
-            $sheet->setCellValue("{$col}".($sigStart + 3), 'التاريخ / Date: '.($sig['date'] ? \Illuminate\Support\Carbon::parse($sig['date'])->format('Y-m-d') : ''));
-            $sheet->setCellValue("{$col}".($sigStart + 4), 'التوقيع / Signature:');
+        $ranges = [['A', 'C'], ['D', 'F'], ['G', 'I'], ['J', 'L']];
+
+        foreach ($blocks as $k => [[ $ar, $en ], $sig]) {
+            [$a, $b] = $ranges[$k];
+            $put = function (int $offset, string $value) use ($sheet, $a, $b, $sigStart) {
+                $r = $sigStart + $offset;
+                $sheet->setCellValue($a.$r, $value);
+                $sheet->mergeCells($a.$r.':'.$b.$r);
+            };
+
+            $put(0, $ar."\n".$en);
+            $put(1, 'Name / الاسم: '.($sig['name'] ?: ''));
+            $put(2, 'Position / الصفة: '.($sig['position'] ?: ''));
+            $put(3, 'Date / التاريخ: '.($sig['date'] ? \Illuminate\Support\Carbon::parse($sig['date'])->format('Y-m-d') : ''));
+            $put(4, 'التوقيع / Signature:');
 
             $path = $sig['image'] ?? null;
             $full = $path ? public_path('storage/'.$path) : null;
@@ -134,19 +207,31 @@ class PurchaseRequestFormExport implements FromCollection, WithHeadings, WithMap
                     $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
                     $drawing->setPath($full);
                     $drawing->setHeight(50);
-                    $drawing->setCoordinates("{$col2}".($sigStart + 4));
+                    $drawing->setCoordinates($a.($sigStart + 4));
+                    $drawing->setOffsetX(120);
                     $drawing->setWorksheet($sheet);
                 } catch (\Throwable) {
-                    // صورة غير قابلة للقراءة — يتجاهلها التصدير
                 }
             }
         }
 
-        $sheet->getStyle("A{$sigStart}:H".($sigStart + 4))
-            ->getBorders()
-            ->getAllBorders()
-            ->setBorderStyle(Border::BORDER_THIN);
+        // تلوين رؤوس التواقيع (كحلية مثل thead في .signs) وحدود الشبكة
+        $lastRange = $ranges[3][1];
+        $sheet->getStyle("A{$sigStart}:{$lastRange}".($sigStart + 4))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        foreach ($ranges as [$a, $b]) {
+            $style = $sheet->getStyle($a.$sigStart.':'.$b.$sigStart);
+            $style->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+            $style->getFill()->setFillType('solid')->getStartColor()->setARGB(self::DARK);
+            $style->getAlignment()->setHorizontal('center')->setWrapText(true);
+        }
+        $sheet->getStyle("A".($sigStart + 1).":{$lastRange}".($sigStart + 4))->getFont()->setSize(9);
+        $sheet->getRowDimension($sigStart)->setRowHeight(30);
+        $sheet->getRowDimension($sigStart + 4)->setRowHeight(60);
 
-        $sheet->getRowDimension($sigStart + 4)->setRowHeight(55);
+        // تذييل مطابق لـ footer في الـ PDF
+        $footRow = $sigStart + 6;
+        $sheet->setCellValue('A'.$footRow, 'التاريخ: '.now()->format('Y-m-d'));
+        $sheet->setCellValue('E'.$footRow, 'طباعة من نظام مؤسسة الرواد — '.$this->pr->typeLabel().' رقم '.$this->pr->request_number);
+        $sheet->getStyle('A'.$footRow.':'.$lastRange.$footRow)->getFont()->setSize(8)->getColor()->setARGB('FF64748B');
     }
 }

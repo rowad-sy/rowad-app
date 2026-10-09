@@ -31,18 +31,34 @@
                         <option value="{{ $p->id }}" {{ old('project_id', $ad->project_id ?? '') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
                     @endforeach
                 </select>
-                @error('project_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">المركز</label>
-                <select name="center_id" class="form-select @error('center_id') is-invalid @enderror">
-                    <option value="">— اختر —</option>
+                 @error('project_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+             </div>
+        </div>
+
+        <div class="mb-3">
+            @php
+                $selected = collect(old('center_ids', $selectedCenterIds ?? ($ad ? [$ad->center_id] : [])))
+                    ->map(fn ($v) => (int) $v)->filter()->unique()->values()->all();
+            @endphp
+            <label class="form-label">المراكز المستفيدة <span class="text-muted small">(يمكن اختيار أكثر من مركز)</span></label>
+            <div class="border rounded p-2" style="max-height: 160px; overflow-y: auto;">
+                <div class="row g-2">
                     @foreach ($centers as $c)
-                        <option value="{{ $c->id }}" {{ old('center_id', $ad->center_id ?? '') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                        <div class="col-md-6 col-12">
+                            <label class="check-chip">
+                                <input type="checkbox" name="center_ids[]" value="{{ $c->id }}" class="check-chip-input"
+                                       @checked(in_array($c->id, $selected, true))>
+                                <span>{{ $c->name }}</span>
+                            </label>
+                        </div>
                     @endforeach
-                </select>
-                @error('center_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+                @if ($centers->isEmpty())
+                    <div class="text-muted small p-2">لا توجد مراكز بعد.</div>
+                @endif
             </div>
+            @error('center_ids') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+            @error('center_ids.*') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
         </div>
 
         <div class="row g-3 mb-3">

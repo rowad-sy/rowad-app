@@ -59,14 +59,16 @@
             <input type="text" class="form-control form-control-sm" data-rowtotal dir="ltr" readonly value="{{ number_format($rowTotal, 2, '.', '') }}">
         </div>
         <div class="col-md-4">
-            <label class="form-label small">خط الميزانية / Budget Line</label>
-            <input type="text" name="items[{{ $i }}][budget_line]" class="form-control form-control-sm" dir="ltr"
-                   value="{{ $val('budget_line', '') }}" placeholder="مثال: 3.1.29">
+            <label class="form-label small">خط الميزانية / Budget Line <span class="text-danger">*</span></label>
+            <input type="text" name="items[{{ $i }}][budget_line]" class="form-control form-control-sm @error('items.'.$i.'.budget_line') is-invalid @enderror" dir="ltr"
+                   value="{{ $val('budget_line', '') }}" placeholder="مثال: 3.1.29" required>
+            @error('items.'.$i.'.budget_line') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
         <div class="col-md-4">
-            <label class="form-label small">ملاحظات البند</label>
-            <input type="text" name="items[{{ $i }}][notes]" class="form-control form-control-sm"
-                   value="{{ $val('notes') }}">
+            <label class="form-label small">ملاحظات البند <span class="text-danger">*</span></label>
+            <input type="text" name="items[{{ $i }}][notes]" class="form-control form-control-sm @error('items.'.$i.'.notes') is-invalid @enderror"
+                   value="{{ $val('notes') }}" required>
+            @error('items.'.$i.'.notes') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
     </div>
 </div>

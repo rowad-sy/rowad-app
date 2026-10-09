@@ -39,9 +39,9 @@
                         <div class="form-text">محدد تلقائياً باليوم — عدّله إن أردت.</div>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">تاريخ التنفيذ المطلوب</label>
+                        <label class="form-label">تاريخ التنفيذ المطلوب <span class="text-danger">*</span></label>
                         <input type="date" name="required_date" class="form-control @error('required_date') is-invalid @enderror"
-                               value="{{ old('required_date', optional($pr?->required_date)->format('Y-m-d')) }}">
+                               value="{{ old('required_date', optional($pr?->required_date)->format('Y-m-d')) }}" required>
                         @error('required_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3">
@@ -92,7 +92,7 @@
 
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">الإدارة / القسم / الوحدة</label>
+                        <label class="form-label">الإدارة / القسم / الوحدة <span class="text-danger">*</span></label>
                         @if ($departments->isNotEmpty())
                             <select id="deptSelect" class="form-select">
                                 <option value="">— اختر —</option>
@@ -102,11 +102,11 @@
                                 <option value="__manual">أخرى — إدخال يدوي</option>
                             </select>
                             <input type="text" name="management_unit" id="manualUnit" class="form-control mt-2 @error('management_unit') is-invalid @enderror"
-                                   placeholder="اكتب اسم الإدارة يدوياً" value="{{ old('management_unit', $pr?->management_unit) }}">
+                                   placeholder="اكتب اسم الإدارة يدوياً" value="{{ old('management_unit', $pr?->management_unit) }}" required>
                             @error('management_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         @else
                             <input type="text" name="management_unit" class="form-control @error('management_unit') is-invalid @enderror"
-                                   value="{{ old('management_unit', $pr?->management_unit) }}" placeholder="مثال: إدارة المشاريع">
+                                   value="{{ old('management_unit', $pr?->management_unit) }}" placeholder="مثال: إدارة المشاريع" required>
                             @error('management_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         @endif
                     </div>
@@ -128,8 +128,9 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">ملاحظات عامة</label>
-                    <textarea name="notes" rows="2" class="form-control">{{ old('notes', $pr?->notes) }}</textarea>
+                    <label class="form-label">ملاحظات عامة <span class="text-danger">*</span></label>
+                    <textarea name="notes" rows="2" class="form-control @error('notes') is-invalid @enderror" required>{{ old('notes', $pr?->notes) }}</textarea>
+                    @error('notes') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-2">
