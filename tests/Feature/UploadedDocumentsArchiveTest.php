@@ -57,12 +57,16 @@ test('UploadedDocs: upload a pdf appears in its tab and is viewable and download
         ->and(Storage::disk('public')->exists($doc->file_path))->toBeTrue();
 
     $this->actingAs($user)->get('/admin/documents-archive')
+        ->assertRedirect(route('admin.project-docs.documents.index', ['type' => 'archive']));
+
+    // الصفحة الموحّدة تعرض ملف الأرشيف المستقل مع تصنيفه
+    $this->actingAs($user)->get('/admin/project-docs/documents')
         ->assertOk()
         ->assertSee('قانونية وعقود')
         ->assertSee('عقد إيجار 2023');
 
-    // التبويب المالي لا يعرضها
-    $this->actingAs($user)->get('/admin/documents-archive?category=financial')
+    // التصنيف المالي لا يعرضها
+    $this->actingAs($user)->get('/admin/project-docs/documents?category=financial')
         ->assertOk()
         ->assertDontSee('عقد إيجار 2023');
 
@@ -81,7 +85,8 @@ test('UploadedDocs: permission gates block non-holders entirely', function () {
     $user = udocEmployee();
     $noBody = udocEmployee();
 
-    $this->actingAs($noBody)->get('/admin/documents-archive')->assertStatus(403);
+    $this->actingAs($noBody)->get('/admin/documents-archive')->assertRedirect();
+    $this->actingAs($noBody)->get('/admin/project-docs/documents')->assertStatus(403);
     $this->actingAs($noBody)->post('/admin/documents-archive', [])->assertStatus(403);
 
     $this->actingAs($user);
@@ -116,7 +121,7 @@ test('UploadedDocs: center-scoped viewers only see their center and general docs
     $viewer = udocEmployee();
     udocGrant($viewer, ['view' => true], $c1->id); // مركز واحد
 
-    $this->actingAs($viewer)->get('/admin/documents-archive?category=financial')
+    $this->actingAs($viewer)->get('/admin/project-docs/documents?category=financial')
         ->assertOk()
         ->assertSee('وثيقة عفرين')
         ->assertSee('وثيقة عامة')

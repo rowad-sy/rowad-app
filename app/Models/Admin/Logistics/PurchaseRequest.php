@@ -150,6 +150,11 @@ class PurchaseRequest extends Model
         return $this->hasMany(PurchaseRequestSignature::class, 'purchase_request_id');
     }
 
+    public function handoverNotes(): HasMany
+    {
+        return $this->hasMany(HandoverNote::class, 'purchase_request_id');
+    }
+
     public function getTotalPriceAttribute(): float
     {
         return (float) $this->items()->sum('total_price');

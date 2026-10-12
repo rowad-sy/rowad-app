@@ -22,13 +22,17 @@
 
 <div class="table-container">
     @php
-        $tabs = [
-            '' => ['label' => 'الكل', 'icon' => 'bi-people'],
-            'super-admin' => ['label' => 'سوبر أدمن', 'icon' => 'bi-shield-lock'],
-            'employee' => ['label' => 'موظف', 'icon' => 'bi-person-workspace'],
-            'beneficiary' => ['label' => 'مستفيد', 'icon' => 'bi-person-heart'],
-            'student' => ['label' => 'طالب', 'icon' => 'bi-mortarboard'],
+        $tabIcons = [
+            'super-admin' => 'bi-shield-lock',
+            'employee' => 'bi-person-workspace',
+            'beneficiary' => 'bi-person-heart',
+            'student' => 'bi-mortarboard',
+            'rowaduna' => 'bi-broadcast',
         ];
+        $tabs = ['' => ['label' => 'الكل', 'icon' => 'bi-people']];
+        foreach (\App\Models\User::TYPES as $typeKey => $typeLabel) {
+            $tabs[$typeKey] = ['label' => $typeLabel, 'icon' => $tabIcons[$typeKey] ?? 'bi-person'];
+        }
         $currentType = $type ?? 'all';
     @endphp
     <div class="p-3 border-bottom d-flex flex-wrap gap-2" role="navigation" aria-label="تصفية حسب نوع المستخدم">
@@ -129,14 +133,11 @@
                     <td class="fw-medium">{{ $user->name }}</td>
                     <td class="ltr-cell">{{ $user->email }}</td>
                     <td>
-                        @if ($user->type === 'super-admin')
-                            <x-status-badge tone="danger">سوبر أدمن</x-status-badge>
-                        @elseif ($user->type === 'employee')
-                            <x-status-badge tone="info">موظف</x-status-badge>
-                        @elseif ($user->type === 'beneficiary')
-                            <x-status-badge>مستفيد</x-status-badge>
-                        @elseif ($user->type === 'student')
-                            <x-status-badge tone="brand">طالب</x-status-badge>
+                        @if ($user->type)
+                            @php
+                                $tone = ['super-admin' => 'danger', 'employee' => 'info', 'student' => 'brand', 'rowaduna' => 'success'][$user->type] ?? 'neutral';
+                            @endphp
+                            <x-status-badge :tone="$tone">{{ $user->typeLabel() }}</x-status-badge>
                         @else
                             <span class="text-muted">—</span>
                         @endif

@@ -246,6 +246,45 @@ test('PR: show visibility is scoped to creator, approvers and super-admin', func
  *  إنجاز) + الإعادة + الحصرية
  * =====================================================================
  */
+test('PR: executive holder sees the final logistics form (not next_approver) at approved2', function () {
+    $center = cycleCenter();
+    $project = cycleProject();
+    $creator = cycleEmployee();
+    $executive = cycleEmployee();
+
+    $pr = PurchaseRequest::create([
+        'request_number' => 'PR-TEST-0004',
+        'user_id' => $creator->id,
+        'pr_date' => now()->toDateString(),
+        'center_id' => $center->id,
+        'project_id' => $project->id,
+        'specifications' => 'اختبار النموذج النهائي',
+        'expected_total_price' => 100,
+        'refer_to_approver3_id' => $executive->id,
+        'status' => 'approved2',
+    ]);
+    $pr->referTo($executive->id, 'approver3');
+    cycleGrant($executive, PR_MODEL);
+
+    $html = $this->actingAs($executive)->get("/admin/logistics/purchase-requests/{$pr->id}")
+        ->assertOk()
+        ->assertSee('مدير قسم اللوجستي')
+        ->getContent();
+
+    expect($html)->toContain('name="logistics_user_id"')
+        ->and($html)->not->toContain('name="next_approver_id"');
+
+    // والاعتماد بالحقول الصحيحة يمر دون أخطاء
+    $logistics = cycleEmployee();
+    $this->actingAs($executive)->post("/admin/logistics/purchase-requests/{$pr->id}/approve", [
+        'signature_image' => \Illuminate\Http\UploadedFile::fake()->image('ceo.png'),
+        'logistics_user_id' => $logistics->id,
+    ])->assertRedirect();
+
+    expect($pr->fresh()->status)->toBe('approved')
+        ->and($pr->fresh()->refer_to_logistics_id)->toBe($logistics->id);
+});
+
 test('Maintenance: same cycle, separated by type and tabs, exports filtered by type', function () {
     $center = cycleCenter();
     $project = cycleProject();

@@ -32,13 +32,8 @@ class VerifyEmailController extends Controller
 
     private function getRedirectRoute($user): string
     {
-        if ($user->type === 'student') {
-            $student = Student::where('user_id', $user->id)->first();
-            return $student
-                ? route('admin.students.show', $student, absolute: false)
-                : route('admin.home', absolute: false);
-        } elseif ($user->type === 'beneficiary') {
-            return route('admin.beneficiary.dashboard', absolute: false);
+        if ($landing = $user->landingRoute()) {
+            return $landing;
         }
 
         if ($user->type === 'employee' || $user->type === 'super-admin') {

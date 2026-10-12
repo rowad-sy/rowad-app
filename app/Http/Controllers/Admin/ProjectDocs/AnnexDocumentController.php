@@ -8,41 +8,177 @@ use App\Models\Admin\Project;
 use App\Models\Admin\ProjectDocs\AnnexDocument;
 use App\Models\Admin\ProjectDocs\AnnexDocumentBlock;
 use App\Models\Admin\ProjectDocs\AnnexTemplate;
+use App\Models\Admin\ProjectDocs\UploadedDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AnnexDocumentController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,view')->only(['index', 'show', 'printDocument']);
+        $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,view')->only(['show', 'printDocument', 'file']);
         $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,create')->only(['create', 'store', 'duplicate']);
         $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,edit')->only(['edit', 'update', 'submit', 'reopen', 'signoff']);
         $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,delete')->only(['destroy']);
     }
 
+    /*
+     * صفحة الوثائق الموحّدة: ملحقات نظامية (منظّمة/خارجية) + ملفات الأرشيف غير المرتبطة
+     * في قائمة واحدة بالشارات والفلاتر. الوصول: صلاحية عرض لأيٍّ من المصدرين.
+     */
     public function index(Request $request)
     {
-        $status = $request->input('status');
-        $projectId = $request->input('project_id');
+        $user = auth()->user();
 
-        $scope = PermissionHelper::getEffectiveScope(auth()->user(), AnnexDocument::class);
+        $canDocs = $user->type === 'super-admin' || PermissionHelper::can($user, AnnexDocument::class, 'view');
+        $canArchive = $user->type === 'super-admin' || PermissionHelper::can($user, UploadedDocument::class, 'view');
 
-        $query = AnnexDocument::with(['template', 'project', 'creator', 'blocks']);
+        abort_unless($canDocs || $canArchive, 403, 'ليس لديك صلاحية على الوثائق.');
 
-        if (! $scope['sees_all']) {
-            $query->whereIn('project_id', $scope['project_ids']);
+        $filters = [
+            'type' => in_array($request->input('type'), ['structured', 'external', 'archive'], true) ? $request->input('type') : null,
+            'status' => array_key_exists((string) $request->input('status'), AnnexDocument::STATUSES) ? $request->input('status') : null,
+            'category' => array_key_exists((string) $request->input('category'), UploadedDocument::CATEGORIES) ? $request->input('category') : null,
+            'project_id' => $request->input('project_id') ? (int) $request->input('project_id') : null,
+            'center_id' => $request->input('center_id') ? (int) $request->input('center_id') : null,
+            'year' => preg_match('/^\d{4}$/', (string) $request->input('year')) ? (int) $request->input('year') : null,
+            'q' => trim((string) $request->input('q')) ?: null,
+        ];
+
+        $rows = collect();
+
+        // ===== وثائق النظام (منظّمة/خارجية) =====
+        if ($canDocs && $filters['type'] !== 'archive') {
+            $scope = PermissionHelper::getEffectiveScope($user, AnnexDocument::class);
+
+            $documents = AnnexDocument::with(['template', 'project', 'creator', 'linkedFiles'])
+                ->when(! $scope['sees_all'], fn ($q) => $q->whereIn('project_id', $scope['project_ids']))
+                ->when($filters['type'], fn ($q, $v) => $q->where('document_kind', $v))
+                ->when($filters['status'], fn ($q, $v) => $q->where('status', $v))
+                ->when($filters['project_id'], fn ($q, $v) => $q->where('project_id', $v))
+                ->when($filters['year'], fn ($q, $v) => $q->whereYear('created_at', $v))
+                ->when($filters['q'], fn ($q, $v) => $q->where('title', 'like', "%{$v}%"))
+                ->get();
+
+            $rows = $rows->merge($documents->map(fn ($document) => [
+                'kind' => 'document',
+                'source' => $document->isExternal() ? 'external' : 'structured',
+                'model' => $document,
+                'title' => $document->title ?: ($document->template?->title_ar ?? 'وثيقة'),
+                'subtitle' => $document->isExternal() ? 'ملف مرفوع (PDF)' : ($document->template?->title_ar ?? '—'),
+                'project' => $document->project?->name,
+                'center' => null,
+                'when' => $document->updated_at,
+                'person' => $document->creator?->name,
+                'file' => $document->isExternal() ? $document->linkedFiles->sortByDesc('id')->first() : null,
+            ])->all());
         }
 
-        $documents = $query
-            ->when($status, fn ($q, $v) => $q->where('status', $v))
-            ->when($projectId, fn ($q, $v) => $q->where('project_id', $v))
-            ->orderBy('id', 'desc')
-            ->paginate(15)
-            ->withQueryString();
+        // ===== ملفات الأرشيف المستقلة (غير المرتبطة بوثيقة) =====
+        // فلتر الحالة لا حياة دورته للملفات المستقلة — يُهدأ الأرشيف حينها
+        if ($canArchive && in_array($filters['type'], [null, 'archive'], true) && ! $filters['status']) {
+            $rows = $rows->merge($this->unifiedArchiveRows($user, $filters));
+        }
 
-        $projects = Project::orderBy('name')->get();
+        $rows = $rows
+            ->sortByDesc(fn ($row) => $row['when'] ? $row['when']->timestamp : 0)
+            ->values();
 
-        return view('admin.project-docs.documents.index', compact('documents', 'projects', 'status', 'projectId'));
+        $page = max(1, (int) $request->get('page', 1));
+        $perPage = 15;
+
+        $documents = new \Illuminate\Pagination\LengthAwarePaginator(
+            $rows->slice(($page - 1) * $perPage, $perPage)->values(),
+            $rows->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        return view('admin.project-docs.documents.index', [
+            'documents' => $documents,
+            'rows' => $rows,
+            'filters' => $filters,
+            'canDocs' => $canDocs,
+            'canArchive' => $canArchive,
+            'projects' => Project::orderBy('name')->get(),
+            'centers' => \App\Models\Admin\Center::orderBy('name')->get(),
+            'categories' => UploadedDocument::CATEGORIES,
+            'typeCounts' => $this->unifiedTypeCounts($user, $canDocs, $canArchive),
+        ]);
+    }
+
+    private function unifiedArchiveRows($user, array $filters): array
+    {
+        $scope = PermissionHelper::getEffectiveScope($user, UploadedDocument::class);
+
+        return UploadedDocument::with(['project', 'center', 'uploader'])
+            ->whereNull('annex_document_id')
+            ->when(! $scope['sees_all'] && $user->type !== 'super-admin', function ($q) use ($scope) {
+                $centerIds = $scope['center_ids'] ?: [0];
+                $projectIds = $scope['project_ids'] ?: [0];
+
+                $q->where(function ($w) use ($centerIds, $projectIds) {
+                    $w->whereNull('center_id')->whereNull('project_id')
+                        ->orWhereIn('center_id', $centerIds)
+                        ->orWhereIn('project_id', $projectIds);
+                });
+            })
+            ->when($filters['category'], fn ($q, $v) => $q->where('category', $v))
+            ->when($filters['project_id'], fn ($q, $v) => $q->where('project_id', $v))
+            ->when($filters['center_id'], fn ($q, $v) => $q->where('center_id', $v))
+            ->when($filters['year'], fn ($q, $v) => $q->whereYear('document_date', $v))
+            ->when($filters['q'], function ($q, $v) {
+                $q->where(fn ($w) => $w->where('title', 'like', "%{$v}%")->orWhere('description', 'like', "%{$v}%"));
+            })
+            ->get()
+            ->map(fn ($file) => [
+                'kind' => 'archive',
+                'source' => 'archive',
+                'model' => $file,
+                'title' => $file->title,
+                'subtitle' => $file->categoryLabel(),
+                'project' => $file->project?->name,
+                'center' => $file->center?->name,
+                'when' => $file->document_date ?? $file->created_at,
+                'person' => $file->uploader?->name,
+                'file' => $file,
+            ])
+            ->all();
+    }
+
+    private function unifiedTypeCounts($user, bool $canDocs, bool $canArchive): array
+    {
+        $counts = ['all' => 0, 'structured' => 0, 'external' => 0, 'archive' => 0];
+
+        if ($canDocs) {
+            $scope = PermissionHelper::getEffectiveScope($user, AnnexDocument::class);
+            $base = fn () => AnnexDocument::query()->when(! $scope['sees_all'], fn ($q) => $q->whereIn('project_id', $scope['project_ids']));
+
+            $counts['structured'] = (clone $base())->where('document_kind', 'structured')->count();
+            $counts['external'] = (clone $base())->where('document_kind', 'external')->count();
+        }
+
+        if ($canArchive) {
+            $scope = PermissionHelper::getEffectiveScope($user, UploadedDocument::class);
+            $q = UploadedDocument::query()->whereNull('annex_document_id');
+
+            if (! $scope['sees_all'] && $user->type !== 'super-admin') {
+                $centerIds = $scope['center_ids'] ?: [0];
+                $projectIds = $scope['project_ids'] ?: [0];
+                $q->where(function ($w) use ($centerIds, $projectIds) {
+                    $w->whereNull('center_id')->whereNull('project_id')
+                        ->orWhereIn('center_id', $centerIds)
+                        ->orWhereIn('project_id', $projectIds);
+                });
+            }
+
+            $counts['archive'] = $q->count();
+        }
+
+        $counts['all'] = array_sum([$counts['structured'], $counts['external'], $counts['archive']]);
+
+        return $counts;
     }
 
     public function help()
@@ -54,19 +190,33 @@ class AnnexDocumentController extends Controller
     {
         $templates = AnnexTemplate::where('is_active', true)->orderBy('title_ar')->get();
         $projects = Project::orderBy('name')->get();
+        $categories = UploadedDocument::CATEGORIES;
 
-        return view('admin.project-docs.documents.form', compact('templates', 'projects'));
+        return view('admin.project-docs.documents.form', compact('templates', 'projects', 'categories'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'template_id' => 'required|exists:annex_templates,id',
+            'mode' => ['required', \Illuminate\Validation\Rule::in(['structured', 'external'])],
+            'template_id' => 'required_if:mode,structured|nullable|exists:annex_templates,id',
             'title' => 'nullable|string|max:255',
             'project_id' => 'nullable|exists:projects,id',
             'period' => 'nullable|string|max:20',
-            'page_count' => 'required|integer|min:1|max:60',
+            'page_count' => 'required_if:mode,structured|nullable|integer|min:1|max:60',
+            'category' => 'required_if:mode,external|nullable|string|in:' . implode(',', array_keys(UploadedDocument::CATEGORIES)),
+            'document_date' => 'nullable|date',
+            'file' => 'required_if:mode,external|nullable|file|mimes:pdf|max:25600',
+        ], [
+            'file.required_if' => 'الملف مطلوب للوثيقة الخارجية.',
+            'file.mimes' => 'يسمح بملفات PDF فقط.',
+            'file.max' => 'حجم الملف يتجاوز 25 ميجابايت.',
+            'category.required_if' => 'التصنيف مطلوب للوثيقة الخارجية.',
         ]);
+
+        if ($validated['mode'] === 'external') {
+            return $this->storeExternal($request, $validated);
+        }
 
         $template = AnnexTemplate::findOrFail($validated['template_id']);
         $pageCount = (int) $validated['page_count'];
@@ -78,6 +228,7 @@ class AnnexDocumentController extends Controller
             'project_id' => $validated['project_id'] ?? null,
             'period' => $validated['period'] ?? null,
             'status' => 'draft',
+            'document_kind' => AnnexDocument::KIND_STRUCTURED,
             'page_count' => $pageCount,
             'data' => null,
             'created_by' => auth()->id(),
@@ -101,8 +252,61 @@ class AnnexDocumentController extends Controller
             ->with('success', 'تم إنشاء الوثيقة — ابدأ بتعبئة أقسامها');
     }
 
+    /*
+     * وثيقة ملف خارجي: تُنشأ كمستند دورة حياة (AnnexDocument) بلا أقسام،
+     * ويُحفظ ملفها في الأرشيف (uploaded_documents) مرتبطاً بها.
+     */
+    private function storeExternal(Request $request, array $validated)
+    {
+        $template = AnnexDocument::externalTemplate();
+
+        $document = AnnexDocument::create([
+            'template_id' => $template->id,
+            'template_version' => $template->version,
+            'title' => $validated['title'] ?? $template->title_ar,
+            'project_id' => $validated['project_id'] ?? null,
+            'period' => $validated['period'] ?? null,
+            'status' => 'draft',
+            'document_kind' => AnnexDocument::KIND_EXTERNAL,
+            'page_count' => 1,
+            'data' => null,
+            'created_by' => auth()->id(),
+            'assigned_to' => null,
+            'signed_at' => null,
+        ]);
+
+        $file = $request->file('file');
+        $path = $file->storeAs(
+            'document-archive',
+            date('Y-m') . '-' . \Illuminate\Support\Str::random(10) . '.pdf',
+            'public'
+        );
+
+        $archived = UploadedDocument::create([
+            'title' => $validated['title'] ?? $template->title_ar,
+            'description' => 'وثيقة ملف خارجي مرتبطة بالوثيقة النظامية',
+            'category' => $validated['category'],
+            'document_date' => $validated['document_date'] ?? null,
+            'project_id' => $validated['project_id'] ?? null,
+            'annex_document_id' => $document->id,
+            'file_path' => $path,
+            'file_name' => $file->getClientOriginalName(),
+            'file_size' => $file->getSize(),
+            'uploaded_by' => auth()->id(),
+        ]);
+
+        $document->logWorkflow('create', null, 'إنشاء وثيقة ملف خارجي (' . $archived->file_name . ')', 'draft');
+
+        return redirect()->route('admin.project-docs.documents.show', $document)
+            ->with('success', 'تم إنشاء الوثيقة من الملف المرفوع');
+    }
+
     public function duplicate(AnnexDocument $document)
     {
+        if ($document->isExternal()) {
+            return back()->with('error', 'لا يمكن نسخ وثيقة ملف خارجي — أنشئ وثيقة جديدة بملفها');
+        }
+
         $pageCount = max(1, (int) $document->page_count);
         $template = $document->template;
 
@@ -154,13 +358,18 @@ class AnnexDocumentController extends Controller
 
     public function show(AnnexDocument $document)
     {
-        $document->load(['template', 'project', 'creator', 'assignee', 'blocks.updater', 'signoffs.user', 'workflowActions.fromUser', 'workflowActions.toUser']);
+        $document->load(['template', 'project', 'creator', 'assignee', 'blocks.updater', 'signoffs.user', 'workflowActions.fromUser', 'workflowActions.toUser', 'linkedFiles']);
 
         return view('admin.project-docs.documents.show', compact('document'));
     }
 
     public function edit(AnnexDocument $document)
     {
+        if ($document->isExternal()) {
+            return redirect()->route('admin.project-docs.documents.show', $document)
+                ->with('error', 'وثيقة الملف الخارجي لا تحتوي أقساماً للتعبئة — تُدار من صفحة العرض');
+        }
+
         if (! in_array($document->status, ['draft', 'rejected'], true)) {
             return redirect()->route('admin.project-docs.documents.show', $document)
                 ->with('error', 'تعبئة الأقسام متاحة فقط للمسودات أو الوثائق المعاد فتحها');
@@ -311,9 +520,27 @@ class AnnexDocumentController extends Controller
 
     public function printDocument(AnnexDocument $document)
     {
+        if ($document->isExternal()) {
+            return $this->file($document);
+        }
+
         $document->load(['template', 'project', 'creator', 'signoffs.user', 'blocks.updater']);
 
         return view('admin.project-docs.documents.print', compact('document'));
+    }
+
+    /*
+     * تدفّق ملف الوثيقة الخارجية — بصلاحية عرض الوثيقة النظامية نفسها (لا نمرّ بالأرشيف).
+     */
+    public function file(AnnexDocument $document)
+    {
+        abort_unless($document->isExternal(), 404, 'هذه الوثيقة بلا ملف خارجي.');
+
+        $source = $document->sourceFile();
+
+        abort_unless($source && Storage::disk('public')->exists($source->file_path), 404, 'الملف الأصلي غير متاح.');
+
+        return Storage::disk('public')->download($source->file_path, $source->file_name ?: ($document->title . '.pdf'));
     }
 
     public function destroy(AnnexDocument $document)
@@ -324,8 +551,8 @@ class AnnexDocumentController extends Controller
             return back()->with('error', 'لا يمكن حذف وثيقة خارج حالة المسودة');
         }
 
-        if ($user->id !== (int) $document->created_by && $user->type !== 'super-admin') {
-            return back()->with('error', 'يمكن لمنشئ الوثيقة فقط حذف المسودة');
+        if (! PermissionHelper::canAccessRecord($user, AnnexDocument::class, 'delete', $document)) {
+            return back()->with('error', 'لا تملك صلاحية حذف هذه الوثيقة أو أنها خارج نطاق صلاحياتك');
         }
 
         $document->delete();

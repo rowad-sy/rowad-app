@@ -367,16 +367,17 @@
                     <i class="bi bi-bar-chart"></i> <span>الإحصائيات</span>
                 </a>
                 @endcanPermission
-                @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'view')
-                <a href="{{ route('admin.project-docs.documents.index') }}" class="nav-link {{ request()->routeIs('admin.project-docs.documents.*') ? 'active' : '' }}">
-                    <i class="bi bi-file-earmark-text"></i> <span>وثائق المشروع</span>
+                @php
+                    $navUser = auth()->user();
+                    $navDocs = $navUser->type === 'super-admin'
+                        || \App\Helpers\PermissionHelper::can($navUser, \App\Models\Admin\ProjectDocs\AnnexDocument::class, 'view')
+                        || \App\Helpers\PermissionHelper::can($navUser, \App\Models\Admin\ProjectDocs\UploadedDocument::class, 'view');
+                @endphp
+                @if ($navDocs)
+                <a href="{{ route('admin.project-docs.documents.index') }}" class="nav-link {{ request()->routeIs('admin.project-docs.documents.*', 'admin.documents-archive.*') ? 'active' : '' }}">
+                    <i class="bi bi-file-earmark-text"></i> <span>الوثائق</span>
                 </a>
-                @endcanPermission
-                @canPermission('App\Models\Admin\ProjectDocs\UploadedDocument', 'view')
-                <a href="{{ route('admin.documents-archive.index') }}" class="nav-link {{ request()->routeIs('admin.documents-archive.*') ? 'active' : '' }}">
-                    <i class="bi bi-file-earmark-pdf"></i> <span>أرشيف الوثائق (PDF)</span>
-                </a>
-                @endcanPermission
+                @endif
                 @canPermission('App\Models\Admin\MonthlyReports\MonthlyReport', 'view')
                 <a href="{{ route('admin.monthly-reports.index') }}" class="nav-link {{ request()->routeIs('admin.monthly-reports.*') ? 'active' : '' }}">
                     <i class="bi bi-calendar-month"></i> <span>التقارير الشهرية</span>
@@ -584,6 +585,9 @@
                 <button class="btn btn-light topbar-btn theme-toggle-btn" type="button" aria-label="تبديل الوضع الليلي/النهاري" title="تبديل الوضع الليلي/النهاري">
                     <i class="bi bi-moon-stars" aria-hidden="true"></i>
                 </button>
+                <a href="{{ route('admin.dashboard') }}" class="btn {{ request()->routeIs('admin.dashboard') ? 'btn-primary' : 'btn-light' }} topbar-btn text-decoration-none" aria-label="لوحة التحكم (مساحة العمل)" title="لوحة التحكم — مساحة العمل" @if (request()->routeIs('admin.dashboard')) aria-current="page" @endif>
+                    <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                </a>
                 <a href="{{ route('admin.portal') }}" class="btn btn-light topbar-btn text-decoration-none" aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
                     <i class="bi bi-house-door" aria-hidden="true"></i>
                 </a>

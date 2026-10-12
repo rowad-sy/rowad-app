@@ -183,10 +183,54 @@
                 </div>
             </div>
         </div>
+
+        @php $canHoView = \App\Helpers\PermissionHelper::can($user, 'App\Models\Admin\Logistics\HandoverNote', 'view'); @endphp
+        @if ($canHoView && ($pr->status === 'executed' || $pr->handoverNotes->isNotEmpty()))
+        <div class="table-container mt-3" id="handovers">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-receipt text-primary me-1" aria-hidden="true"></i> محاضر التسليم ({{ $pr->handoverNotes->count() }})</h5>
+                @if ($pr->status === 'executed')
+                    @canPermission('App\Models\Admin\Logistics\HandoverNote', 'create')
+                    <a href="{{ route('admin.logistics.handover-notes.create', $pr) }}" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-plus-lg me-1"></i> محضر تسليم جديد
+                    </a>
+                    @endcanPermission
+                @endif
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead>
+                        <tr><th>#</th><th>رقم المحضر</th><th>تاريخ التسليم</th><th>استلمه</th><th>سلّمه</th><th>البنود</th><th>الإجراءات</th></tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($pr->handoverNotes->sortBy('created_at') as $note)
+                            <tr>
+                                <td class="num">{{ $loop->iteration }}</td>
+                                <td><code>{{ $note->grn_number }}</code></td>
+                                <td class="num">{{ $note->handover_date->format('Y-m-d') }}</td>
+                                <td>{{ $note->received_by_name }}</td>
+                                <td>{{ $note->delivered_by_name }}</td>
+                                <td class="num">{{ count($note->items ?? []) }}</td>
+                                <td>
+                                    <div class="row-actions">
+                                        <a href="{{ route('admin.logistics.handover-notes.show', $note) }}" class="btn btn-sm btn-outline-info" title="عرض" aria-label="عرض المحضر"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                                        <a href="{{ route('admin.logistics.handover-notes.print', $note) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="طباعة / PDF" aria-label="طباعة"><i class="bi bi-printer" aria-hidden="true"></i></a>
+                                        <a href="{{ route('admin.logistics.handover-notes.export', $note) }}" class="btn btn-sm btn-outline-success" title="تصدير Excel" aria-label="تصدير"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <x-empty-row colspan="7" title="لا توجد محاضر تسليم بعد — أنشئ محضراً لتسليم العهدة إلى مسؤولها" />
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
     </div>
 
     <div class="col-lg-4">
-        @if ($isHolder && in_array($pr->status, ['review', 'approved1', 'approved2'], true))
+        @if ($isHolder && in_array($pr->status, ['review', 'approved1'], true))
             <div class="table-container mb-3">
                 <div class="p-3 border-bottom"><h5 class="mb-0">الموافقة والتوقيع</h5></div>
                 <div class="p-3">

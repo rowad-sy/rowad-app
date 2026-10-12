@@ -63,10 +63,9 @@
                     <label class="form-label">النوع</label>
                     <select name="type" id="userType" class="form-select @error('type') is-invalid @enderror">
                         <option value="">— عادي —</option>
-                        <option value="super-admin" {{ old('type', $user->type ?? '') == 'super-admin' ? 'selected' : '' }}>سوبر أدمن</option>
-                        <option value="employee" {{ old('type', $user->type ?? '') == 'employee' ? 'selected' : '' }}>موظف</option>
-                        <option value="beneficiary" {{ old('type', $user->type ?? '') == 'beneficiary' ? 'selected' : '' }}>مستفيد</option>
-                        <option value="student" {{ old('type', $user->type ?? '') == 'student' ? 'selected' : '' }}>طالب</option>
+                        @foreach (\App\Models\User::TYPES as $typeKey => $typeLabel)
+                            <option value="{{ $typeKey }}" {{ old('type', $user->type ?? '') === $typeKey ? 'selected' : '' }}>{{ $typeLabel }}</option>
+                        @endforeach
                     </select>
                     @error('type') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>

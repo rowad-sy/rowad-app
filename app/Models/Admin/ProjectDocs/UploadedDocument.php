@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /*
  * وثيقة مرفوعة (PDF) في الأرشيف — للوثائق القديمة والمستندات الجاهزة.
- * لا علاقة لها بدورة AnnexDocument؛ هي مكتبة مفتوحة بتصنيف تبويبي.
+ * قد تكون مرتبطة بوثيقة نظامية (annex_document_id) عند رفعها كملف خارجي أو تحويلها.
  */
 class UploadedDocument extends Model
 {
@@ -32,7 +32,7 @@ class UploadedDocument extends Model
 
     protected $fillable = [
         'title', 'description', 'category', 'document_date',
-        'center_id', 'project_id', 'file_path', 'file_name', 'file_size', 'uploaded_by',
+        'center_id', 'project_id', 'annex_document_id', 'file_path', 'file_name', 'file_size', 'uploaded_by',
     ];
 
     protected function casts(): array
@@ -55,6 +55,11 @@ class UploadedDocument extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function annexDocument(): BelongsTo
+    {
+        return $this->belongsTo(AnnexDocument::class, 'annex_document_id');
     }
 
     public function categoryLabel(): string

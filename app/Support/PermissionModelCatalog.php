@@ -86,6 +86,7 @@ class PermissionModelCatalog
                 'page:admin.logistics.statistics' => 'إحصائيات اللوجستي',
                 'page:admin.projects-manager.dashboard' => 'لوحة مديري المشاريع',
                 'App\Models\Admin\Logistics\WarehouseItem' => 'أصناف المخزن',
+                'App\Models\Admin\Logistics\HandoverNote' => 'محاضر التسليم (عهدة)',
             ],
             'روادنا' => [
                 'App\Models\Admin\AdDesignRequest' => 'طلبات التصميم الإعلاني',

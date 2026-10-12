@@ -11,15 +11,9 @@ class HomeController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->type === 'student') {
-            $student = Student::where('user_id', $user->id)->first();
-            return redirect($student
-                ? route('admin.students.show', $student, absolute: false)
-                : route('admin.profile', absolute: false));
-        }
-
-        if ($user->type === 'beneficiary') {
-            return redirect(route('admin.beneficiary.dashboard', absolute: false));
+        // وجهات الهبوط المركزية حسب النوع (طالب/مستفيد/روادنا)
+        if ($landing = $user->landingRoute()) {
+            return redirect($landing);
         }
 
         $canProjectManager = \App\Helpers\PermissionHelper::can($user, 'page:admin.project-manager.dashboard', 'view');

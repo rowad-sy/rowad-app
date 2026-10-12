@@ -81,12 +81,13 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل الد
                 session()->flash('error', 'حسابك غير مرتبط بأي طالب، يرجى التواصل مع الإدارة');
                 $redirectRoute = route('admin.profile', absolute: false);
             }
-        } elseif ($user->type === 'beneficiary') {
-            $redirectRoute = route('admin.beneficiary.dashboard', absolute: false);
         } elseif ($user->type === 'employee' || $user->type === 'super-admin') {
             $redirectRoute = route('admin.portal', absolute: false);
+        } elseif ($landing = $user->landingRoute()) {
+            // الأنواع ذات الوجهات المخصصة (مستفيد، روادنا، وكل نوع جديد يعرّف landingRoute)
+            $redirectRoute = $landing;
         } else {
-            // Unknown type (null, empty, etc.)
+            // نوع غير معروف (null أو فارغ)
             $redirectRoute = route('dashboard', absolute: false);
         }
 

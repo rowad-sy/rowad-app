@@ -51,8 +51,9 @@
                 'purchase' => ['label' => 'طلبات الشراء', 'icon' => 'bi-bag'],
                 'maintenance' => ['label' => 'طلبات الصيانة', 'icon' => 'bi-tools'],
             ];
+            $activeTab = $tab ?? 'requests';
         @endphp
-        @foreach ($tabs as $tabKey => $tab)
+        @foreach ($tabs as $tabKey => $tabItem)
             @php
                 $tabQuery = array_filter([
                     'type' => $tabKey !== 'all' ? $tabKey : null,
@@ -62,12 +63,75 @@
                 ]);
             @endphp
             <a href="{{ route('admin.logistics.purchase-requests.index', $tabQuery) }}"
-               class="btn btn-sm {{ $currentType === $tabKey ? 'btn-primary' : 'btn-outline-secondary' }}"
-               @if ($currentType === $tabKey) aria-current="page" @endif>
-                <i class="bi {{ $tab['icon'] }} me-1" aria-hidden="true"></i> {{ $tab['label'] }}
+               class="btn btn-sm {{ $activeTab === 'requests' && $currentType === $tabKey ? 'btn-primary' : 'btn-outline-secondary' }}"
+               @if ($activeTab === 'requests' && $currentType === $tabKey) aria-current="page" @endif>
+                <i class="bi {{ $tabItem['icon'] }} me-1" aria-hidden="true"></i> {{ $tabItem['label'] }}
             </a>
         @endforeach
+        @if ($canHandovers ?? false)
+            <a href="{{ route('admin.logistics.purchase-requests.index', array_filter(['tab' => 'handovers', 'search' => request('search')])) }}"
+               class="btn btn-sm {{ $activeTab === 'handovers' ? 'btn-primary' : 'btn-outline-success' }}"
+               @if ($activeTab === 'handovers') aria-current="page" @endif>
+                <i class="bi bi-receipt me-1" aria-hidden="true"></i> محاضر التسليم
+            </a>
+        @endif
     </div>
+    @if (($tab ?? 'requests') === 'handovers')
+        <x-filter-bar>
+            <input type="hidden" name="tab" value="handovers">
+            <div class="col-md-4">
+                <label class="form-label" for="f-ho-search">بحث</label>
+                <input type="search" id="f-ho-search" name="search" class="form-control form-control-sm"
+                       placeholder="رقم المحضر أو اسم المسلِّم/المستلم..." value="{{ request('search') }}">
+            </div>
+        </x-filter-bar>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>رقم المحضر</th>
+                        <th>الطلب</th>
+                        <th>المركز</th>
+                        <th>المشروع</th>
+                        <th>تاريخ التسليم</th>
+                        <th>تم الاستلام من</th>
+                        <th>تم التسليم من</th>
+                        <th class="num">البنود</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($handovers ?? [] as $note)
+                        <tr>
+                            <td><code>{{ $note->grn_number }}</code></td>
+                            <td><a href="{{ route('admin.logistics.purchase-requests.show', $note->purchase_request_id) }}" class="text-decoration-none">{{ $note->purchaseRequest?->request_number ?? '—' }}</a></td>
+                            <td>{{ $note->purchaseRequest?->center?->name ?? '—' }}</td>
+                            <td>{{ $note->purchaseRequest?->project?->name ?? '—' }}</td>
+                            <td class="num">{{ $note->handover_date->format('Y-m-d') }}</td>
+                            <td>{{ $note->received_by_name }} @if ($note->receivedByUser) <span class="badge bg-light text-dark border">مسجل</span> @endif</td>
+                            <td>{{ $note->delivered_by_name }}</td>
+                            <td class="num">{{ count($note->items ?? []) }}</td>
+                            <td class="text-nowrap">
+                                <div class="row-actions">
+                                    <a href="{{ route('admin.logistics.handover-notes.show', $note) }}" class="btn btn-sm btn-outline-info" aria-label="عرض المحضر" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                                    <a href="{{ route('admin.logistics.handover-notes.print', $note) }}" target="_blank" class="btn btn-sm btn-outline-secondary" aria-label="طباعة المحضر" title="طباعة / PDF"><i class="bi bi-printer" aria-hidden="true"></i></a>
+                                    <a href="{{ route('admin.logistics.handover-notes.export', $note) }}" class="btn btn-sm btn-outline-success" aria-label="تصدير المحضر Excel" title="تصدير Excel"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <x-empty-row colspan="9" icon="bi-receipt" title="لا توجد محاضر تسليم بعد" hint="أنشئ محضراً من صف طلب منفَّذ بزر «محضر تسليم»" />
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3 d-flex justify-content-between align-items-center">
+            <div class="text-muted small">إجمالي: {{ ($handovers ?? collect())->total() ?? 0 }} محضر</div>
+            <div>{{ ($handovers ?? collect())->links() }}</div>
+        </div>
+    </div>
+    @else
     <x-filter-bar>
             @if ($currentType !== 'all')
                 <input type="hidden" name="type" value="{{ $currentType }}">
@@ -152,6 +216,16 @@
                         <td>{{ $request->created_at?->format('Y-m-d') }}</td>
                         <td>
                             <a href="{{ route('admin.logistics.purchase-requests.show', $request) }}" class="btn btn-sm btn-outline-info" aria-label="عرض" title="عرض"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                            @if ($request->status === 'executed')
+                                @canPermission('App\Models\Admin\Logistics\HandoverNote', 'create')
+                                <a href="{{ route('admin.logistics.handover-notes.create', $request) }}" class="btn btn-sm btn-outline-success position-relative" title="إنشاء محضر تسليم عهدة" aria-label="إنشاء محضر تسليم لطلب {{ $request->request_number }}">
+                                    <i class="bi bi-receipt" aria-hidden="true"></i>
+                                    @if (($request->handover_notes_count ?? 0) > 0)
+                                        <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill text-bg-success" style="font-size:.55rem">{{ $request->handover_notes_count }}</span>
+                                    @endif
+                                </a>
+                                @endcanPermission
+                            @endif
                             <x-audit-history :model="'App\Models\Admin\Logistics\PurchaseRequest'" :model-id="$request->id" />
                             @canPermission('App\Models\Admin\Logistics\PurchaseRequest', 'delete')
                             <form method="POST" action="{{ route('admin.logistics.purchase-requests.destroy', $request) }}" class="d-inline"
@@ -178,5 +252,6 @@
             {{ ($purchaseRequests ?? collect())->links() }}
         </div>
     </div>
+    @endif
 </div>
 @endsection

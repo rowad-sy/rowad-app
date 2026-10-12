@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
 use App\Models\Admin\Department;
 use App\Models\Admin\Hr\Employee;
+use App\Models\Admin\Logistics\HandoverNote;
 use App\Models\Admin\Logistics\PurchaseRequest;
 use App\Models\Admin\Logistics\PurchaseRequestItem;
 use App\Models\Admin\Logistics\PurchaseRequestSignature;
@@ -27,20 +28,28 @@ class PurchaseRequestController extends Controller
         $this->middleware('permission:App\Models\Admin\Logistics\PurchaseRequest,delete')->only(['destroy']);
     }
 
+    /*
+     * شرط رؤية الطلبات: منشئه أو أحد أطراف سلاسل الإحالة أو حامل إحالة نشطة.
+     */
+    private function visibleScope(User $user): callable
+    {
+        return function ($q) use ($user) {
+            $q->where('user_id', $user->id)
+                ->orWhere(fn ($s) => $s->where('refer_to_approver1_id', $user->id)
+                    ->orWhere('refer_to_approver2_id', $user->id)
+                    ->orWhere('refer_to_approver3_id', $user->id)
+                    ->orWhere('refer_to_logistics_id', $user->id))
+                ->orWhereHas('activeReferrals', fn ($r) => $r->where('to_user_id', $user->id));
+        };
+    }
+
     public function index(Request $request)
     {
-        $query = PurchaseRequest::with(['user', 'center', 'project', 'items'])->withCount('items');
+        $query = PurchaseRequest::with(['user', 'center', 'project', 'items'])->withCount(['items', 'handoverNotes']);
 
         $user = auth()->user();
         if ($user->type !== 'super-admin') {
-            $query->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)
-                    ->orWhere(fn ($s) => $s->where('refer_to_approver1_id', $user->id)
-                        ->orWhere('refer_to_approver2_id', $user->id)
-                        ->orWhere('refer_to_approver3_id', $user->id)
-                        ->orWhere('refer_to_logistics_id', $user->id))
-                    ->orWhereHas('activeReferrals', fn ($r) => $r->where('to_user_id', $user->id));
-            });
+            $query->where($this->visibleScope($user));
         }
 
         if ($request->filled('status') && $request->status !== 'all') {
@@ -76,9 +85,37 @@ class PurchaseRequestController extends Controller
         $centerId = $request->get('center_id');
         $projectId = $request->get('project_id');
 
+        // تبويب محاضر التسليم — يظهر فقط لمن يملك صلاحية المحاضر
+        $tab = 'requests';
+        $canHandovers = \App\Helpers\PermissionHelper::can($user, HandoverNote::class, 'view');
+        if ($canHandovers && $request->get('tab') === 'handovers') {
+            $tab = 'handovers';
+
+            $notes = HandoverNote::with(['purchaseRequest.center', 'purchaseRequest.project', 'receivedByUser', 'creator'])
+                ->when($user->type !== 'super-admin', fn ($q) => $q->whereHas('purchaseRequest', $this->visibleScope($user)));
+
+            if ($request->filled('search')) {
+                $term = '%'.$request->search.'%';
+                $notes->where(fn ($x) => $x->where('grn_number', 'like', $term)
+                    ->orWhere('received_by_name', 'like', $term)
+                    ->orWhere('delivered_by_name', 'like', $term));
+            }
+
+            $handovers = $notes->latest()->paginate($perPage)
+                ->appends($request->only(['tab', 'search', 'per_page']));
+
+            return view('admin.logistics.purchase-requests.index', compact(
+                'handovers', 'tab', 'canHandovers', 'perPage'
+            ) + [
+                'purchaseRequests' => $purchaseRequests, 'statuses' => $statuses, 'centers' => $centers,
+                'projects' => $projects, 'status' => $status, 'centerId' => $centerId,
+                'projectId' => $projectId, 'type' => $type,
+            ]);
+        }
+
         return view('admin.logistics.purchase-requests.index', compact(
             'purchaseRequests', 'statuses', 'centers', 'projects',
-            'status', 'centerId', 'projectId', 'perPage', 'type'
+            'status', 'centerId', 'projectId', 'perPage', 'type', 'tab', 'canHandovers'
         ));
     }
 
@@ -168,7 +205,7 @@ class PurchaseRequestController extends Controller
         $purchaseRequest->load([
             'user.jobTitle', 'center', 'project', 'items.executor',
             'approver1User', 'approver2User', 'approver3User', 'logisticsStaff', 'lockedByUser',
-            'signatures.user', 'workflowActions.fromUser', 'workflowActions.toUser',
+            'signatures.user', 'handoverNotes.receivedByUser', 'workflowActions.fromUser', 'workflowActions.toUser',
         ]);
 
         $users = User::where('type', 'employee')->orderBy('name')->get();

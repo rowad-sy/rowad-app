@@ -23,6 +23,43 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
+    /*
+     * أنواع الحسابات — العمود في القاعدة string وليس enum، والتعداد يُدار هنا:
+     * للإضافة: مفتاح جديد هنا + خيار في قائمة النوع + فرع في landingRoute() إن له لوحة مخصصة.
+     */
+    public const TYPES = [
+        'employee' => 'موظف',
+        'beneficiary' => 'مستفيد',
+        'student' => 'طالب',
+        'super-admin' => 'سوبر أدمن',
+        'rowaduna' => 'روادنا',
+    ];
+
+    public const TYPE_LABELS = self::TYPES;
+
+    /**
+     * وجهة ما بعد الدخول حسب النوع — null تعني البوابة الافتراضية.
+     * الأنواع ذات اللوحات الخاصة تتحقق من صلاحية اللوحة، والوجهة البديلة مساحة العمل.
+     */
+    public function landingRoute(): ?string
+    {
+        return match ($this->type) {
+            'student' => ($student = $this->student)
+                ? route('admin.students.show', $student, absolute: false)
+                : route('admin.profile', absolute: false),
+            'beneficiary' => route('admin.beneficiary.dashboard', absolute: false),
+            'rowaduna' => \App\Helpers\PermissionHelper::can($this, 'page:admin.rowaduna.dashboard', 'view')
+                ? route('admin.rowaduna.dashboard', absolute: false)
+                : route('admin.dashboard', absolute: false),
+            default => null,
+        };
+    }
+
+    public function typeLabel(): string
+    {
+        return self::TYPES[$this->type] ?? ($this->type ?: '—');
+    }
+
     protected $fillable = [
         'name',
         'email',

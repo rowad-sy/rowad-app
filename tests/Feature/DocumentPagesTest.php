@@ -2,6 +2,8 @@
 
 use App\Models\Admin\MonthlyReports\MonthlyReport;
 use App\Models\Admin\MonthlyReports\MonthlyReportTemplate;
+use App\Models\Admin\Permission;
+use App\Models\Admin\Project;
 use App\Models\Admin\ProjectDocs\AnnexDocument;
 use App\Models\Admin\ProjectDocs\AnnexTemplate;
 use App\Models\User;
@@ -131,6 +133,7 @@ it('inherits section pages from annex template on document creation', function (
 
     $this->actingAs($user)
         ->post(route('admin.project-docs.documents.store'), [
+            'mode' => 'structured',
             'template_id' => $template->id,
             'title' => 'وثيقة اختبارية',
             'page_count' => 2,
@@ -162,6 +165,7 @@ it('attaches an A4 cover printed as the first page of an annex document, and rem
     ]);
 
     $this->actingAs($user)->post(route('admin.project-docs.documents.store'), [
+        'mode' => 'structured',
         'template_id' => $template->id,
         'title' => 'وثيقة بغلاف',
         'page_count' => 1,
@@ -395,4 +399,121 @@ it('shows default page count for production templates after seeding', function (
 
     $monthly = MonthlyReportTemplate::firstWhere('key', 'monthly-project-report');
     expect($monthly->sections()->firstWhere('key', 'approvals')['page'])->toBe(15);
+});
+
+/* -------------------------------------------------------------------- */
+/*  حذف الوثيقة عبر نظام الصلاحيات                                       */
+/* -------------------------------------------------------------------- */
+
+function deletePermTemplate(): AnnexTemplate
+{
+    static $n = 0;
+    $n++;
+
+    return AnnexTemplate::create([
+        'key' => 'del-tpl-'.$n,
+        'title_ar' => 'قالب للحذف',
+        'version' => 1,
+        'default_page_count' => 1,
+        'is_active' => true,
+        'json_definition' => ['sections' => [['key' => 'a', 'title' => 'بند', 'type' => 'paragraph', 'page' => 1]]],
+    ]);
+}
+
+function deletePermDoc(User $creator, ?int $projectId = null, string $status = 'draft'): AnnexDocument
+{
+    return AnnexDocument::create([
+        'template_id' => deletePermTemplate()->id,
+        'template_version' => 1,
+        'status' => $status,
+        'page_count' => 1,
+        'project_id' => $projectId,
+        'created_by' => $creator->id,
+    ]);
+}
+
+it('lets a user with delete permission remove a draft they did not create', function () {
+    $creator = pagesSuperAdmin();
+    $deleter = User::factory()->create(['type' => 'employee', 'must_change_password' => false]);
+    Permission::create([
+        'user_id' => $deleter->id,
+        'model_names' => [AnnexDocument::class],
+        'can_view' => true,
+        'can_delete' => true,
+    ]);
+
+    $document = deletePermDoc($creator);
+
+    $this->actingAs($deleter)
+        ->delete(route('admin.project-docs.documents.destroy', $document))
+        ->assertRedirect(route('admin.project-docs.documents.index'));
+
+    expect(AnnexDocument::find($document->id))->toBeNull();
+});
+
+it('blocks deletion for users without the delete permission', function () {
+    $creator = pagesSuperAdmin();
+    $user = User::factory()->create(['type' => 'employee', 'must_change_password' => false]);
+    Permission::create([
+        'user_id' => $user->id,
+        'model_names' => [AnnexDocument::class],
+        'can_view' => true,
+    ]);
+
+    $document = deletePermDoc($creator);
+
+    $this->actingAs($user)
+        ->delete(route('admin.project-docs.documents.destroy', $document))
+        ->assertForbidden();
+
+    expect(AnnexDocument::find($document->id))->not->toBeNull();
+});
+
+it('refuses to delete a document outside draft status even with permission', function () {
+    $creator = pagesSuperAdmin();
+    $deleter = User::factory()->create(['type' => 'employee', 'must_change_password' => false]);
+    Permission::create([
+        'user_id' => $deleter->id,
+        'model_names' => [AnnexDocument::class],
+        'can_view' => true,
+        'can_delete' => true,
+    ]);
+
+    $document = deletePermDoc($creator, status: 'approved');
+
+    $this->actingAs($deleter)
+        ->from(route('admin.project-docs.documents.show', $document))
+        ->delete(route('admin.project-docs.documents.destroy', $document))
+        ->assertRedirect(route('admin.project-docs.documents.show', $document));
+
+    expect(AnnexDocument::find($document->id))->not->toBeNull();
+});
+
+it('enforces the permission scope on deletion', function () {
+    $creator = pagesSuperAdmin();
+    $inside = Project::create(['name' => 'مشروع النطاق']);
+    $outside = Project::create(['name' => 'مشروع خارج النطاق']);
+
+    $scoped = User::factory()->create(['type' => 'employee', 'must_change_password' => false]);
+    Permission::create([
+        'user_id' => $scoped->id,
+        'model_names' => [AnnexDocument::class],
+        'project_id' => $inside->id,
+        'can_view' => true,
+        'can_delete' => true,
+    ]);
+
+    $allowed = deletePermDoc($creator, $inside->id);
+    $denied = deletePermDoc($creator, $outside->id);
+
+    $this->actingAs($scoped)
+        ->from(route('admin.project-docs.documents.show', $denied))
+        ->delete(route('admin.project-docs.documents.destroy', $denied))
+        ->assertRedirect(route('admin.project-docs.documents.show', $denied));
+    expect(AnnexDocument::find($denied->id))->not->toBeNull();
+
+    $this->actingAs($scoped)
+        ->delete(route('admin.project-docs.documents.destroy', $allowed))
+        ->assertRedirect(route('admin.project-docs.documents.index'));
+    expect(AnnexDocument::find($allowed->id))->toBeNull();
 });

@@ -48,6 +48,7 @@ use App\Http\Controllers\Admin\Tech\TechStatisticsController;
 use App\Http\Controllers\Admin\Logistics\SettingsController;
 use App\Http\Controllers\Admin\Logistics\ApprovalRuleController;
 use App\Http\Controllers\Admin\Logistics\PurchaseRequestController;
+use App\Http\Controllers\Admin\HandoverNoteController;
 use App\Http\Controllers\Admin\Logistics\PurchaseRequestApprovalController;
 use App\Http\Controllers\Admin\Logistics\WarehouseController;
 use App\Http\Controllers\Admin\Logistics\WarehouseItemController;
@@ -67,18 +68,13 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     if (auth()->check()) {
         $user = auth()->user();
-        if ($user->type === 'student') {
-            $student = \App\Models\Admin\Student\Student::where('user_id', $user->id)->first();
-            if ($student) {
-                return redirect()->route('admin.students.show', $student);
-            }
-        } elseif ($user->type === 'beneficiary') {
-            return redirect()->route('admin.beneficiary.dashboard');
-        } else {
-            return redirect()->route('admin.portal');
+        if ($landing = $user->landingRoute()) {
+            return redirect($landing);
         }
+
+        return redirect()->route('admin.portal');
     }
-    // الصفحة الرئيسية = تسجيل الدخول فقط مع لوغو المؤسسة
+    // الصفحة الرئيسية = تسجيل دخول فقط
     return redirect()->route('login');
 })->name('home');
 
@@ -227,7 +223,17 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::get('identities', [PortalController::class, 'identities'])->name('identities');
         Route::get('events-calendar', [PortalController::class, 'calendar'])->name('events-calendar');
         Route::prefix('documents-archive')->name('documents-archive.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'index'])->name('index');
+            // صفحة الأرشيف المستقلة أُلغيت — تحويل إلى صفحة الوثائق الموحّدة مع الحفاظ على الفلاتر
+            Route::get('/', function (\Illuminate\Http\Request $request) {
+                return redirect()->route('admin.project-docs.documents.index', array_filter([
+                    'type' => 'archive',
+                    'category' => $request->query('category'),
+                    'q' => $request->query('q'),
+                    'year' => $request->query('year'),
+                    'project_id' => $request->query('project_id'),
+                    'center_id' => $request->query('center_id'),
+                ]));
+            })->name('index');
             Route::get('create', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'create'])->name('create');
             Route::post('/', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'store'])->name('store');
             Route::get('{document}', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'show'])->name('show');
@@ -235,6 +241,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::put('{document}', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'update'])->name('update');
             Route::delete('{document}', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'destroy'])->name('destroy');
             Route::get('{document}/download', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'download'])->name('download');
+            Route::post('{document}/convert', [\App\Http\Controllers\Admin\ProjectDocs\UploadedDocumentController::class, 'convert'])->name('convert');
         });
         Route::prefix('project-docs')->name('project-docs.')->group(function () {
             Route::resource('templates', \App\Http\Controllers\Admin\ProjectDocs\AnnexTemplateController::class)->except(['show']);
@@ -250,6 +257,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::post('documents/{document}/signoff', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'signoff'])->name('documents.signoff');
             Route::post('documents/{document}/duplicate', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'duplicate'])->name('documents.duplicate');
             Route::get('documents/{document}/print', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'printDocument'])->name('documents.print');
+            Route::get('documents/{document}/file', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'file'])->name('documents.file');
             Route::delete('documents/{document}', [\App\Http\Controllers\Admin\ProjectDocs\AnnexDocumentController::class, 'destroy'])->name('documents.destroy');
         });
         Route::prefix('monthly-reports')->name('monthly-reports.')->group(function () {
@@ -401,6 +409,16 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::post('purchase-requests/{purchaseRequest}/execute-items', [PurchaseRequestController::class, 'executeItems'])->name('purchase-requests.execute-items');
             Route::get('purchase-requests/{purchaseRequest}/print', [PurchaseRequestController::class, 'printForm'])->name('purchase-requests.print');
             Route::get('purchase-requests/{purchaseRequest}/export', [PurchaseRequestController::class, 'exportExcel'])->name('purchase-requests.export');
+
+            // محاضر التسليم (GRN) — تُنشأ من طلب شراء مُنفَّذ
+            Route::get('purchase-requests/{purchaseRequest}/handover/create', [HandoverNoteController::class, 'create'])->name('handover-notes.create');
+            Route::post('purchase-requests/{purchaseRequest}/handover', [HandoverNoteController::class, 'store'])->name('handover-notes.store');
+            Route::prefix('handover-notes')->name('handover-notes.')->group(function () {
+                Route::get('{handoverNote}', [HandoverNoteController::class, 'show'])->name('show');
+                Route::get('{handoverNote}/print', [HandoverNoteController::class, 'print'])->name('print');
+                Route::get('{handoverNote}/export', [HandoverNoteController::class, 'export'])->name('export');
+                Route::delete('{handoverNote}', [HandoverNoteController::class, 'destroy'])->name('destroy');
+            });
             Route::resource('warehouses', WarehouseController::class)->except(['show']);
             Route::get('warehouses/{warehouse}/items', [WarehouseItemController::class, 'index'])->name('warehouses.items.index');
             Route::get('warehouses/{warehouse}/items/create', [WarehouseItemController::class, 'create'])->name('warehouses.items.create');

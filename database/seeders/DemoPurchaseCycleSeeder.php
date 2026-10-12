@@ -169,6 +169,23 @@ class DemoPurchaseCycleSeeder extends Seeder
             'can_view' => true, 'can_edit' => true,
         ]);
 
+        // صلاحية محاضر التسليم — الإنشاء للوجستي فقط، والبقون للاطلاع
+        $hoModel = 'App\\Models\\Admin\\Logistics\\HandoverNote';
+        Permission::create([
+            'user_id' => $logistics->id,
+            'model_names' => [$hoModel],
+            'center_id' => $center->id,
+            'can_view' => true, 'can_create' => true,
+        ]);
+        foreach ([$pm->id, $pm2->id, $finance->id, $ceo->id] as $viewerId) {
+            Permission::create([
+                'user_id' => $viewerId,
+                'model_names' => [$hoModel],
+                'center_id' => $center->id,
+                'can_view' => true,
+            ]);
+        }
+
         // ── طلبات الشراء عبر أطوار الدورة الجديدة ──
         $t0 = now()->subDays(7)->startOfDay();
 

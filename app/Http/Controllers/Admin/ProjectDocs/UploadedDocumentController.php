@@ -6,6 +6,7 @@ use App\Helpers\PermissionHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
 use App\Models\Admin\Project;
+use App\Models\Admin\ProjectDocs\AnnexDocument;
 use App\Models\Admin\ProjectDocs\UploadedDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,49 +21,10 @@ class UploadedDocumentController extends Controller
 
     public function __construct()
     {
-        $this->middleware('permission:' . self::MODEL . ',view')->only(['index', 'show', 'download']);
+        $this->middleware('permission:' . self::MODEL . ',view')->only(['show', 'download', 'convert']);
         $this->middleware('permission:' . self::MODEL . ',create')->only(['create', 'store']);
         $this->middleware('permission:' . self::MODEL . ',edit')->only(['edit', 'update']);
         $this->middleware('permission:' . self::MODEL . ',delete')->only(['destroy']);
-    }
-
-    public function index(Request $request)
-    {
-        $user = auth()->user();
-        $scope = PermissionHelper::getEffectiveScope($user, self::MODEL);
-
-        $base = fn () => $this->scoped(UploadedDocument::query(), $scope, $user);
-
-        $category = $request->input('category');
-        $category = $category && array_key_exists($category, UploadedDocument::CATEGORIES) ? $category : null;
-
-        $query = $base()->with(['center', 'project', 'uploader'])
-            ->when($category, fn ($q) => $q->where('category', $category))
-            ->when($request->input('year'), fn ($q, $v) => $q->whereYear('document_date', $v))
-            ->when($request->input('project_id'), fn ($q, $v) => $q->where('project_id', $v))
-            ->when($request->input('center_id'), fn ($q, $v) => $q->where('center_id', $v))
-            ->when($request->input('q'), function ($q, $v) {
-                $q->where(function ($s) use ($v) {
-                    $s->where('title', 'like', "%{$v}%")->orWhere('description', 'like', "%{$v}%");
-                });
-            })
-            ->latest('document_date')->latest('id');
-
-        $documents = $query->paginate(15)->withQueryString();
-
-        $tabCounts = $base()
-            ->selectRaw('category, COUNT(*) c')
-            ->groupBy('category')
-            ->pluck('c', 'category');
-
-        return view('admin.project-docs.uploaded.index', [
-            'documents' => $documents,
-            'tabCounts' => $tabCounts,
-            'totalCount' => $base()->count(),
-            'category' => $category,
-            'centers' => Center::orderBy('name')->get(),
-            'projects' => Project::orderBy('name')->get(),
-        ]);
     }
 
     public function create()
@@ -111,7 +73,7 @@ class UploadedDocumentController extends Controller
     {
         $this->ensureVisible($document);
 
-        $document->load(['center', 'project', 'uploader']);
+        $document->load(['center', 'project', 'uploader', 'annexDocument']);
 
         return view('admin.project-docs.uploaded.show', compact('document'));
     }
@@ -170,10 +132,62 @@ class UploadedDocumentController extends Controller
 
     public function destroy(UploadedDocument $document)
     {
+        $document->loadMissing('annexDocument');
+
+        if ($document->annexDocument) {
+            return back()->with('error', 'هذا الملف مرتبط بالوثيقة النظامية «' . ($document->annexDocument->title ?? '#'.$document->annex_document_id) . '» — احذف الوثيقة أو فكّ الربط أولاً.');
+        }
+
         $document->delete();
 
         return redirect()->route('admin.documents-archive.index')
             ->with('success', 'حُذفت الوثيقة (يمكن استرجاعها من سجل التدقيق إن لزم)');
+    }
+
+    /*
+     * تحويل ملف أرشيفي جاهز إلى وثيقة نظامية (ملف خارجي) تدخل دورة الاعتماد.
+     * تتطلب صلاحية إنشاء وثائق نظامية، وتُطبَّق على نطاق مشروع الملف.
+     */
+    public function convert(UploadedDocument $document)
+    {
+        $this->ensureVisible($document);
+
+        $user = auth()->user();
+
+        if ($document->annex_document_id) {
+            return back()->with('error', 'هذا الملف مرتبط أصلاً بوثيقة نظامية.');
+        }
+
+        $probe = new AnnexDocument(['project_id' => $document->project_id]);
+
+        abort_unless(
+            PermissionHelper::canAccessRecord($user, AnnexDocument::class, 'create', $probe),
+            403,
+            'تحتاج صلاحية إنشاء الوثائق النظامية ضمن نطاق هذا المشروع.'
+        );
+
+        $template = AnnexDocument::externalTemplate();
+
+        $annex = AnnexDocument::create([
+            'template_id' => $template->id,
+            'template_version' => $template->version,
+            'title' => $document->title,
+            'project_id' => $document->project_id,
+            'status' => 'draft',
+            'document_kind' => AnnexDocument::KIND_EXTERNAL,
+            'page_count' => 1,
+            'data' => null,
+            'created_by' => $user->id,
+            'assigned_to' => null,
+            'signed_at' => null,
+        ]);
+
+        $document->update(['annex_document_id' => $annex->id]);
+
+        $annex->logWorkflow('create', null, 'تحويل ملف أرشيفي (' . $document->file_name . ') إلى وثيقة نظامية', 'draft');
+
+        return redirect()->route('admin.project-docs.documents.show', $annex)
+            ->with('success', 'تم التحويل — الوثيقة الآن مسودة قابلة للتقديم للاعتماد');
     }
 
     /* ------------------------------------------------------------ helpers */

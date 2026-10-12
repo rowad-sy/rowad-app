@@ -18,9 +18,14 @@ class AnnexDocument extends Model
 
     protected $fillable = [
         'template_id', 'template_version', 'title',
-        'project_id', 'period', 'status', 'page_count', 'data', 'cover_path',
+        'project_id', 'period', 'status', 'document_kind', 'page_count', 'data', 'cover_path',
         'created_by', 'assigned_to', 'signed_at',
     ];
+
+    public const KIND_STRUCTURED = 'structured';
+    public const KIND_EXTERNAL = 'external';
+
+    public const EXTERNAL_TEMPLATE_KEY = 'uploaded-external';
 
     public const STATUSES = [
         'draft' => 'مسودة',
@@ -67,6 +72,36 @@ class AnnexDocument extends Model
     public function signoffs(): HasMany
     {
         return $this->hasMany(AnnexSignoff::class, 'document_id');
+    }
+
+    public function linkedFiles(): HasMany
+    {
+        return $this->hasMany(UploadedDocument::class, 'annex_document_id');
+    }
+
+    public function sourceFile(): ?UploadedDocument
+    {
+        return $this->linkedFiles()->latest('id')->first();
+    }
+
+    public function isExternal(): bool
+    {
+        return $this->document_kind === self::KIND_EXTERNAL;
+    }
+
+    public static function externalTemplate(): AnnexTemplate
+    {
+        return AnnexTemplate::firstOrCreate(
+            ['key' => self::EXTERNAL_TEMPLATE_KEY],
+            [
+                'title_ar' => 'وثيقة مرفوعة (ملف خارجي)',
+                'slug' => 'uploaded-external',
+                'version' => 1,
+                'default_page_count' => 1,
+                'json_definition' => ['sections' => [], 'header_meta' => []],
+                'is_active' => false,
+            ]
+        );
     }
 
     public function sections(): Collection

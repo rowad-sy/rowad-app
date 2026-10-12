@@ -6,42 +6,43 @@
     <title>{{ $purchaseRequest->typeLabel() }} — {{ $purchaseRequest->request_number }}</title>
     <link href="https://fonts.bunny.net/css?family=tajawal:400,500,700&display=swap" rel="stylesheet">
     <style>
-        @page { size: A4 portrait; margin: 10mm; }
+        @page { size: A4 portrait; margin: 8mm; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Sakkal Majalla', 'Tajawal', sans-serif; color: #1F2937; padding: 4mm; font-size: 12.5px; }
-        .toolbar { margin-bottom: 12px; text-align: left; }
+        body { font-family: 'Sakkal Majalla', 'Tajawal', sans-serif; color: #1F2937; padding: 1mm; font-size: 12px; }
+        .toolbar { margin-bottom: 10px; text-align: left; }
         .toolbar button { font-family: inherit; background: #F37021; color: #1F1300; border: 0; border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 700; cursor: pointer; }
         @media print { .toolbar { display: none; } }
 
-        .doc-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #F37021; padding-bottom: 8px; margin-bottom: 10px; }
-        .doc-head img { height: 70px; }
+        .doc-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #F37021; padding-bottom: 4px; margin-bottom: 5px; }
+        .doc-head img { height: 46px; }
         .doc-head .t { text-align: center; }
-        .doc-head .t h1 { font-size: 18px; color: #D95300; }
-        .doc-head .t p { font-size: 11px; color: #64748b; }
+        .doc-head .t h1 { font-size: 15px; color: #D95300; }
+        .doc-head .t p { font-size: 10px; color: #64748b; }
 
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #94a3b8; padding: 6px 8px; text-align: right; }
+        th, td { border: 1px solid #94a3b8; padding: 2px 5px; text-align: right; }
 
-        .info td { padding: 8px; }
-        .info .lab { background: #FFF3EC; font-weight: 700; width: 24%; font-size: 11px; }
+        .info td { padding: 2px 5px; }
+        .info .lab { background: #FFF3EC; font-weight: 700; width: 24%; font-size: 10px; }
         .info .val { width: 26%; }
 
-        .items thead th { background: #F37021; color: #fff; border-color: #D95300; font-size: 11px; white-space: nowrap; }
+        .items { margin-top: 4px; }
+        .items thead th { background: #F37021; color: #fff; border-color: #D95300; font-size: 10px; white-space: nowrap; }
         .items .num { font-variant-numeric: tabular-nums; text-align: center; }
-        .items td { height: 26px; }
+        .items td { height: 15px; line-height: 1.1; }
         .items .totalrow td { background: #FFF6EE; font-weight: 700; }
         .exec-yes { color: #059669; font-weight: 700; }
         .exec-no { color: #B45309; }
 
-        .signs { margin-top: 12px; table-layout: fixed; }
-        .signs th { background: #2B2D42; color: #fff; border-color: #1F2937; font-size: 11px; padding: 8px 6px; }
-        .signs td { border-color: #94a3b8; font-size: 10.5px; }
+        .signs { margin-top: 5px; table-layout: fixed; }
+        .signs th { background: #2B2D42; color: #fff; border-color: #1F2937; font-size: 9.5px; padding: 3px 5px; }
+        .signs td { border-color: #94a3b8; font-size: 9px; }
         .signs .role { font-weight: 700; background: #F8FAFC; }
-        .signs .sigcell { height: 64px; vertical-align: middle; }
-        .signs img { max-height: 56px; max-width: 95%; }
+        .signs .sigcell { height: 40px; vertical-align: middle; }
+        .signs img { max-height: 36px; max-width: 95%; }
 
-        .status-stamp { margin-top: 10px; display: inline-block; border: 2px solid #D95300; color: #D95300; font-weight: 700; padding: 4px 16px; border-radius: 999px; }
-        .footer { margin-top: 10px; font-size: 10px; color: #64748b; display: flex; justify-content: space-between; }
+        .status-stamp { margin-top: 4px; display: inline-block; border: 2px solid #D95300; color: #D95300; font-weight: 700; padding: 2px 12px; border-radius: 999px; font-size: 11px; }
+        .footer { margin-top: 4px; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
@@ -81,7 +82,7 @@
         $display = array_slice($rows, 0, 15);
         $executedCount = collect($rows)->where('executed', true)->count();
     @endphp
-    <table class="items" style="margin-top:10px">
+    <table class="items">
         <thead>
             <tr>
                 <th style="width:4%">#</th>
@@ -125,7 +126,7 @@
         </tbody>
     </table>
 
-    <div style="margin-top:8px">
+    <div>
         <span class="status-stamp">
             {{ \App\Models\Admin\Logistics\PurchaseRequest::STATUSES[$purchaseRequest->status] ?? $purchaseRequest->status }}
             @if (in_array($purchaseRequest->status, ['approved', 'executed'], true))
@@ -147,27 +148,17 @@
             @php $blocks = [$signatures['requested_by'], $signatures['direct_manager'], $signatures['finance'], $signatures['ceo']]; @endphp
             <tr>
                 @foreach ($blocks as $b)
-                    <td><span class="role">Name:</span> {{ $b['name'] ?: '....................' }}</td>
+                    <td><span class="role">الاسم / Name:</span> {{ $b['name'] ?: '................' }}</td>
                 @endforeach
             </tr>
             <tr>
                 @foreach ($blocks as $b)
-                    <td><span class="role">الاسم:</span> {{ $b['name'] ?: '....................' }}</td>
+                    <td><span class="role">الصفة / Position:</span> {{ $b['position'] ?: '..............' }}</td>
                 @endforeach
             </tr>
             <tr>
                 @foreach ($blocks as $b)
-                    <td><span class="role">Position:</span> {{ $b['position'] ?: '................' }}</td>
-                @endforeach
-            </tr>
-            <tr>
-                @foreach ($blocks as $b)
-                    <td><span class="role">الصفة:</span> {{ $b['position'] ?: '................' }}</td>
-                @endforeach
-            </tr>
-            <tr>
-                @foreach ($blocks as $b)
-                    <td><span class="role">Date:</span> {{ $b['date'] ? \Illuminate\Support\Carbon::parse($b['date'])->format('Y-m-d') : '................' }}</td>
+                    <td><span class="role">التاريخ / Date:</span> {{ $b['date'] ? \Illuminate\Support\Carbon::parse($b['date'])->format('Y-m-d') : '............' }}</td>
                 @endforeach
             </tr>
             <tr>

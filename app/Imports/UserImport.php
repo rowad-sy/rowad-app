@@ -55,16 +55,12 @@ class UserImport implements ToCollection
 
     private function mapType(string $type): string
     {
-        $types = [
-            'سوبر أدمن' => 'super-admin',
-            'super-admin' => 'super-admin',
-            'موظف' => 'employee',
-            'employee' => 'employee',
-            'مستفيد' => 'beneficiary',
-            'beneficiary' => 'beneficiary',
-            'طالب' => 'student',
-            'student' => 'student',
-        ];
+        // معجم من TYPES: اسم عربي ↔ مفتاح + قبول المفتاح نفسه
+        $types = [];
+        foreach (\App\Models\User::TYPES as $key => $label) {
+            $types[$label] = $key;
+            $types[$key] = $key;
+        }
 
         return $types[trim($type)] ?? 'employee';
     }

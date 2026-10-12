@@ -22,9 +22,14 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <span class="text-muted small">من قالب:</span>
-        <strong>{{ $document->template->title_ar }}</strong>
-        <x-status-badge>V{{ $document->template_version }}</x-status-badge>
+        @if ($document->isExternal())
+            <span class="text-muted small">نوع الوثيقة:</span>
+            <strong><i class="bi bi-file-earmark-pdf text-danger"></i> ملف خارجي (PDF)</strong>
+        @else
+            <span class="text-muted small">من قالب:</span>
+            <strong>{{ $document->template->title_ar }}</strong>
+            <x-status-badge>V{{ $document->template_version }}</x-status-badge>
+        @endif
     </div>
     <div class="d-flex gap-2">
         <a href="{{ route('admin.project-docs.documents.help') }}" class="btn btn-outline-info" title="معلومات ونصائح">
@@ -32,18 +37,24 @@
         </a>
         @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'view')
         <a href="{{ route('admin.project-docs.documents.print', $document) }}" target="_blank" class="btn btn-outline-dark">
-            <i class="bi bi-printer"></i> طباعة A4
+            @if ($document->isExternal())
+                <i class="bi bi-file-earmark-arrow-down"></i> تحميل الملف الأصلي
+            @else
+                <i class="bi bi-printer"></i> طباعة A4
+            @endif
         </a>
         @endcanPermission
         @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'create')
+        @if (!$document->isExternal())
         <form method="POST" action="{{ route('admin.project-docs.documents.duplicate', $document) }}"
               onsubmit="return confirm('إنشاء نسخة جديدة من هذه الوثيقة بكل محتواها لتعديلها؟')">
             @csrf
             <button class="btn btn-outline-primary"><i class="bi bi-files"></i> نسخة جديدة</button>
         </form>
+        @endif
         @endcanPermission
         @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'edit')
-        @if (in_array($document->status, ['draft', 'rejected'], true))
+        @if (in_array($document->status, ['draft', 'rejected'], true) && !$document->isExternal())
         <a href="{{ route('admin.project-docs.documents.edit', $document) }}" class="btn btn-primary">
             <i class="bi bi-pencil"></i> تعبئة/تعديل
         </a>
@@ -63,7 +74,7 @@
         @endif
         @endcanPermission
         @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'delete')
-        @if ($document->status === 'draft' && ($isCreator || auth()->user()->type === 'super-admin'))
+        @if ($document->status === 'draft')
         <form method="POST" action="{{ route('admin.project-docs.documents.destroy', $document) }}"
               onsubmit="return confirm('حذف الوثيقة نهائياً؟')">
             @csrf @method('DELETE')
@@ -91,6 +102,44 @@
                 </div>
             </div>
         </div>
+
+        @if ($document->isExternal())
+            @php $srcFile = $document->linkedFiles->sortByDesc('id')->first(); @endphp
+            <div class="card mb-3">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <span class="fw-bold"><i class="bi bi-paperclip"></i> الملف الأصلي</span>
+                    @if ($srcFile)
+                        <div class="d-flex gap-2">
+                            <a class="btn btn-sm btn-outline-info" href="{{ $srcFile->fileUrl() }}" target="_blank" rel="noopener">
+                                <i class="bi bi-box-arrow-up-right"></i> عرض في تبويب جديد
+                            </a>
+                            <a class="btn btn-sm btn-outline-dark" href="{{ route('admin.project-docs.documents.file', $document) }}">
+                                <i class="bi bi-download"></i> تنزيل الملف
+                            </a>
+                        </div>
+                    @endif
+                </div>
+                <div class="card-body small">
+                    @if ($srcFile)
+                        <div class="row">
+                            <div class="col-md-6 mb-1"><span class="text-muted">اسم الملف:</span> <strong dir="ltr">{{ $srcFile->file_name ?: $srcFile->title }}</strong></div>
+                            <div class="col-md-3 mb-1"><span class="text-muted">الحجم:</span> <strong>{{ $srcFile->file_size ? number_format($srcFile->file_size / 1024, 1) . ' كب' : '—' }}</strong></div>
+                            <div class="col-md-3 mb-1"><span class="text-muted">التصنيف:</span> <strong>{{ $srcFile->categoryLabel() }}</strong></div>
+                            <div class="col-md-6 mb-1"><span class="text-muted">تاريخ الوثيقة:</span> <strong>{{ $srcFile->document_date?->format('d/m/Y') ?? '—' }}</strong></div>
+                        </div>
+                        @canPermission('App\Models\Admin\ProjectDocs\UploadedDocument', 'view')
+                            <div class="text-muted mt-2">
+                                <i class="bi bi-archive"></i>
+                                محفوظ في أرشيف الوثائق برقم
+                                <a href="{{ route('admin.documents-archive.show', $srcFile) }}">#{{ $srcFile->id }}</a>
+                            </div>
+                        @endcanPermission
+                    @else
+                        <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> لا يوجد ملف مرتبط — قد يكون حُذف من الأرشيف.</span>
+                    @endif
+                </div>
+            </div>
+        @endif
 
         @foreach ($document->sections() as $section)
             @php

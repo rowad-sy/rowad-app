@@ -945,7 +945,7 @@ a.app-tile:hover .app-go { color: var(--color-primary-text); }
     }
     .print-sheet table { width: 100%; border-collapse: collapse; font-size: 11px; }
     .print-sheet th, .print-sheet td { border: 1px solid #94a3b8; padding: 5px 8px; text-align: right; }
-    .print-sheet thead th { background: #F37021; color: #fff; border-color: #D95300; }
+    .print-sheet thead th { background: #ff8427; color: #fff; border-color: #d96a10; }
     .print-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .print-header img { height: 70px; }
     .print-noscreen { display: none !important; }
