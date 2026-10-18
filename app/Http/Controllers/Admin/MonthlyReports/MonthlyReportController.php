@@ -60,11 +60,11 @@ class MonthlyReportController extends Controller
             'title' => 'nullable|string|max:255',
             'project_id' => 'nullable|exists:projects,id',
             'period' => 'nullable|string|max:20',
-            'page_count' => 'required|integer|min:1|max:60',
         ]);
 
         $template = MonthlyReportTemplate::findOrFail($validated['template_id']);
-        $pageCount = (int) $validated['page_count'];
+        // عدد الصفحات يُقرأ حصراً من القالب — لا يُقبل من نموذج التقرير
+        $pageCount = max(1, min(60, (int) ($template->default_page_count ?? 1)));
 
         $report = MonthlyReport::create([
             'template_id' => $template->id,
@@ -195,14 +195,8 @@ class MonthlyReportController extends Controller
             $report->update(['cover_path' => null]);
         }
 
+        // عدد الصفحات غير قابل للتعديل من التقرير — يُدار من القالب فقط
         $pageCount = max(1, (int) $report->page_count);
-        if ($request->filled('page_count')) {
-            $validatedCount = $request->validate([
-                'page_count' => 'integer|min:1|max:60',
-            ])['page_count'];
-            $pageCount = (int) $validatedCount;
-            $report->update(['page_count' => $pageCount]);
-        }
 
         $blocksInput = $request->input('blocks', []);
         $locksInput = $request->input('lock', []);

@@ -51,11 +51,8 @@
     </div>
 
     @if ($report->status === 'draft')
-    <div class="row align-items-end mb-3">
-        <div class="col-auto">
-            <label class="form-label mb-1 small text-muted">عدد صفحات التقرير (قابل للتعديل)</label>
-            <input type="number" name="page_count" min="1" max="60" value="{{ $pageCount }}" class="form-control form-control-sm" style="width: 120px;">
-        </div>
+    <div class="alert alert-light border small py-2 mb-3">
+        <i class="bi bi-info-circle"></i> عدد صفحات التقرير <strong>{{ $pageCount }}</strong> مرسوم من القالب ولا يُعدّل من هنا — لتغييره عدّل «عدد الصفحات الافتراضي» في القالب ثم أنشئ تقريراً جديداً.
     </div>
     @endif
 

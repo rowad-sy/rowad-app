@@ -43,7 +43,6 @@ it('inherits template default pages and clamps section pages on monthly report c
         ->post(route('admin.monthly-reports.store'), [
             'template_id' => $template->id,
             'title' => 'تقرير اختباري',
-            'page_count' => 3,
         ])
         ->assertStatus(302);
 
@@ -84,7 +83,7 @@ it('renders multi-page monthly report print with logo identity', function () {
         ->assertSee('الخاتمة');
 });
 
-it('moves a monthly report section to another page and updates page count', function () {
+it('moves a monthly report section to another page while any posted page count is ignored', function () {
     $user = pagesSuperAdmin();
     $template = monthlyTemplate();
 
@@ -103,14 +102,14 @@ it('moves a monthly report section to another page and updates page count', func
     }
 
     $this->actingAs($user)->put(route('admin.monthly-reports.update', $report), [
-        'page_count' => '4',
+        'page_count' => '99',
         'blocks' => ['body' => ['paragraph' => 'نص محدث']],
-        'lock' => ['body_page' => '4'],
+        'lock' => ['body_page' => '3'],
     ])->assertStatus(302);
 
     $report->refresh();
-    expect($report->page_count)->toBe(4)
-        ->and($report->blocks->firstWhere('block_key', 'body')->page_number)->toBe(4)
+    expect($report->page_count)->toBe(3)
+        ->and($report->blocks->firstWhere('block_key', 'body')->page_number)->toBe(3)
         ->and($report->blocks->firstWhere('block_key', 'body')->json_value)->toBe('نص محدث');
 });
 
@@ -244,7 +243,6 @@ it('attaches an A4 cover printed as the first page of a monthly report', functio
     $this->actingAs($user)->post(route('admin.monthly-reports.store'), [
         'template_id' => $template->id,
         'title' => 'تقرير بغلاف',
-        'page_count' => 3,
     ])->assertStatus(302);
 
     $report = MonthlyReport::firstWhere('title', 'تقرير بغلاف');
