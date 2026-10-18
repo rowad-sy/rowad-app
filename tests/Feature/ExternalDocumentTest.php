@@ -60,9 +60,12 @@ it('creates an external PDF document that enters the full approval lifecycle', f
         ->and($linked->project_id)->toBe($project->id)
         ->and(Storage::disk('public')->exists($linked->file_path))->toBeTrue();
 
-    // بلا أقسام — التقديم للمراجعة ينجح فوراً
-    $this->actingAs($user)->post(route('admin.project-docs.documents.submit', $document))->assertRedirect();
-    expect($document->refresh()->status)->toBe('under_review');
+    // بلا أقسام — التقديم للمراجعة ينجح فوراً (مع تحديد المُحال إليه)
+    $this->actingAs($user)->post(route('admin.project-docs.documents.submit', $document), [
+        'reviewer_id' => $user->id,
+    ])->assertRedirect();
+    expect($document->refresh()->status)->toBe('under_review')
+        ->and($document->assigned_to)->toBe($user->id);
 
     // الاعتماد يعمل كأي وثيقة
     $this->actingAs($user)->post(route('admin.project-docs.documents.signoff', $document), [

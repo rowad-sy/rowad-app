@@ -9,6 +9,7 @@ use App\Models\Admin\ProjectDocs\AnnexDocument;
 use App\Models\Admin\ProjectDocs\AnnexDocumentBlock;
 use App\Models\Admin\ProjectDocs\AnnexTemplate;
 use App\Models\Admin\ProjectDocs\UploadedDocument;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -18,7 +19,7 @@ class AnnexDocumentController extends Controller
     {
         $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,view')->only(['show', 'printDocument', 'file']);
         $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,create')->only(['create', 'store', 'duplicate']);
-        $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,edit')->only(['edit', 'update', 'submit', 'reopen', 'signoff']);
+        $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,edit')->only(['edit', 'update', 'submit', 'reopen', 'signoff', 'reassign']);
         $this->middleware('permission:App\Models\Admin\ProjectDocs\AnnexDocument,delete')->only(['destroy']);
     }
 
@@ -203,7 +204,6 @@ class AnnexDocumentController extends Controller
             'title' => 'nullable|string|max:255',
             'project_id' => 'nullable|exists:projects,id',
             'period' => 'nullable|string|max:20',
-            'page_count' => 'required_if:mode,structured|nullable|integer|min:1|max:60',
             'category' => 'required_if:mode,external|nullable|string|in:' . implode(',', array_keys(UploadedDocument::CATEGORIES)),
             'document_date' => 'nullable|date',
             'file' => 'required_if:mode,external|nullable|file|mimes:pdf|max:25600',
@@ -219,7 +219,8 @@ class AnnexDocumentController extends Controller
         }
 
         $template = AnnexTemplate::findOrFail($validated['template_id']);
-        $pageCount = (int) $validated['page_count'];
+        // عدد الصفحات يُقرأ حصراً من القالب — لا يُقبل من نموذج الوثيقة
+        $pageCount = max(1, min(60, (int) ($template->default_page_count ?? 1)));
 
         $document = AnnexDocument::create([
             'template_id' => $template->id,
@@ -360,7 +361,12 @@ class AnnexDocumentController extends Controller
     {
         $document->load(['template', 'project', 'creator', 'assignee', 'blocks.updater', 'signoffs.user', 'workflowActions.fromUser', 'workflowActions.toUser', 'linkedFiles']);
 
-        return view('admin.project-docs.documents.show', compact('document'));
+        // قائمة المستخدمين لمنسدلة الإحالة (عند الإرسال أو إعادة الإحالة)
+        $reviewers = in_array($document->status, ['draft', 'under_review'], true)
+            ? User::orderBy('name')->get()
+            : collect();
+
+        return view('admin.project-docs.documents.show', compact('document', 'reviewers'));
     }
 
     public function edit(AnnexDocument $document)
@@ -404,14 +410,8 @@ class AnnexDocumentController extends Controller
             $document->update(['cover_path' => null]);
         }
 
+        // عدد الصفحات غير قابل للتعديل من الوثيقة — يُدار من القالب فقط
         $pageCount = (int) $document->page_count;
-        if ($request->filled('page_count')) {
-            $validatedCount = $request->validate([
-                'page_count' => 'integer|min:1|max:60',
-            ])['page_count'];
-            $pageCount = (int) $validatedCount;
-            $document->update(['page_count' => $pageCount]);
-        }
 
         $blocksInput = $request->input('blocks', []);
         $locksInput = $request->input('lock', []);
@@ -445,7 +445,7 @@ class AnnexDocumentController extends Controller
         return back()->with('success', 'تم حفظ الأقسام');
     }
 
-    public function submit(AnnexDocument $document)
+    public function submit(Request $request, AnnexDocument $document)
     {
         $missing = $document->missingSections();
 
@@ -453,11 +453,20 @@ class AnnexDocumentController extends Controller
             return back()->with('error', 'أقسام ناقصة قبل الإرسال: ' . implode('، ', $missing));
         }
 
-        $document->blocks()->update(['locked' => true]);
-        $document->update(['status' => 'under_review']);
-        $document->logWorkflow('submit', null, 'أُرسلت الوثيقة للمراجعة', 'under_review');
+        $validated = $request->validate([
+            'reviewer_id' => 'required|exists:users,id',
+        ], [
+            'reviewer_id.required' => 'اختر المُحال إليه للمراجعة قبل الإرسال.',
+        ]);
 
-        return back()->with('success', 'أُرسلت الوثيقة للمراجعة — أقسامها مقفلة الآن');
+        $document->blocks()->update(['locked' => true]);
+        $document->update([
+            'status' => 'under_review',
+            'assigned_to' => (int) $validated['reviewer_id'],
+        ]);
+        $document->logWorkflow('submit', (int) $validated['reviewer_id'], 'أُرسلت الوثيقة للمراجعة', 'under_review');
+
+        return back()->with('success', 'أُرسلت الوثيقة للمراجعة — أقسامها مقفلة، محالة إلى ' . ($document->assignee?->name ?? ''));
     }
 
     public function reopen(AnnexDocument $document)
@@ -467,8 +476,8 @@ class AnnexDocumentController extends Controller
         }
 
         $document->blocks()->update(['locked' => false]);
-        $document->update(['status' => 'draft', 'signed_at' => null]);
-        $document->logWorkflow('reopen', null, 'أُعيد فتح الوثيقة للتعديل', 'draft');
+        $document->update(['status' => 'draft', 'signed_at' => null, 'assigned_to' => null]);
+        $document->logWorkflow('reopen', null, 'أُعيد فتح الوثيقة للتعديل — تُلغى الإحالة السابقة', 'draft');
 
         return redirect()->route('admin.project-docs.documents.edit', $document)
             ->with('success', 'أُعيد فتح الوثيقة للتعديل');
@@ -487,6 +496,16 @@ class AnnexDocumentController extends Controller
 
         if ($document->isApproved()) {
             return back()->with('error', 'الوثيقة معتمدة بالفعل');
+        }
+
+        // نظام الإحالة: الاعتماد/الرفض للمُحال إليه وحده (super-admin ليس استثناءً)،
+        // والتعليق أثناء المراجعة كذلك. خارج المراجعة يبقى التعليق مفتوحاً لأصحاب edit.
+        $requiresAssignee = in_array($validated['action'], ['approve', 'reject'], true)
+            || ($validated['action'] === 'comment' && $document->status === 'under_review');
+        if ($requiresAssignee && (int) $document->assigned_to !== (int) auth()->id()) {
+            return back()->with('error', $document->assigned_to
+                ? 'هذه الوثيقة مُحال إليها إلى ' . ($document->assignee?->name ?? 'مستخدم آخر') . ' — لا يملك غيره الاعتماد أو التعليق'
+                : 'هذه الوثيقة غير مُحال إليها (أُرسلت قبل نظام الإحالة) — لا يمكن اعتمادها قبل إعادة الإحالة');
         }
 
         $role = auth()->user()->jobTitle?->title_ar;
@@ -516,6 +535,37 @@ class AnnexDocumentController extends Controller
         $document->logWorkflow('comment', null, $validated['note'] ?? null);
 
         return back()->with('success', 'تمت إضافة الملاحظة');
+    }
+
+    /*
+     * إعادة الإحالة: للمُحال إليه الحالي أو مدير النظام (super-admin) فقط،
+     * وتعمل فقط على الوثائق قيد المراجعة — تُستخدم أيضاً لإحالة الوثائق
+     * القديمة التي أُرسلت قبل نظام الإحالة (assigned_to = null).
+     */
+    public function reassign(Request $request, AnnexDocument $document)
+    {
+        $actor = auth()->user();
+        $isCurrentAssignee = $document->assigned_to !== null && (int) $document->assigned_to === (int) $actor->id;
+
+        if (! $isCurrentAssignee && $actor->type !== 'super-admin') {
+            return back()->with('error', 'إعادة الإحالة متاحة للمُحال إليه أو مدير النظام فقط');
+        }
+
+        if ($document->status !== 'under_review') {
+            return back()->with('error', 'إعادة الإحالة متاحة فقط للوثائق قيد المراجعة');
+        }
+
+        $validated = $request->validate([
+            'reviewer_id' => 'required|exists:users,id',
+        ], [
+            'reviewer_id.required' => 'اختر المستخدم المُحال إليه.',
+        ]);
+
+        $newReviewerId = (int) $validated['reviewer_id'];
+        $document->update(['assigned_to' => $newReviewerId]);
+        $document->logWorkflow('reassign', $newReviewerId, 'أُعيدت الإحالة إلى ' . ($document->assignee?->name ?? ''), 'under_review');
+
+        return back()->with('success', 'أُعيدت الإحالة إلى ' . ($document->assignee?->name ?? ''));
     }
 
     public function printDocument(AnnexDocument $document)

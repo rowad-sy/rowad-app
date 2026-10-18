@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\MonthlyReports\MonthlyReport;
 use App\Models\Admin\MonthlyReports\MonthlyReportTemplate;
 use App\Models\Admin\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class MonthlyReportController extends Controller
@@ -15,7 +16,7 @@ class MonthlyReportController extends Controller
     {
         $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,view')->only(['index', 'show', 'printDocument']);
         $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,create')->only(['create', 'store', 'duplicate']);
-        $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,edit')->only(['edit', 'update', 'submit', 'reopen', 'signoff']);
+        $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,edit')->only(['edit', 'update', 'submit', 'reopen', 'signoff', 'reassign']);
         $this->middleware('permission:App\Models\Admin\MonthlyReports\MonthlyReport,delete')->only(['destroy']);
     }
 
@@ -150,7 +151,12 @@ class MonthlyReportController extends Controller
     {
         $report->load(['template', 'project', 'creator', 'assignee', 'blocks.updater', 'signoffs.user', 'workflowActions.fromUser', 'workflowActions.toUser']);
 
-        return view('admin.monthly-reports.show', compact('report'));
+        // قائمة المستخدمين لمنسدلة الإحالة (عند الإرسال أو إعادة الإحالة)
+        $reviewers = in_array($report->status, ['draft', 'under_review'], true)
+            ? User::orderBy('name')->get()
+            : collect();
+
+        return view('admin.monthly-reports.show', compact('report', 'reviewers'));
     }
 
     public function edit(MonthlyReport $report)
@@ -230,7 +236,7 @@ class MonthlyReportController extends Controller
         return back()->with('success', 'تم حفظ الأقسام');
     }
 
-    public function submit(MonthlyReport $report)
+    public function submit(Request $request, MonthlyReport $report)
     {
         $missing = $report->missingSections();
 
@@ -238,11 +244,20 @@ class MonthlyReportController extends Controller
             return back()->with('error', 'أقسام ناقصة قبل الإرسال: ' . implode('، ', $missing));
         }
 
-        $report->blocks()->update(['locked' => true]);
-        $report->update(['status' => 'under_review']);
-        $report->logWorkflow('submit', null, 'أُرسل التقرير للمراجعة', 'under_review');
+        $validated = $request->validate([
+            'reviewer_id' => 'required|exists:users,id',
+        ], [
+            'reviewer_id.required' => 'اختر المُحال إليه للمراجعة قبل الإرسال.',
+        ]);
 
-        return back()->with('success', 'أُرسل التقرير للمراجعة — أقسامه مقفلة الآن');
+        $report->blocks()->update(['locked' => true]);
+        $report->update([
+            'status' => 'under_review',
+            'assigned_to' => (int) $validated['reviewer_id'],
+        ]);
+        $report->logWorkflow('submit', (int) $validated['reviewer_id'], 'أُرسل التقرير للمراجعة', 'under_review');
+
+        return back()->with('success', 'أُرسل التقرير للمراجعة — أقسامه مقفلة، محال إلى ' . ($report->assignee?->name ?? ''));
     }
 
     public function reopen(MonthlyReport $report)
@@ -252,8 +267,8 @@ class MonthlyReportController extends Controller
         }
 
         $report->blocks()->update(['locked' => false]);
-        $report->update(['status' => 'draft', 'signed_at' => null]);
-        $report->logWorkflow('reopen', null, 'أُعيد فتح التقرير للتعديل', 'draft');
+        $report->update(['status' => 'draft', 'signed_at' => null, 'assigned_to' => null]);
+        $report->logWorkflow('reopen', null, 'أُعيد فتح التقرير للتعديل — تُلغى الإحالة السابقة', 'draft');
 
         return redirect()->route('admin.monthly-reports.edit', $report)
             ->with('success', 'أُعيد فتح التقرير للتعديل');
@@ -272,6 +287,16 @@ class MonthlyReportController extends Controller
 
         if ($report->isApproved()) {
             return back()->with('error', 'التقرير معتمد بالفعل');
+        }
+
+        // نظام الإحالة: الاعتماد/الرفض للمُحال إليه وحده (super-admin ليس استثناءً)،
+        // والتعليق أثناء المراجعة كذلك. خارج المراجعة يبقى التعليق مفتوحاً لأصحاب edit.
+        $requiresAssignee = in_array($validated['action'], ['approve', 'reject'], true)
+            || ($validated['action'] === 'comment' && $report->status === 'under_review');
+        if ($requiresAssignee && (int) $report->assigned_to !== (int) auth()->id()) {
+            return back()->with('error', $report->assigned_to
+                ? 'التقرير مُحال إليه إلى ' . ($report->assignee?->name ?? 'مستخدم آخر') . ' — لا يملك غيره الاعتماد أو التعليق'
+                : 'التقرير غير مُحال إليه (أُرسل قبل نظام الإحالة) — لا يمكن اعتماده قبل إعادة الإحالة');
         }
 
         $role = auth()->user()->jobTitle?->title_ar;
@@ -301,6 +326,37 @@ class MonthlyReportController extends Controller
         $report->logWorkflow('comment', null, $validated['note'] ?? null);
 
         return back()->with('success', 'تمت إضافة الملاحظة');
+    }
+
+    /*
+     * إعادة الإحالة: للمُحال إليه الحالي أو مدير النظام (super-admin) فقط،
+     * وتعمل فقط على التقارير قيد المراجعة — تُستخدم أيضاً لإحالة التقارير
+     * القديمة التي أُرسلت قبل نظام الإحالة (assigned_to = null).
+     */
+    public function reassign(Request $request, MonthlyReport $report)
+    {
+        $actor = auth()->user();
+        $isCurrentAssignee = $report->assigned_to !== null && (int) $report->assigned_to === (int) $actor->id;
+
+        if (! $isCurrentAssignee && $actor->type !== 'super-admin') {
+            return back()->with('error', 'إعادة الإحالة متاحة للمُحال إليه أو مدير النظام فقط');
+        }
+
+        if ($report->status !== 'under_review') {
+            return back()->with('error', 'إعادة الإحالة متاحة فقط للتقارير قيد المراجعة');
+        }
+
+        $validated = $request->validate([
+            'reviewer_id' => 'required|exists:users,id',
+        ], [
+            'reviewer_id.required' => 'اختر المستخدم المُحال إليه.',
+        ]);
+
+        $newReviewerId = (int) $validated['reviewer_id'];
+        $report->update(['assigned_to' => $newReviewerId]);
+        $report->logWorkflow('reassign', $newReviewerId, 'أُعيدت الإحالة إلى ' . ($report->assignee?->name ?? ''), 'under_review');
+
+        return back()->with('success', 'أُعيدت الإحالة إلى ' . ($report->assignee?->name ?? ''));
     }
 
     public function printDocument(MonthlyReport $report)

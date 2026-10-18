@@ -63,7 +63,16 @@
         <form method="POST" action="{{ route('admin.project-docs.documents.submit', $document) }}"
               onsubmit="return confirm('إرسال الوثيقة للمراجعة؟ ستُقفل كل الأقسام.')">
             @csrf
-            <button class="btn btn-success"><i class="bi bi-send"></i> إرسال للمراجعة</button>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <select name="reviewer_id" class="form-select form-select-sm" style="min-width: 190px;" required
+                        aria-label="المُحال إليه للمراجعة">
+                    <option value="">المُحال إليه للمراجعة...</option>
+                    @foreach ($reviewers as $u)
+                        <option value="{{ $u->id }}" {{ old('reviewer_id') == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+                    @endforeach
+                </select>
+                <button class="btn btn-success text-nowrap"><i class="bi bi-send"></i> إرسال للمراجعة</button>
+            </div>
         </form>
         @endif
         @if ($document->status === 'rejected' && $isCreator)
@@ -94,6 +103,7 @@
                     <div class="col-md-4 mb-1"><span class="text-muted">المشروع:</span> <strong>{{ $document->project?->name ?? '—' }}</strong></div>
                     <div class="col-md-4 mb-1"><span class="text-muted">الفترة:</span> <strong>{{ $document->period ?? '—' }}</strong></div>
                     <div class="col-md-4 mb-1"><span class="text-muted">المنشئ:</span> <strong>{{ $document->creator?->name }}</strong></div>
+                    <div class="col-md-4 mb-1"><span class="text-muted">المُحال إليه للمراجعة:</span> <strong>{{ $document->assignee?->name ?? '—' }}</strong></div>
                     <div class="col-md-4 mb-1"><span class="text-muted">الاعتماد:</span>
                         <strong>{{ $document->signed_at ? \Illuminate\Support\Carbon::parse($document->signed_at)->format('d/m/Y H:i') : '—' }}</strong>
                     </div>
@@ -183,29 +193,70 @@
 
     <div class="col-lg-4">
         @canPermission('App\Models\Admin\ProjectDocs\AnnexDocument', 'edit')
+        @php
+            $isReviewer = $document->assigned_to !== null && (int) $document->assigned_to === (int) auth()->id();
+            $showComment = $document->status !== 'under_review' || $isReviewer;
+            $canReassign = $isReviewer || auth()->user()->type === 'super-admin';
+        @endphp
         @if ($document->status === 'under_review')
-        <div class="card mb-3">
-            <div class="card-header bg-light fw-bold">الاعتماد / الرفض</div>
-            <div class="card-body">
-                <form method="POST" action="{{ route('admin.project-docs.documents.signoff', $document) }}">
-                    @csrf
-                    <div class="mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="action" value="approve" id="aApproved">
-                            <label class="form-check-label" for="aApproved">اعتماد نهائي</label>
+            @if ($isReviewer)
+            <div class="card mb-3">
+                <div class="card-header bg-light fw-bold">الاعتماد / الرفض</div>
+                <div class="card-body">
+                    <form method="POST" action="{{ route('admin.project-docs.documents.signoff', $document) }}">
+                        @csrf
+                        <div class="mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="action" value="approve" id="aApproved">
+                                <label class="form-check-label" for="aApproved">اعتماد نهائي</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="action" value="reject" id="aRejected">
+                                <label class="form-check-label" for="aRejected">رفض</label>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="action" value="reject" id="aRejected">
-                            <label class="form-check-label" for="aRejected">رفض</label>
-                        </div>
-                    </div>
-                    <textarea name="note" rows="3" class="form-control mb-2" placeholder="ملاحظة / تعليل..."></textarea>
-                    <button class="btn btn-success w-100">توقيع</button>
-                </form>
+                        <textarea name="note" rows="3" class="form-control mb-2" placeholder="ملاحظة / تعليل..."></textarea>
+                        <button class="btn btn-success w-100">توقيع</button>
+                    </form>
+                </div>
             </div>
-        </div>
+            @else
+            <div class="card mb-3">
+                <div class="card-header bg-light fw-bold">حالة المراجعة</div>
+                <div class="card-body">
+                    @if ($document->assigned_to)
+                        <div class="alert alert-info py-2 mb-0 small">
+                            <i class="bi bi-person-check"></i> بانتظار مراجعة <strong>{{ $document->assignee?->name }}</strong> — الاعتماد والتعليق منصوصان له وحده.
+                        </div>
+                    @else
+                        <div class="alert alert-warning py-2 mb-0 small">
+                            <i class="bi bi-exclamation-triangle"></i> وثيقة أُرسلت قبل نظام الإحالة — <strong>غير مُحال إليها</strong>، ولا يمكن اعتمادها حتى تُحال.
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @endif
+
+            @if ($canReassign)
+            <div class="card mb-3">
+                <div class="card-header bg-light fw-bold"><i class="bi bi-arrow-repeat"></i> إعادة الإحالة</div>
+                <div class="card-body">
+                    <form method="POST" action="{{ route('admin.project-docs.documents.reassign', $document) }}" class="d-flex gap-2">
+                        @csrf
+                        <select name="reviewer_id" class="form-select form-select-sm" required aria-label="المراجع الجديد">
+                            <option value="">اختر المراجع...</option>
+                            @foreach ($reviewers as $u)
+                                <option value="{{ $u->id }}" {{ old('reviewer_id') == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+                            @endforeach
+                        </select>
+                        <button class="btn btn-outline-primary btn-sm text-nowrap">إحالة</button>
+                    </form>
+                </div>
+            </div>
+            @endif
         @endif
 
+        @if ($showComment)
         <div class="card mb-3">
             <div class="card-header bg-light fw-bold">إضافة ملاحظة (تعليق)</div>
             <div class="card-body">
@@ -217,6 +268,7 @@
                 </form>
             </div>
         </div>
+        @endif
         @endcanPermission
 
         <div class="card mb-3">

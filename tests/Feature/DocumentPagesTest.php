@@ -136,7 +136,6 @@ it('inherits section pages from annex template on document creation', function (
             'mode' => 'structured',
             'template_id' => $template->id,
             'title' => 'وثيقة اختبارية',
-            'page_count' => 2,
         ])
         ->assertStatus(302);
 
@@ -150,6 +149,44 @@ it('inherits section pages from annex template on document creation', function (
         ->assertSee('branding/logo.png', false)
         ->assertDontSee('Picture1.jpg')
         ->assertSee('صفحة 2 من 2');
+});
+
+it('ignores any posted page_count on document store and update — template owns the count', function () {
+    $user = pagesSuperAdmin();
+
+    $template = AnnexTemplate::create([
+        'key' => 'smr-fixed-pages',
+        'title_ar' => 'قالب صفحات ثابتة',
+        'version' => 1,
+        'default_page_count' => 3,
+        'is_active' => true,
+        'json_definition' => [
+            'sections' => [
+                ['key' => 'a', 'title' => 'قسم أ', 'type' => 'paragraph', 'page' => 1],
+            ],
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('admin.project-docs.documents.store'), [
+            'mode' => 'structured',
+            'template_id' => $template->id,
+            'title' => 'وثيقة بعدد مرفوض',
+            'page_count' => 5,
+        ])
+        ->assertStatus(302);
+
+    $document = AnnexDocument::firstWhere('title', 'وثيقة بعدد مرفوض');
+    expect($document->page_count)->toBe(3);
+
+    $this->actingAs($user)
+        ->put(route('admin.project-docs.documents.update', $document), [
+            'page_count' => 1,
+            'blocks' => ['a' => ['paragraph' => 'نص']],
+        ])
+        ->assertStatus(302);
+
+    expect($document->refresh()->page_count)->toBe(3);
 });
 
 it('attaches an A4 cover printed as the first page of an annex document, and removes it', function () {
@@ -168,7 +205,6 @@ it('attaches an A4 cover printed as the first page of an annex document, and rem
         'mode' => 'structured',
         'template_id' => $template->id,
         'title' => 'وثيقة بغلاف',
-        'page_count' => 1,
     ])->assertStatus(302);
 
     $document = AnnexDocument::firstWhere('title', 'وثيقة بغلاف');

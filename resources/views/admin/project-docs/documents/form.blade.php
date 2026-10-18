@@ -57,10 +57,8 @@
 
                     <div class="mb-3">
                         <label class="form-label">عدد الصفحات</label>
-                        <input type="number" name="page_count" id="pageCountInput" class="form-control @error('page_count') is-invalid @enderror"
-                               min="1" max="60" value="{{ old('page_count', 1) }}">
-                        @error('page_count') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        <div class="form-text">القيمة الافتراضية تُقرأ من القالب — توزيع الأقسام على الصفحات يتم لاحقاً من صفحة التعبئة</div>
+                        <div class="form-control-plaintext border rounded bg-light px-3 py-2 fw-bold d-inline-block" id="pageCountDisplay">—</div>
+                        <div class="form-text">مرسوم من القالب المختار — للتغيير عدّل «عدد الصفحات الافتراضي» في القالب نفسه</div>
                     </div>
                 </div>
 
@@ -143,16 +141,16 @@
 @push('scripts')
 <script>
 const templateSelect = document.getElementById('templateSelect');
-const pageCountInput = document.getElementById('pageCountInput');
+const pageCountDisplay = document.getElementById('pageCountDisplay');
 const templateHint = document.getElementById('templateHint');
 const structuredFields = document.getElementById('structuredFields');
 const externalFields = document.getElementById('externalFields');
 
-function applyTemplateInfo(setPages) {
+function applyTemplateInfo() {
     const opt = templateSelect.options[templateSelect.selectedIndex];
-    if (!opt.value) { templateHint.textContent = ''; return; }
+    if (!opt.value) { templateHint.textContent = ''; pageCountDisplay.textContent = '—'; return; }
     templateHint.textContent = 'الإصدار V' + opt.dataset.version + ' — ' + opt.dataset.sections + ' أقسام — ' + opt.dataset.pages + ' صفحة افتراضياً';
-    if (setPages || pageCountInput.value === '1') pageCountInput.value = opt.dataset.pages;
+    pageCountDisplay.textContent = opt.dataset.pages + ' صفحة';
 }
 
 function applyMode() {
@@ -165,8 +163,8 @@ function applyMode() {
 
 document.getElementById('modeStructured').addEventListener('change', applyMode);
 document.getElementById('modeExternal').addEventListener('change', applyMode);
-templateSelect.addEventListener('change', () => applyTemplateInfo(true));
-applyTemplateInfo(false);
+templateSelect.addEventListener('change', applyTemplateInfo);
+applyTemplateInfo();
 applyMode();
 </script>
 @endpush
