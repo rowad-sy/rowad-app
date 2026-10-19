@@ -586,11 +586,17 @@ class MovementPlanController extends Controller
 
     private function nextRequestNumber(): string
     {
-        return 'MOV-' . now()->year . '-' . str_pad(
-            (string) (MovementPlan::count() + 1),
-            4,
-            '0',
-            STR_PAD_LEFT
-        );
+        $prefix = 'MOV-' . now()->year . '-';
+
+        $last = (int) MovementPlan::where('request_number', 'like', $prefix . '%')
+            ->pluck('request_number')
+            ->map(fn (string $number): int => (int) substr($number, strlen($prefix)))
+            ->max();
+
+        do {
+            $candidate = $prefix . str_pad((string) ++$last, 4, '0', STR_PAD_LEFT);
+        } while (MovementPlan::where('request_number', $candidate)->exists());
+
+        return $candidate;
     }
 }

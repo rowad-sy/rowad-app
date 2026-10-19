@@ -535,3 +535,23 @@ test('per-plan print and excel exports respect visibility', function () {
     $this->actingAs($outsider)->get(route('admin.movement-plans.print-one', $plan))->assertStatus(403);
     $this->actingAs($outsider)->get(route('admin.movement-plans.export-one', $plan))->assertStatus(403);
 });
+
+test('creating again after a deletion never reuses an existing request number', function () {
+    $pm = movementUser();
+    movementPermission($pm, ['can_create' => true, 'can_delete' => true, 'can_edit' => true]);
+
+    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields())->assertRedirect();
+    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields())->assertRedirect();
+
+    expect(MovementPlan::pluck('request_number')->unique()->count())->toBe(2);
+
+    $first = MovementPlan::orderBy('id')->first();
+    $this->actingAs($pm)->delete("/admin/movement-plans/{$first->id}")->assertRedirect();
+
+    $response = $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
+    $response->assertRedirect();
+
+    $numbers = MovementPlan::pluck('request_number');
+    expect($numbers->count())->toBe(2)
+        ->and($numbers->unique()->count())->toBe(2);
+});
