@@ -204,7 +204,14 @@
         @endif
         @endcanPermission
 
-        @if (! in_array($plan->status, ['completed', 'rejected', 'cancelled'], true))
+        @php
+            $referColumn = $plan->status === 'review' ? $plan->refer_to_pm2_id : $plan->refer_to_movement_officer_id;
+            $canReRefer = $isSuper
+                || $isCurrentHolder
+                || ($plan->status === 'review' ? ($isPm2 || (int) $plan->created_by === $uid) : $isOfficer)
+                || $referColumn === null;
+        @endphp
+        @if (! in_array($plan->status, ['completed', 'rejected', 'cancelled'], true) && $canReRefer)
         <div class="table-container mb-3">
             <div class="p-3 border-bottom"><h5 class="mb-0">إعادة إحالة</h5></div>
             <div class="p-3">

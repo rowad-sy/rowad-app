@@ -204,7 +204,7 @@ class MovementPlanController extends Controller
     public function create()
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
 
         $employee = Employee::where('user_id', auth()->id())->first();
@@ -221,7 +221,7 @@ class MovementPlanController extends Controller
         $this->authorizeEditable($movementPlan);
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
 
         $movementPlan->load('entries');
@@ -539,6 +539,14 @@ class MovementPlanController extends Controller
         $user = auth()->user();
 
         if ($user->type === 'super-admin') {
+            return;
+        }
+
+        if (
+            $step === 'pm2'
+            && $movementPlan->status === 'review'
+            && (int) $movementPlan->created_by === (int) $user->id
+        ) {
             return;
         }
 
