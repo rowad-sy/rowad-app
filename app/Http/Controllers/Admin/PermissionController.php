@@ -225,7 +225,7 @@ class PermissionController extends Controller
             'users' => User::orderBy('name')->get(),
             'groups' => Group::orderByDesc('kind')->orderBy('name')->get(), // الأدوار (role > group alphabetically) أولاً
             'centers' => Center::orderBy('name')->get(),
-            'projects' => Project::orderBy('name')->get(),
+            'projects' => Project::ordered()->get(),
             'cohorts' => Cohort::with('project')->orderBy('name')->get(),
             'modelGroups' => PermissionModelCatalog::groups(),
             'modelKeys' => PermissionModelCatalog::keys(),

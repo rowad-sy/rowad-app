@@ -32,7 +32,7 @@ class UploadedDocumentController extends Controller
         return view('admin.project-docs.uploaded.form', [
             'doc' => null,
             'centers' => Center::orderBy('name')->get(),
-            'projects' => Project::orderBy('name')->get(),
+            'projects' => Project::ordered()->get(),
         ]);
     }
 
@@ -94,7 +94,7 @@ class UploadedDocumentController extends Controller
         return view('admin.project-docs.uploaded.form', [
             'doc' => $document,
             'centers' => Center::orderBy('name')->get(),
-            'projects' => Project::orderBy('name')->get(),
+            'projects' => Project::ordered()->get(),
         ]);
     }
 

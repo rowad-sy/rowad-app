@@ -31,7 +31,7 @@ class TechStatisticsController extends Controller
 
         $data['filters'] = $filters;
         $data['centers'] = Center::orderBy('name')->get(['id', 'name']);
-        $data['projects'] = Project::orderBy('name')->get(['id', 'name']);
+        $data['projects'] = Project::ordered()->get(['id', 'name']);
 
         return view('admin.tech.statistics', $data);
     }

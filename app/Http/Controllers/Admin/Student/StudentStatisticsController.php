@@ -47,7 +47,7 @@ class StudentStatisticsController extends Controller
         // Always pass filter values + dropdowns to view
         $data['filters'] = $filters;
         $data['centers'] = Center::orderBy('name')->get(['id', 'name']);
-        $data['projects'] = Project::orderBy('name')->get(['id', 'name']);
+        $data['projects'] = Project::ordered()->get(['id', 'name']);
         $data['courses'] = Course::orderBy('name_ar')->get(['id', 'name_ar']);
         $data['periods'] = Period::orderBy('name_ar')->get(['id', 'name_ar']);
 

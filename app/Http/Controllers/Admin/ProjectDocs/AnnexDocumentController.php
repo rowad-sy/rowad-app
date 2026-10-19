@@ -102,7 +102,7 @@ class AnnexDocumentController extends Controller
             'filters' => $filters,
             'canDocs' => $canDocs,
             'canArchive' => $canArchive,
-            'projects' => Project::orderBy('name')->get(),
+            'projects' => Project::ordered()->get(),
             'centers' => \App\Models\Admin\Center::orderBy('name')->get(),
             'categories' => UploadedDocument::CATEGORIES,
             'typeCounts' => $this->unifiedTypeCounts($user, $canDocs, $canArchive),
@@ -190,7 +190,7 @@ class AnnexDocumentController extends Controller
     public function create()
     {
         $templates = AnnexTemplate::where('is_active', true)->orderBy('title_ar')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $categories = UploadedDocument::CATEGORIES;
 
         return view('admin.project-docs.documents.form', compact('templates', 'projects', 'categories'));

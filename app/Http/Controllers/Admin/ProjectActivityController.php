@@ -47,14 +47,14 @@ class ProjectActivityController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.project-activities.index', compact('activities', 'projects', 'projectId', 'activityDate'));
     }
 
     public function create()
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $centers = Center::orderBy('name')->get();
 
         return view('admin.project-activities.form', compact('projects', 'centers'));
@@ -73,7 +73,7 @@ class ProjectActivityController extends Controller
 
     public function edit(ProjectActivity $activity)
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $centers = Center::orderBy('name')->get();
 
         return view('admin.project-activities.form', compact('activity', 'projects', 'centers'));

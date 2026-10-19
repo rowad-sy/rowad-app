@@ -119,7 +119,7 @@ class StudentController extends Controller
             ->appends($request->only(['search', 'status', 'center_id', 'project_id', 'cohort_id', 'gender', 'course_id', 'per_page']));
 
         $centers = Center::when(!$scope['sees_all'] && !empty($scope['center_ids']), fn($q) => $q->whereIn('id', $scope['center_ids']))->orderBy('name')->get();
-        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->orderBy('name')->get();
+        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->ordered()->get();
         $courses = Course::orderBy('name_ar')->get();
         $cohorts = \App\Models\Admin\Cohort::when(!$scope['sees_all'] && !empty($scope['cohort_ids']), fn($q) => $q->whereIn('id', $scope['cohort_ids']))->with('project')->orderBy('name')->get();
 
@@ -131,7 +131,7 @@ class StudentController extends Controller
         $scope = PermissionHelper::getEffectiveScope(auth()->user(), Student::class);
 
         $centers = Center::when(!$scope['sees_all'] && !empty($scope['center_ids']), fn($q) => $q->whereIn('id', $scope['center_ids']))->orderBy('name')->get();
-        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->orderBy('name')->get();
+        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->ordered()->get();
         $users = User::orderBy('name')->get();
         $courses = \App\Models\Admin\Student\Course::with('project')->orderBy('name_ar')->get();
         $periods = \App\Models\Admin\Student\Period::orderBy('name_ar')->get();
@@ -228,7 +228,7 @@ class StudentController extends Controller
         $this->assertRecordAccess('edit', $student);
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::orderBy('name')->get();
         $courses = \App\Models\Admin\Student\Course::with('project')->orderBy('name_ar')->get();
         $periods = \App\Models\Admin\Student\Period::orderBy('name_ar')->get();
@@ -390,7 +390,7 @@ class StudentController extends Controller
             ]);
         }
 
-        $availableProjects = Project::whereNotIn('id', $student->projects->pluck('id'))->orderBy('name')->get(['id', 'name']);
+        $availableProjects = Project::whereNotIn('id', $student->projects->pluck('id'))->ordered()->get(['id', 'name']);
 
         return response()->json([
             'found' => true,

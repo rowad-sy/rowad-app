@@ -39,7 +39,7 @@ class HrAttendanceController extends Controller
             ->keyBy('employee_id');
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $leaveTypes = LeaveType::where('is_active', true)->orderBy('name_ar')->get();
 
         return view('admin.hr.attendances.index', compact(

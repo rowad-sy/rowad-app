@@ -80,7 +80,7 @@ class PurchaseRequestController extends Controller
 
         $statuses = array_keys(PurchaseRequest::STATUSES);
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $status = $request->get('status', 'all');
         $centerId = $request->get('center_id');
         $projectId = $request->get('project_id');
@@ -122,7 +122,7 @@ class PurchaseRequestController extends Controller
     public function create(Request $request)
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
         $departments = Department::where('is_active', 1)->orderBy('name_ar')->get();
 
@@ -218,7 +218,7 @@ class PurchaseRequestController extends Controller
         $this->authorizeEditable($purchaseRequest);
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
         $departments = Department::where('is_active', 1)->orderBy('name_ar')->get();
 

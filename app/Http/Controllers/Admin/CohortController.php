@@ -32,14 +32,14 @@ class CohortController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.cohorts.index', compact('cohorts', 'projects', 'search', 'projectId'));
     }
 
     public function create()
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $employees = Employee::orderBy('first_name_ar')->get();
 
         return view('admin.cohorts.form', compact('projects', 'employees'));
@@ -65,7 +65,7 @@ class CohortController extends Controller
 
     public function edit(Cohort $cohort)
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $employees = Employee::orderBy('first_name_ar')->get();
 
         return view('admin.cohorts.form', compact('cohort', 'projects', 'employees'));

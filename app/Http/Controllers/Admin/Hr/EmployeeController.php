@@ -58,7 +58,7 @@ class EmployeeController extends Controller
             ->appends($request->only(['search', 'status', 'center_id', 'project_id', 'per_page']));
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.hr.employees.index', compact('employees', 'search', 'status', 'centerId', 'projectId', 'perPage', 'centers', 'projects'));
     }
@@ -117,7 +117,7 @@ class EmployeeController extends Controller
     {
         $centers = Center::orderBy('name')->get();
         $departments = Department::where('is_active', true)->orderBy('name_ar')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $positions = JobPosition::orderBy('title_ar')->get();
         $users = User::orderBy('name')->get();
 
@@ -176,7 +176,7 @@ class EmployeeController extends Controller
 
         $centers = Center::orderBy('name')->get();
         $departments = Department::where('is_active', true)->orderBy('name_ar')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $positions = JobPosition::orderBy('title_ar')->get();
         $users = User::orderBy('name')->get();
 

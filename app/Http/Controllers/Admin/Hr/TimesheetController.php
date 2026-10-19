@@ -30,7 +30,7 @@ class TimesheetController extends Controller
         $search = $request->input('search');
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $departments = Department::where('is_active', true)->orderBy('name_ar')->get();
 
         // نفس شرط العرض السابق: لا يُحسب التايم شيت قبل اختيار فلتر واحد على الأقل (تجنبًا لتحميل كل الموظفين)

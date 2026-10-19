@@ -162,7 +162,7 @@ class PeriodController extends Controller
     {
         $scope = \App\Helpers\PermissionHelper::getEffectiveScope(auth()->user(), 'App\Models\Admin\Student\Period');
 
-        return Project::orderBy('name')
+        return Project::ordered()
             ->unless($scope['sees_all'], fn ($q) => !empty($scope['project_ids']) ? $q->whereIn('id', $scope['project_ids']) : $q)
             ->get();
     }

@@ -40,7 +40,7 @@ class MonthlyReportController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.monthly-reports.index', compact('reports', 'projects', 'status', 'projectId'));
     }
@@ -48,7 +48,7 @@ class MonthlyReportController extends Controller
     public function create()
     {
         $templates = MonthlyReportTemplate::where('is_active', true)->orderBy('title_ar')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.monthly-reports.create', compact('templates', 'projects'));
     }

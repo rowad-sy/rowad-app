@@ -24,7 +24,7 @@ class ProjectController extends Controller
         $projects = Project::with('centers')
             ->when($search, function ($q, $search) {
                 return $q->where('name', 'like', "%{$search}%");
-            })->orderBy('name')->paginate(10);
+            })->ordered()->paginate(10);
 
         return view('admin.projects.index', compact('projects', 'search'));
     }
@@ -45,6 +45,7 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => 'nullable|in:' . implode(',', array_keys(Project::STATUSES)),
             'code' => 'nullable|string|max:100',
+            'sort_order' => 'nullable|integer|min:0|max:9999',
             'path_id' => 'nullable|exists:project_paths,id',
             'centers' => 'nullable|array',
             'centers.*' => 'exists:centers,id',
@@ -55,6 +56,7 @@ class ProjectController extends Controller
             'description' => $validated['description'] ?? null,
             'status' => $validated['status'] ?? 'active',
             'code' => $validated['code'] ?? null,
+            'sort_order' => $validated['sort_order'] ?? null,
             'path_id' => $validated['path_id'] ?? null,
         ]);
 
@@ -84,6 +86,7 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => 'nullable|in:' . implode(',', array_keys(Project::STATUSES)),
             'code' => 'nullable|string|max:100',
+            'sort_order' => 'nullable|integer|min:0|max:9999',
             'path_id' => 'nullable|exists:project_paths,id',
             'centers' => 'nullable|array',
             'centers.*' => 'exists:centers,id',
@@ -94,6 +97,7 @@ class ProjectController extends Controller
             'description' => $validated['description'] ?? null,
             'status' => $validated['status'] ?? 'active',
             'code' => $validated['code'] ?? null,
+            'sort_order' => $validated['sort_order'] ?? null,
             'path_id' => $validated['path_id'] ?? null,
         ]);
 

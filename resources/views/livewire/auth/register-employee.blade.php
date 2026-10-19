@@ -23,7 +23,7 @@ new #[Layout('components.layouts.auth-bootstrap', ['title' => 'تسجيل موظ
     {
         return [
             'centers' => Center::orderBy('name')->get(),
-            'projects' => Project::orderBy('name')->get(),
+            'projects' => Project::ordered()->get(),
         ];
     }
 

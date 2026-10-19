@@ -66,7 +66,7 @@ class AdDesignRequestController extends Controller
     public function create()
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::orderBy('name')->get();
         $tentativePm2Id = $this->defaultProjectsManagerId();
         $selectedCenterIds = [];
@@ -135,7 +135,7 @@ class AdDesignRequestController extends Controller
         abort_if($ad->isLocked(), 403, 'الطلب مُقفل بعد موافقة مدير المشاريع');
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::orderBy('name')->get();
         $tentativePm2Id = $ad->refer_to_pm2_id;
         $selectedCenterIds = $ad->centers()->pluck('centers.id')->all();

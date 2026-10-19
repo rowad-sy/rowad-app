@@ -48,7 +48,7 @@ class TechEquipmentController extends Controller
             ->appends($request->only(['search', 'type', 'condition', 'center_id', 'project_id', 'per_page']));
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.tech.equipment.index', compact('equipment', 'search', 'type', 'condition', 'centerId', 'projectId', 'perPage', 'centers', 'projects'));
     }
@@ -56,7 +56,7 @@ class TechEquipmentController extends Controller
     public function create()
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         $userEmployee = Employee::where('user_id', auth()->id())->first();
         $defaultCenterId = $userEmployee?->center_id;
@@ -93,7 +93,7 @@ class TechEquipmentController extends Controller
     public function edit(TechEquipment $equipment)
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.tech.equipment.form', compact('equipment', 'centers', 'projects'));
     }

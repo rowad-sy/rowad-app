@@ -82,7 +82,7 @@ class MediaPlanController extends Controller
     public function create()
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::orderBy('name')->get();
         $creatorIsPm = $this->creatorIsProjectManager();
 
@@ -190,7 +190,7 @@ class MediaPlanController extends Controller
 
         $plan->load('events');
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::orderBy('name')->get();
         $creatorIsPm = $this->creatorIsProjectManager();
 

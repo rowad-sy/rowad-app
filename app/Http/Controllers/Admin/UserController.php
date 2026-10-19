@@ -87,7 +87,7 @@ class UserController extends Controller
             ->appends($request->only(['search', 'status', 'type', 'center_id', 'project_id', 'job_title_id', 'per_page']));
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $jobTitles = JobPosition::orderBy('title_ar')->get();
 
         return view('admin.users.index', compact('users', 'search', 'status', 'type', 'centerId', 'projectId', 'jobTitleId', 'perPage', 'centers', 'projects', 'jobTitles'));
@@ -96,7 +96,7 @@ class UserController extends Controller
     public function create()
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $jobTitles = JobPosition::orderBy('title_ar')->get();
 
         return view('admin.users.form', $this->roleAssignmentData([
@@ -141,7 +141,7 @@ class UserController extends Controller
         $this->assertSuperAdminAllowed($user);
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $jobTitles = JobPosition::orderBy('title_ar')->get();
 
         return view('admin.users.form', $this->roleAssignmentData([

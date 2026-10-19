@@ -31,7 +31,7 @@ class EmployeeStatisticsController extends Controller
 
         $data['filters'] = $filters;
         $data['centers'] = Center::orderBy('name')->get(['id', 'name']);
-        $data['projects'] = Project::orderBy('name')->get(['id', 'name']);
+        $data['projects'] = Project::ordered()->get(['id', 'name']);
         $data['departments'] = Department::where('is_active', true)->orderBy('name_ar')->get(['id', 'name_ar']);
 
         return view('admin.hr.statistics', $data);

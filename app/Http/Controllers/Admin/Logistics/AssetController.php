@@ -46,7 +46,7 @@ class AssetController extends Controller
         $types = Asset::select('type')->distinct()->pluck('type');
         $statuses = Asset::select('status')->distinct()->pluck('status');
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.logistics.assets.index', compact('assets', 'types', 'statuses', 'centers', 'projects'));
     }
@@ -54,7 +54,7 @@ class AssetController extends Controller
     public function create()
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::orderBy('name')->get();
 
         return view('admin.logistics.assets.form', compact('centers', 'projects', 'users'));
@@ -83,7 +83,7 @@ class AssetController extends Controller
     public function edit(Asset $asset)
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::orderBy('name')->get();
 
         return view('admin.logistics.assets.form', compact('asset', 'centers', 'projects', 'users'));

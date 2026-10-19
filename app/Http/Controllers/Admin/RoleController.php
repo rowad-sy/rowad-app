@@ -280,7 +280,7 @@ class RoleController extends Controller
             'roles' => Group::roles()->orderBy('name')->get(),
             'users' => User::orderBy('name')->get(),
             'centers' => Center::orderBy('name')->get(),
-            'projects' => Project::orderBy('name')->get(),
+            'projects' => Project::ordered()->get(),
             'cohorts' => Cohort::with('project')->orderBy('name')->get(),
         ];
     }

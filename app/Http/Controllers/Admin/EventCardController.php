@@ -299,12 +299,12 @@ class EventCardController extends Controller
     {
         $user = auth()->user();
         if ($user->type === 'super-admin') {
-            return Project::orderBy('name')->get();
+            return Project::ordered()->get();
         }
 
         $scope = \App\Helpers\PermissionHelper::getEffectiveScope($user, Project::class);
         if ($scope['sees_all']) {
-            return Project::orderBy('name')->get();
+            return Project::ordered()->get();
         }
 
         return Project::where(function ($q) use ($scope, $user) {
@@ -313,7 +313,7 @@ class EventCardController extends Controller
             if ($employee?->project_id) {
                 $q->orWhere('id', $employee->project_id);
             }
-        })->orderBy('name')->get();
+        })->ordered()->get();
     }
 
     private function selectableUsers()

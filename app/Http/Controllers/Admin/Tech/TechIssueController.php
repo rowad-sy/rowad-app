@@ -49,7 +49,7 @@ class TechIssueController extends Controller
             ->appends($request->only(['search', 'status', 'priority', 'center_id', 'project_id', 'per_page']));
 
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
 
         return view('admin.tech.issues.index', compact('issues', 'search', 'status', 'priority', 'centerId', 'projectId', 'perPage', 'centers', 'projects'));
     }
@@ -57,7 +57,7 @@ class TechIssueController extends Controller
     public function create()
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
 
         $userEmployee = Employee::where('user_id', auth()->id())->first();
@@ -96,7 +96,7 @@ class TechIssueController extends Controller
     public function edit(TechIssue $issue)
     {
         $centers = Center::orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $users = User::where('type', 'employee')->orderBy('name')->get();
 
         return view('admin.tech.issues.form', compact('issue', 'centers', 'projects', 'users'));

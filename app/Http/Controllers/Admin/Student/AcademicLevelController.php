@@ -31,7 +31,7 @@ class AcademicLevelController extends Controller
             ->get()
             ->groupBy('project_id');
 
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $projectId = $projectId ? (int) $projectId : '';
 
         return view('admin.students.levels.index', compact('levels', 'projects', 'search', 'projectId'));
@@ -39,7 +39,7 @@ class AcademicLevelController extends Controller
 
     public function create()
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $subjects = Subject::orderBy('sort_order')->orderBy('name_ar')->get();
         $instructors = Employee::orderBy('first_name_ar')->get();
 
@@ -73,7 +73,7 @@ class AcademicLevelController extends Controller
     {
         $level->load(['subjects', 'subjectInstructors']);
 
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $subjects = Subject::orderBy('sort_order')->orderBy('name_ar')->get();
         $instructors = Employee::orderBy('first_name_ar')->get();
 

@@ -35,7 +35,7 @@ class ProjectPathController extends Controller
 
     public function create()
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         return view('admin.paths.form', compact('projects'));
     }
 
@@ -63,7 +63,7 @@ class ProjectPathController extends Controller
 
     public function edit(ProjectPath $path)
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $path->load('projects');
         return view('admin.paths.form', compact('path', 'projects'));
     }
@@ -119,7 +119,7 @@ class ProjectPathController extends Controller
     {
         $query = ProjectPath::with(['projects' => fn ($q) => $q
             ->when($request->filled('status'), fn ($s) => $s->where('status', $request->status))
-            ->orderBy('name')])
+            ->ordered()])
             ->orderBy('id');
 
         if ($request->filled('status')) {
@@ -127,7 +127,7 @@ class ProjectPathController extends Controller
         }
 
         $paths = $query->get();
-        $orphanProjects = Project::whereNull('path_id')->orderBy('name')->get();
+        $orphanProjects = Project::whereNull('path_id')->ordered()->get();
         $statuses = Project::STATUSES;
         $statusCounts = Project::query()
             ->selectRaw('status, count(*) as total')
@@ -183,7 +183,7 @@ class ProjectPathController extends Controller
             ->values()
             ->all();
 
-        $query = ProjectPath::with(['projects' => fn ($q) => $q->orderBy('name')])
+        $query = ProjectPath::with(['projects' => fn ($q) => $q->ordered()])
             ->orderBy('id');
 
         if ($status) {
@@ -196,7 +196,7 @@ class ProjectPathController extends Controller
             'items' => $map($path->projects),
         ]);
 
-        $orphans = $map(Project::whereNull('path_id')->orderBy('name')->get());
+        $orphans = $map(Project::whereNull('path_id')->ordered()->get());
 
         if ($orphans) {
             $columns->push(['title' => 'مشاريع بدون مسار', 'code' => null, 'items' => $orphans]);

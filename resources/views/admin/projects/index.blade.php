@@ -30,6 +30,7 @@
             <tr>
                 <th>#</th>
                 <th>اسم المشروع</th>
+                <th>الترتيب</th>
                 <th>الكود</th>
                 <th>المسار</th>
                 <th>الحالة</th>
@@ -42,6 +43,7 @@
                 <tr>
                     <td>{{ $project->id }}</td>
                     <td class="fw-medium">{{ $project->name }}</td>
+                    <td class="text-muted">{{ $project->sort_order ?? '—' }}</td>
                     <td class="text-muted">{{ $project->code ?? '—' }}</td>
                     <td class="text-muted">{{ $project->path?->name ?? '—' }}</td>
                     <td><span class="status-pill {{ $project->statusBadgeClass() }}">{{ $project->statusLabel() }}</span></td>

@@ -30,7 +30,7 @@ class TrainingPlanController extends Controller
             ->orderBy('start_date', 'desc')
             ->get();
 
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $projectId = $request->input('project_id') ? (int) $request->input('project_id') : '';
         $search = $request->input('search');
 
@@ -39,7 +39,7 @@ class TrainingPlanController extends Controller
 
     public function create(Request $request)
     {
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $levels = AcademicLevel::with('project')->orderBy('sort_order')->get();
         $subjects = Subject::orderBy('name_ar')->get();
         $instructors = Employee::orderBy('first_name_ar')->get();
@@ -89,7 +89,7 @@ class TrainingPlanController extends Controller
     {
         $plan->load(['lessons']);
 
-        $projects = Project::orderBy('name')->get();
+        $projects = Project::ordered()->get();
         $levels = AcademicLevel::with('project')->orderBy('sort_order')->get();
         $subjects = Subject::orderBy('name_ar')->get();
         $instructors = Employee::orderBy('first_name_ar')->get();

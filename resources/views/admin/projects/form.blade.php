@@ -50,6 +50,17 @@
                     </div>
                 </div>
 
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">رقم الترتيب في القوائم</label>
+                        <input type="number" name="sort_order" min="0" max="9999"
+                               class="form-control @error('sort_order') is-invalid @enderror"
+                               value="{{ old('sort_order', $project->sort_order ?? '') }}">
+                        @error('sort_order') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="form-text">1 = يظهر أولاً في كل القوائم — اتركه فارغاً ليظهر آخر القائمة بالاسم</div>
+                    </div>
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label">المسار</label>
                     <select name="path_id" class="form-select @error('path_id') is-invalid @enderror">

@@ -52,7 +52,7 @@ class AttendanceController extends Controller
             ->keyBy('student_id');
 
         $centers = Center::when(!$scope['sees_all'] && !empty($scope['center_ids']), fn($q) => $q->whereIn('id', $scope['center_ids']))->orderBy('name')->get();
-        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->orderBy('name')->get();
+        $projects = Project::when(!$scope['sees_all'] && !empty($scope['project_ids']), fn($q) => $q->whereIn('id', $scope['project_ids']))->ordered()->get();
         $courses = Course::orderBy('name_ar')->get();
         $periods = Period::orderBy('name_ar')->get();
 

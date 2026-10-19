@@ -33,7 +33,18 @@ class Project extends Model
         'internal' => 'status-internal',
     ];
 
-    protected $fillable = ['name', 'description', 'path_id', 'status', 'code'];
+    protected $fillable = ['name', 'description', 'path_id', 'status', 'code', 'sort_order'];
+
+    /**
+     * الترتيب الموحّد لقوائم المشاريع في كل النظام:
+     * رقم الترتيب أولاً (1 = أول)، ومن دونه أو عند التساوي بالاسم.
+     */
+    public function scopeOrdered($query)
+    {
+        return $query
+            ->orderByRaw('COALESCE(projects.sort_order, 999999) ASC')
+            ->orderBy('name');
+    }
 
     public function path(): BelongsTo
     {
