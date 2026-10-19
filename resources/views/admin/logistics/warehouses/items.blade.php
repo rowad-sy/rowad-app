@@ -49,6 +49,7 @@
                             <form method="POST" action="{{ route('admin.logistics.warehouses.items.destroy', [$warehouse, $item]) }}" class="d-inline"
                                   onsubmit="return confirmDelete(event, this)">
                                 @csrf
+                                @method('DELETE')
                                 <div class="modal fade" id="deleteModal_{{ $item->id }}" tabindex="-1">
                                     <div class="modal-dialog modal-sm modal-dialog-centered">
                                         <div class="modal-content">

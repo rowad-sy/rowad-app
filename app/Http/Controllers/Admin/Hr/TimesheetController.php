@@ -106,8 +106,7 @@ class TimesheetController extends Controller
 
             for ($day = 1; $day <= $daysInMonth; $day++) {
                 $date = Carbon::parse(sprintf('%s-%02d-%02d', $year, $monthNum, $day));
-                // day_of_week المخزَّن أسبوعه يبدأ السبت (انظر WorkSchedule::DAY_NAMES) وليس ترقيم Carbon
-                $dayOfWeek = WorkSchedule::indexForDate($date);
+                $dayOfWeek = $date->dayOfWeek;
                 $dateKey = $date->format('Y-m-d');
                 $schedule = $schedules->get($dayOfWeek);
 

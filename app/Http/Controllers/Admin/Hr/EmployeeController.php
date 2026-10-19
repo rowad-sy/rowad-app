@@ -157,9 +157,6 @@ class EmployeeController extends Controller
             'department_id' => 'nullable|exists:departments,id',
             'project_id' => 'nullable|exists:projects,id',
             'notes' => 'nullable|string',
-            // التنبيهات والملاحظات إضافية فقط: لا معرّفات لموظف جديد
-            'warnings.*.id' => 'prohibited',
-            'notes_list.*.id' => 'prohibited',
         ]);
 
         $employee = Employee::create($validated);
@@ -208,12 +205,6 @@ class EmployeeController extends Controller
             'department_id' => 'nullable|exists:departments,id',
             'project_id' => 'nullable|exists:projects,id',
             'notes' => 'nullable|string',
-            // أي معرّف مرسل يجب أن يخص هذا الموظف (السجلات الموجودة لا تُعدَّل ولا تُنشأ من جديد من هذا النموذج)
-            'warnings.*.id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('hr_warnings', 'id')->where('employee_id', $employee->id)],
-            'notes_list.*.id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('hr_employee_notes', 'id')->where('employee_id', $employee->id)],
-        ], [
-            'warnings.*.id.exists' => 'التنبيه المحدد لا يخص هذا الموظف.',
-            'notes_list.*.id.exists' => 'الملاحظة المحددة لا تخص هذا الموظف.',
         ]);
 
         $employee->update($validated);
@@ -319,13 +310,9 @@ class EmployeeController extends Controller
             $employee->update($docUpdates);
         });
 
-        // Warnings — إضافية فقط: كل صف جديد يُحفظ سجلًا مستقلًا (حتى لو طابق محتواه سجلًا آخر). الصف الذي يحمل id
-        // سجل موجود (تحقّقنا من انتمائه للموظف) فلا يُنشأ ولا يُعدَّل؛ والمحفوظ يُعرض للقراءة ولا يُرسل من النموذج.
+        // Warnings
         if ($request->has('warnings')) {
             foreach ($request->input('warnings', []) as $warning) {
-                if (!empty($warning['id'])) {
-                    continue;
-                }
                 if (!empty($warning['date']) && !empty($warning['reason'])) {
                     $employee->warnings()->create([
                         'date' => $warning['date'],
@@ -336,12 +323,9 @@ class EmployeeController extends Controller
             }
         }
 
-        // Notes — إضافية فقط: الموجودة تبقى بصاحبها وتاريخها، وكل ملاحظة جديدة تُحفظ مستقلة
+        // Notes
         if ($request->has('notes_list')) {
             foreach ($request->input('notes_list', []) as $note) {
-                if (!empty($note['id'])) {
-                    continue;
-                }
                 if (!empty($note['note'])) {
                     $employee->notesRelation()->create([
                         'user_id' => auth()->id(),

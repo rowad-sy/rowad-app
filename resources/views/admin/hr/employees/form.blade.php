@@ -71,11 +71,9 @@
     };
     $eduRows = $dynRows('educations', isset($employee) ? $employee->educations->map(fn ($e) => $e->only(['qualification', 'specialization', 'university', 'grade', 'graduation_year']))->all() : []);
     $contactRows = $dynRows('contacts', isset($employee) ? $employee->contacts->map(fn ($c) => ['type' => $c->type, 'value' => $c->value, 'is_primary' => (bool) $c->is_primary])->all() : []);
-    // التنبيهات والملاحظات إضافية فقط: المحفوظة تُعرض للقراءة (Warning/EmployeeNote) والحقول للإضافات الجديدة وحدها
-    $warningRows = $dynRows('warnings', []);
-    $noteRows = $dynRows('notes_list', []);
-    $savedWarnings = isset($employee) ? $employee->warnings : collect();
-    $savedNotes = isset($employee) ? $employee->notesRelation : collect();
+    // كما في الأساس: التنبيهات والملاحظات المحفوظة تُعرض حقولًا قابلة للإرسال (التاريخ يُطبع كما هو بلا تنسيق، مثل الأساس)
+    $warningRows = $dynRows('warnings', isset($employee) ? $employee->warnings->map(fn ($w) => ['date' => $w->date, 'reason' => $w->reason, 'level' => $w->level, 'is_folded' => (bool) $w->is_folded])->all() : []);
+    $noteRows = $dynRows('notes_list', isset($employee) ? $employee->notesRelation->map(fn ($n) => ['note' => $n->note, 'meta' => $n->user?->name . ' - ' . $n->created_at->locale('ar')->diffForHumans()])->all() : []);
     $nextIdx = fn (array $rows) => $rows ? (max(array_map('intval', array_keys($rows))) + 1) : 0;
 @endphp
 
@@ -286,7 +284,7 @@
             <p class="text-muted small mb-3">حدد أوقات الدوام لكل يوم من أيام الأسبوع</p>
 
             @php
-                $days = \App\Models\Admin\Hr\WorkSchedule::DAY_NAMES;   // الفهرس المرسَل 0=السبت ... 6=الجمعة
+                $days = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
                 $savedSchedules = isset($employee) ? $employee->workSchedules->keyBy('day_of_week') : collect([
                     0 => (object)['start_time' => null,    'end_time' => null,    'is_day_off' => true],
                     1 => (object)['start_time' => '08:00', 'end_time' => '16:00', 'is_day_off' => false],
@@ -577,8 +575,7 @@
 
         {{-- TAB 6: WARNINGS + NOTES --}}
         <div class="tab-pane fade" id="warn" role="tabpanel">
-            <h5 class="fw-bold mb-1">التنبيهات</h5>
-            <p class="text-muted small mb-2">التنبيهات المسجّلة للقراءة فقط ولا تُعدَّل أو تُكرَّر عند الحفظ؛ استخدم «إضافة تنبيه» لتنبيه جديد.</p>
+            <h5 class="fw-bold mb-3">التنبيهات</h5>
             <div class="table-responsive">
                 <table class="table table-bordered inline-table" id="warnings-table" data-next-index="{{ $nextIdx($warningRows) }}">
                     <thead>
@@ -591,9 +588,6 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($savedWarnings as $warning)
-                            @include('admin.hr.employees.rows._warning_saved', ['warning' => $warning])
-                        @endforeach
                         @foreach ($warningRows as $i => $row)
                             @include('admin.hr.employees.rows._warning', ['idx' => $i, 'row' => $row])
                         @endforeach
@@ -606,8 +600,7 @@
 
             <hr>
 
-            <h5 class="fw-bold mb-1">الملاحظات</h5>
-            <p class="text-muted small mb-2">الملاحظات المسجّلة للقراءة فقط بصاحبها وتاريخها؛ استخدم «إضافة ملاحظة» لملاحظة جديدة.</p>
+            <h5 class="fw-bold mb-3">الملاحظات</h5>
             <div class="table-responsive">
                 <table class="table table-bordered inline-table" id="notes-table" data-next-index="{{ $nextIdx($noteRows) }}">
                     <thead>
@@ -617,9 +610,6 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($savedNotes as $note)
-                            @include('admin.hr.employees.rows._note_saved', ['note' => $note])
-                        @endforeach
                         @foreach ($noteRows as $i => $row)
                             @include('admin.hr.employees.rows._note', ['idx' => $i, 'row' => $row])
                         @endforeach
