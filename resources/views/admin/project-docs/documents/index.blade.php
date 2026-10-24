@@ -20,6 +20,28 @@
         ['key' => 'external', 'label' => 'ملف خارجي', 'icon' => 'bi-file-earmark-pdf', 'show' => $canDocs],
         ['key' => 'archive', 'label' => 'أرشيف PDF', 'icon' => 'bi-archive', 'show' => $canArchive],
     ], fn ($t) => $t['show']));
+
+    $activeFilters = [];
+    $filterUrlWithout = function (array $keys) {
+        $query = request()->query();
+        unset($query['page']);
+        foreach ($keys as $key) {
+            unset($query[$key]);
+        }
+
+        return route('admin.project-docs.documents.index', $query);
+    };
+    if ($filters['q']) $activeFilters[] = ['label' => 'بحث: ' . $filters['q'], 'url' => $filterUrlWithout(['q'])];
+    if ($filters['path_id']) $activeFilters[] = ['label' => 'المسار: ' . ($paths->firstWhere('id', $filters['path_id'])?->name ?? $filters['path_id']), 'url' => $filterUrlWithout(['path_id'])];
+    if ($filters['project_id']) $activeFilters[] = ['label' => 'المشروع: ' . ($projects->firstWhere('id', $filters['project_id'])?->name ?? $filters['project_id']), 'url' => $filterUrlWithout(['project_id'])];
+    if ($filters['template_id']) $activeFilters[] = ['label' => 'القالب: ' . ($templates->firstWhere('id', $filters['template_id'])?->title_ar ?? $filters['template_id']), 'url' => $filterUrlWithout(['template_id'])];
+    if ($filters['year'] || $filters['period_from'] || $filters['period_to']) {
+        $rangeLabel = $filters['year'] ? (string) $filters['year'] : trim(($filters['period_from'] ?: '…') . ' — ' . ($filters['period_to'] ?: '…'));
+        $activeFilters[] = ['label' => 'الفترة: ' . $rangeLabel, 'url' => $filterUrlWithout(['year', 'period_from', 'period_to'])];
+    }
+    if ($filters['status']) $activeFilters[] = ['label' => 'الحالة: ' . \App\Models\Admin\ProjectDocs\AnnexDocument::STATUSES[$filters['status']], 'url' => $filterUrlWithout(['status'])];
+    if ($filters['category']) $activeFilters[] = ['label' => 'التصنيف: ' . ($categories[$filters['category']] ?? $filters['category']), 'url' => $filterUrlWithout(['category'])];
+    if ($filters['center_id']) $activeFilters[] = ['label' => 'المركز: ' . ($centers->firstWhere('id', $filters['center_id'])?->name ?? $filters['center_id']), 'url' => $filterUrlWithout(['center_id'])];
 @endphp
 
 @section('content')
@@ -47,7 +69,13 @@
             <a href="{{ route('admin.project-docs.documents.index', array_filter([
                     'type' => $tab['key'],
                     'q' => $filters['q'], 'year' => $filters['year'],
-                    'project_id' => $filters['project_id'], 'center_id' => $filters['center_id'],
+                    'period_from' => $filters['period_from'], 'period_to' => $filters['period_to'],
+                    'path_id' => $filters['path_id'], 'project_id' => $filters['project_id'],
+                    'center_id' => $filters['center_id'],
+                    'template_id' => in_array($tab['key'], [null, 'structured'], true) ? $filters['template_id'] : null,
+                    'status' => $tab['key'] === 'archive' ? null : $filters['status'],
+                    'category' => in_array($tab['key'], [null, 'archive'], true) ? $filters['category'] : null,
+                    'per_page' => $perPage,
                 ])) }}"
                class="nav-link {{ $filters['type'] === $tab['key'] ? 'active' : '' }}">
             <i class="bi {{ $tab['icon'] }} me-1"></i>{{ $tab['label'] }}
@@ -59,13 +87,99 @@
     @endforeach
 </ul>
 
-<div class="table-container">
-    <x-filter-bar>
-        <div class="col-6 col-md-3 filter-field">
-            <label class="form-label" for="f-q">بحث</label>
-            <input type="text" id="f-q" name="q" value="{{ $filters['q'] }}" class="form-control" placeholder="عنوان أو وصف…">
+<section class="documents-filter-panel mb-3">
+    <div class="documents-filter-heading">
+        <div class="d-flex align-items-start gap-2">
+            <span class="documents-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span>
+            <div>
+                <h5 class="mb-1">اعثر على الوثيقة المطلوبة</h5>
+                <p class="mb-0 text-muted small">ابدأ بالبحث أو حدّد المسار والمشروع والقالب والفترة.</p>
+            </div>
         </div>
-        @if ($canDocs)
+        @if ($activeFilters)
+            <span class="badge rounded-pill text-bg-light border">{{ count($activeFilters) }} فلاتر نشطة</span>
+        @endif
+    </div>
+    <x-filter-bar>
+        @if ($filters['type'])
+            <input type="hidden" name="type" value="{{ $filters['type'] }}">
+        @endif
+        <div class="col-12 col-lg-4 filter-field">
+            <label class="form-label" for="f-q">بحث</label>
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-search text-muted" aria-hidden="true"></i></span>
+                <input type="search" id="f-q" name="q" value="{{ $filters['q'] }}" class="form-control" placeholder="عنوان، قالب، مشروع، كود، أو ملف…">
+            </div>
+        </div>
+        <div class="col-6 col-lg-2 filter-field">
+            <label class="form-label" for="f-path">المسار</label>
+            <select id="f-path" name="path_id" class="form-select">
+                <option value="">كل المسارات</option>
+                @foreach ($paths as $path)
+                    <option value="{{ $path->id }}" {{ $filters['path_id'] === $path->id ? 'selected' : '' }}>{{ $path->sort_order }} — {{ $path->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-6 col-lg-3 filter-field">
+            <label class="form-label" for="f-project-search">المشروع</label>
+            <input type="search" id="f-project-search" class="form-control form-control-sm mb-1"
+                   placeholder="ابحث داخل قائمة المشاريع…" autocomplete="off"
+                   value="{{ $filters['project_id'] ? ($projects->firstWhere('id', $filters['project_id'])?->name ?? '') : '' }}">
+            <select id="f-project" name="project_id" class="form-select">
+                <option value="">كل المشاريع</option>
+                @foreach ($projects as $project)
+                    <option value="{{ $project->id }}" data-path-id="{{ $project->path_id }}" {{ (int) $filters['project_id'] === $project->id ? 'selected' : '' }}>
+                        {{ $project->path?->name ? $project->path->name . ' — ' : '' }}{{ $project->name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        @if ($canDocs && in_array($filters['type'], [null, 'structured'], true))
+            <div class="col-6 col-lg-3 filter-field">
+                <label class="form-label" for="f-template">قالب الوثيقة</label>
+                <select id="f-template" name="template_id" class="form-select">
+                    <option value="">كل القوالب</option>
+                    @foreach ($templates as $template)
+                        @if ($template->key !== \App\Models\Admin\ProjectDocs\AnnexDocument::EXTERNAL_TEMPLATE_KEY)
+                            <option value="{{ $template->id }}" {{ $filters['template_id'] === $template->id ? 'selected' : '' }}>
+                                {{ $template->title_ar }}{{ $template->is_active ? '' : ' (غير نشط)' }}
+                            </option>
+                        @endif
+                    @endforeach
+                </select>
+            </div>
+        @endif
+        <div class="col-6 col-lg-2 filter-field">
+            <label class="form-label" for="f-year">سنة الفترة</label>
+            <select id="f-year" name="year" class="form-select">
+                <option value="">كل السنوات</option>
+                @foreach (range((int) date('Y'), (int) date('Y') - 15) as $y)
+                    <option value="{{ $y }}" {{ $filters['year'] === $y ? 'selected' : '' }}>{{ $y }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-6 col-lg-2 filter-field">
+            <label class="form-label" for="f-period-from">من شهر</label>
+            <input id="f-period-from" type="month" name="period_from" value="{{ $filters['period_from'] }}" class="form-control">
+        </div>
+        <div class="col-6 col-lg-2 filter-field">
+            <label class="form-label" for="f-period-to">إلى شهر</label>
+            <input id="f-period-to" type="month" name="period_to" value="{{ $filters['period_to'] }}" class="form-control">
+        </div>
+        <div class="col-12 small text-muted documents-date-hint">
+            <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+            يُطبّق النطاق على فترة التقارير، وعلى تاريخ الوثيقة في الأرشيف.
+        </div>
+        <div class="col-12">
+            <details {{ $filters['status'] || $filters['category'] || $filters['center_id'] ? 'open' : '' }}>
+                <summary class="small text-primary">
+                    <i class="bi bi-sliders me-1" aria-hidden="true"></i>فلاتر إضافية
+                    @if ($filters['status'] || $filters['category'] || $filters['center_id'])
+                        <span class="badge rounded-pill text-bg-light border ms-1">مستخدمة</span>
+                    @endif
+                </summary>
+                <div class="row g-2 mt-1">
+        @if ($canDocs && $filters['type'] !== 'archive')
             <div class="col-6 col-md-2 filter-field">
                 <label class="form-label" for="f-status">الحالة</label>
                 <select id="f-status" name="status" class="form-select">
@@ -76,7 +190,7 @@
                 </select>
             </div>
         @endif
-        @if ($canArchive)
+        @if ($canArchive && in_array($filters['type'], [null, 'archive'], true))
             <div class="col-6 col-md-2 filter-field">
                 <label class="form-label" for="f-category">التصنيف</label>
                 <select id="f-category" name="category" class="form-select">
@@ -88,34 +202,64 @@
             </div>
         @endif
         <div class="col-6 col-md-2 filter-field">
-            <label class="form-label" for="f-project">المشروع</label>
-            <select id="f-project" name="project_id" class="form-select">
-                <option value="">كل المشاريع</option>
-                @foreach ($projects as $project)
-                    <option value="{{ $project->id }}" {{ (int) $filters['project_id'] === $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+            <label class="form-label" for="f-center">المركز</label>
+            <select id="f-center" name="center_id" class="form-select">
+                <option value="">كل المراكز</option>
+                @foreach ($centers as $center)
+                    <option value="{{ $center->id }}" {{ $filters['center_id'] === $center->id ? 'selected' : '' }}>{{ $center->name }}</option>
                 @endforeach
             </select>
         </div>
         <div class="col-6 col-md-2 filter-field">
-            <label class="form-label" for="f-year">السنة</label>
-            <select id="f-year" name="year" class="form-select">
-                <option value="">كل السنوات</option>
-                @foreach (range((int) date('Y'), (int) date('Y') - 15) as $y)
-                    <option value="{{ $y }}" {{ $filters['year'] === $y ? 'selected' : '' }}>{{ $y }}</option>
+            <label class="form-label" for="f-per-page">عدد الوثائق في الصفحة</label>
+            <select id="f-per-page" name="per_page" class="form-select">
+                @foreach ($perPageOptions as $count)
+                    <option value="{{ $count }}" {{ $perPage === $count ? 'selected' : '' }}>{{ $count }}</option>
                 @endforeach
             </select>
         </div>
+                </div>
+            </details>
+        </div>
     </x-filter-bar>
+</section>
+
+@if ($activeFilters)
+    <div class="documents-active-filters mb-3" aria-label="الفلاتر النشطة">
+        <span class="small text-muted me-1">محدداتك:</span>
+        @foreach ($activeFilters as $filter)
+            <a href="{{ $filter['url'] }}" class="badge rounded-pill documents-filter-chip text-decoration-none">
+                {{ $filter['label'] }} <i class="bi bi-x ms-1" aria-hidden="true"></i>
+            </a>
+        @endforeach
+    </div>
+@endif
+
+<section class="table-container documents-results">
+    <div class="documents-results-heading">
+        <div>
+            <h5 class="mb-1">النتائج</h5>
+            <div class="text-muted small">
+                @if ($documents->total() > 0)
+                    عرض {{ $documents->firstItem() }}–{{ $documents->lastItem() }} من {{ $documents->total() }} وثيقة
+                @else
+                    لا توجد وثائق مطابقة للمعايير الحالية
+                @endif
+            </div>
+        </div>
+        <span class="documents-results-total"><i class="bi bi-files me-1" aria-hidden="true"></i>{{ $documents->total() }}</span>
+    </div>
 
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 documents-table">
             <thead>
                 <tr>
                     <th>الوثيقة</th>
                     <th>المصدر</th>
                     <th>المشروع</th>
+                    <th>فترة الوثيقة</th>
                     <th class="d-none d-xl-table-cell">المركز</th>
-                    <th class="d-none d-lg-table-cell">التاريخ</th>
+                    <th class="d-none d-lg-table-cell">تاريخ الوثيقة / الإضافة</th>
                     <th>الحالة</th>
                     <th class="d-none d-lg-table-cell">المستخدم</th>
                     <th>إجراءات</th>
@@ -139,7 +283,11 @@
                                 <i class="bi {{ $sourceBadge[$row['source']]['icon'] }}"></i> {{ $sourceBadge[$row['source']]['label'] }}
                             </span>
                         </td>
-                        <td>{{ $row['project'] ?? '—' }}</td>
+                        <td>
+                            {{ $row['project'] ?? '—' }}
+                            @if ($row['path']) <div class="small text-muted">{{ $row['path'] }}</div> @endif
+                        </td>
+                        <td class="text-nowrap">{{ $row['period'] ?? '—' }}</td>
                         <td class="d-none d-xl-table-cell">{{ $row['center'] ?? '—' }}</td>
                         <td class="d-none d-lg-table-cell text-nowrap">{{ $row['when']?->format('d/m/Y') ?? '—' }}</td>
                         <td>
@@ -219,15 +367,52 @@
                         </td>
                     </tr>
                 @empty
-                    <x-empty-row colspan="8" title="لا توجد وثائق مطابقة" />
+                    <tr>
+                        <td colspan="9" class="text-center py-5">
+                            <i class="bi bi-folder2-open d-block fs-2 text-muted mb-2" aria-hidden="true"></i>
+                            <strong>لم نعثر على وثائق بهذه المعايير</strong>
+                            <div class="small text-muted mt-1">جرّب تغيير الفترة أو إزالة أحد الفلاتر.</div>
+                            <a href="{{ route('admin.project-docs.documents.index') }}" class="btn btn-sm btn-outline-primary mt-3">مسح الفلاتر</a>
+                        </td>
+                    </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
-    <div class="p-3 d-flex justify-content-between align-items-center">
-        <div class="text-muted small">إجمالي الظاهر: {{ $documents->total() }}</div>
+    <div class="documents-pagination">
+        <div class="text-muted small">{{ $documents->total() }} نتيجة</div>
         <div>{{ $documents->links() }}</div>
     </div>
-</div>
+</section>
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    const pathSelect = document.getElementById('f-path');
+    const projectSearch = document.getElementById('f-project-search');
+    const projectSelect = document.getElementById('f-project');
+    if (!pathSelect || !projectSearch || !projectSelect) return;
+
+    const projectOptions = Array.from(projectSelect.options).slice(1);
+    const applyProjectOptions = () => {
+        const pathId = pathSelect.value;
+        const term = projectSearch.value.trim().toLocaleLowerCase();
+
+        projectOptions.forEach(option => {
+            const matchesPath = !pathId || option.dataset.pathId === pathId;
+            const matchesSearch = !term || option.text.toLocaleLowerCase().includes(term);
+            option.hidden = !matchesPath || !matchesSearch;
+        });
+
+        const selected = projectSelect.selectedOptions[0];
+        if (selected?.hidden) projectSelect.value = '';
+    };
+
+    pathSelect.addEventListener('change', applyProjectOptions);
+    projectSearch.addEventListener('input', applyProjectOptions);
+    applyProjectOptions();
+})();
+</script>
+@endpush

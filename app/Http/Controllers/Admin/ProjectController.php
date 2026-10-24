@@ -21,7 +21,7 @@ class ProjectController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $projects = Project::with('centers')
+        $projects = Project::with(['centers', 'path'])
             ->when($search, function ($q, $search) {
                 return $q->where('name', 'like', "%{$search}%");
             })->ordered()->paginate(10);
@@ -32,7 +32,7 @@ class ProjectController extends Controller
     public function create(\Illuminate\Http\Request $request)
     {
         $centers = Center::orderBy('name')->get();
-        $paths = \App\Models\Admin\ProjectPath::orderBy('name')->get();
+        $paths = \App\Models\Admin\ProjectPath::ordered()->get();
         $defaultPathId = $request->filled('path') ? (int) $request->input('path') : null;
 
         return view('admin.projects.form', compact('centers', 'paths', 'defaultPathId'));
@@ -45,8 +45,9 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => 'nullable|in:' . implode(',', array_keys(Project::STATUSES)),
             'code' => 'nullable|string|max:100',
-            'sort_order' => 'nullable|integer|min:0|max:9999',
+            'sort_order' => 'required_with:path_id|nullable|integer|min:1|max:9999',
             'path_id' => 'nullable|exists:project_paths,id',
+            'return_to' => 'nullable|in:paths_tree',
             'centers' => 'nullable|array',
             'centers.*' => 'exists:centers,id',
         ]);
@@ -67,6 +68,11 @@ class ProjectController extends Controller
             AuditLogger::logPivot($project, 'centers', $oldIds, $newIds, "إضافة مراكز للمشروع {$project->name}");
         }
 
+        if (($validated['return_to'] ?? null) === 'paths_tree') {
+            return redirect()->route('admin.paths.tree')
+                ->with('success', 'تم إضافة المشروع إلى المسار بنجاح');
+        }
+
         return redirect()->route('admin.projects.index')
             ->with('success', 'تم إضافة المشروع بنجاح');
     }
@@ -75,7 +81,7 @@ class ProjectController extends Controller
     {
         $project->load('centers');
         $centers = Center::orderBy('name')->get();
-        $paths = \App\Models\Admin\ProjectPath::orderBy('name')->get();
+        $paths = \App\Models\Admin\ProjectPath::ordered()->get();
         return view('admin.projects.form', compact('project', 'centers', 'paths'));
     }
 
@@ -86,7 +92,7 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'status' => 'nullable|in:' . implode(',', array_keys(Project::STATUSES)),
             'code' => 'nullable|string|max:100',
-            'sort_order' => 'nullable|integer|min:0|max:9999',
+            'sort_order' => 'required_with:path_id|nullable|integer|min:1|max:9999',
             'path_id' => 'nullable|exists:project_paths,id',
             'centers' => 'nullable|array',
             'centers.*' => 'exists:centers,id',

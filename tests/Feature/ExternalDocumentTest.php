@@ -247,6 +247,33 @@ it('lists system documents and standalone archive files together in the unified 
     expect(substr_count($response->getContent(), 'وثيقة موحّدة-أ'))->toBe(1);
 });
 
+it('applies the month range to archive document dates', function () {
+    Storage::fake('public');
+    $user = extUser();
+
+    foreach ([
+        ['title' => 'أرشيف الفترة المطلوبة', 'document_date' => '2025-07-15'],
+        ['title' => 'أرشيف فترة أخرى', 'document_date' => '2024-11-02'],
+    ] as $document) {
+        $this->actingAs($user)->post(route('admin.documents-archive.store'), [
+            'title' => $document['title'],
+            'category' => 'administrative',
+            'document_date' => $document['document_date'],
+            'file' => extPdf(),
+        ])->assertRedirect();
+    }
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.index', [
+        'type' => 'archive',
+        'period_from' => '2025-07',
+        'period_to' => '2025-07',
+    ]))
+        ->assertOk()
+        ->assertSee('أرشيف الفترة المطلوبة')
+        ->assertDontSee('أرشيف فترة أخرى')
+        ->assertViewHas('documents', fn ($documents) => $documents->total() === 1);
+});
+
 it('is reachable by archive-only viewers and hides the documents section', function () {
     Storage::fake('public');
 

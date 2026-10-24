@@ -6,8 +6,17 @@
 @php
     $isCreator = auth()->id() === (int) $report->created_by;
     $pageCount = max(1, (int) $report->page_count);
+    $sectionSpacing = $report->data['section_spacing'] ?? 'normal';
     $typeLabels = ['fields' => 'حقول', 'paragraph' => 'فقرة', 'table' => 'جدول', 'list' => 'قائمة'];
 @endphp
+
+@push('styles')
+<style>
+    .monthly-report-sections[data-section-spacing="compact"] .report-section-card { margin-bottom: .5rem !important; }
+    .monthly-report-sections[data-section-spacing="normal"] .report-section-card { margin-bottom: 1rem !important; }
+    .monthly-report-sections[data-section-spacing="spacious"] .report-section-card { margin-bottom: 1.5rem !important; }
+</style>
+@endpush
 
 <x-page-header :title="'تعبئة التقرير: ' . ($report->title ?: $report->template->title_ar)"
                :breadcrumb="[['label' => 'التقارير الشهرية', 'url' => route('admin.monthly-reports.index')], ['label' => 'عرض', 'url' => route('admin.monthly-reports.show', $report)], ['label' => 'تعبئة']]">
@@ -50,6 +59,26 @@
         </div>
     </div>
 
+    <div class="table-container mb-3">
+        <div class="p-3 row g-3">
+            <div class="col-md-7">
+                <label for="reportTitle" class="form-label small mb-1">عنوان التقرير</label>
+                <input id="reportTitle" type="text" name="title" maxlength="255" class="form-control form-control-sm @error('title') is-invalid @enderror"
+                       value="{{ old('title', $report->title) }}" placeholder="{{ $report->template->title_ar }}">
+                @error('title') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-5">
+                <label for="sectionSpacing" class="form-label small mb-1">المسافة بين الأقسام</label>
+                <select id="sectionSpacing" name="section_spacing" class="form-select form-select-sm">
+                    <option value="compact" {{ old('section_spacing', $sectionSpacing) === 'compact' ? 'selected' : '' }}>متقاربة</option>
+                    <option value="normal" {{ old('section_spacing', $sectionSpacing) === 'normal' ? 'selected' : '' }}>عادية</option>
+                    <option value="spacious" {{ old('section_spacing', $sectionSpacing) === 'spacious' ? 'selected' : '' }}>واسعة</option>
+                </select>
+                <div class="form-text">يُطبّق الاختيار على عرض التقرير وطباعته.</div>
+            </div>
+        </div>
+    </div>
+
     @if ($report->status === 'draft')
     <div class="alert alert-light border small py-2 mb-3">
         <i class="bi bi-info-circle"></i> عدد صفحات التقرير <strong>{{ $pageCount }}</strong> مرسوم من القالب ولا يُعدّل من هنا — لتغييره عدّل «عدد الصفحات الافتراضي» في القالب ثم أنشئ تقريراً جديداً.
@@ -69,7 +98,7 @@
     </ul>
     @endif
 
-    <div class="tab-content">
+    <div class="tab-content monthly-report-sections" data-section-spacing="{{ $sectionSpacing }}">
         @for ($p = 1; $p <= $pageCount; $p++)
             <div class="tab-pane fade {{ $p === 1 ? 'show active' : '' }}" id="page-{{ $p }}" role="tabpanel">
                 @php
@@ -91,7 +120,7 @@
                         $editable = !$block?->locked || $isCreator;
                         $filled = $block && $report->isBlockComplete($block);
                     @endphp
-                    <div class="card mb-3">
+                    <div class="card mb-3 report-section-card">
                         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <span class="fw-bold">{{ $section['title'] ?? $section['key'] }}</span>
@@ -154,5 +183,10 @@
 @endsection
 
 @push('scripts')
+<script>
+document.getElementById('sectionSpacing')?.addEventListener('change', function () {
+    document.querySelector('.monthly-report-sections')?.setAttribute('data-section-spacing', this.value);
+});
+</script>
 @include('admin.project-docs.partials.block-edit-scripts')
 @endpush

@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Admin\ProjectDocs;
 use App\Helpers\PermissionHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Project;
+use App\Models\Admin\ProjectPath;
 use App\Models\Admin\ProjectDocs\AnnexDocument;
 use App\Models\Admin\ProjectDocs\AnnexDocumentBlock;
 use App\Models\Admin\ProjectDocs\AnnexTemplate;
 use App\Models\Admin\ProjectDocs\UploadedDocument;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class AnnexDocumentController extends Controller
@@ -41,111 +43,196 @@ class AnnexDocumentController extends Controller
             'status' => array_key_exists((string) $request->input('status'), AnnexDocument::STATUSES) ? $request->input('status') : null,
             'category' => array_key_exists((string) $request->input('category'), UploadedDocument::CATEGORIES) ? $request->input('category') : null,
             'project_id' => $request->input('project_id') ? (int) $request->input('project_id') : null,
+            'path_id' => $request->input('path_id') ? (int) $request->input('path_id') : null,
             'center_id' => $request->input('center_id') ? (int) $request->input('center_id') : null,
             'year' => preg_match('/^\d{4}$/', (string) $request->input('year')) ? (int) $request->input('year') : null,
+            'period_from' => preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $request->input('period_from')) ? $request->input('period_from') : null,
+            'period_to' => preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $request->input('period_to')) ? $request->input('period_to') : null,
+            'template_id' => $request->input('template_id') ? (int) $request->input('template_id') : null,
             'q' => trim((string) $request->input('q')) ?: null,
         ];
 
-        $rows = collect();
+        if ($filters['template_id']) {
+            $filters['type'] = 'structured';
+            $filters['category'] = null;
+        }
+        if ($filters['status'] && $filters['type'] === null) {
+            $filters['type'] = 'structured';
+        }
+        if (in_array($filters['type'], ['structured', 'external'], true)) {
+            $filters['category'] = null;
+        }
+        if ($filters['category'] && $filters['type'] === null) {
+            $filters['type'] = 'archive';
+        }
+        if ($filters['type'] === 'archive') {
+            $filters['status'] = null;
+        }
 
-        // ===== وثائق النظام (منظّمة/خارجية) =====
+        $periodFromMonth = $filters['period_from'];
+        $periodToMonth = $filters['period_to'];
+        if ($periodFromMonth || $periodToMonth) {
+            $filters['year'] = null;
+        }
+        if ($filters['year'] && ! $periodFromMonth && ! $periodToMonth) {
+            $periodFromMonth = $filters['year'] . '-01';
+            $periodToMonth = $filters['year'] . '-12';
+        }
+
+        if ($periodFromMonth && $periodToMonth && $periodFromMonth > $periodToMonth) {
+            [$periodFromMonth, $periodToMonth] = [$periodToMonth, $periodFromMonth];
+            $filters['period_from'] = $periodFromMonth;
+            $filters['period_to'] = $periodToMonth;
+        }
+
+        $periodFrom = $periodFromMonth ? $periodFromMonth . '-01' : null;
+        $periodTo = $periodToMonth
+            ? (new \DateTimeImmutable($periodToMonth . '-01'))->modify('last day of this month')->format('Y-m-d')
+            : null;
+
+        $perPageOptions = [10, 15, 25, 50, 100];
+        $requestedPerPage = (int) $request->query('per_page', 15);
+        $perPage = in_array($requestedPerPage, $perPageOptions, true) ? $requestedPerPage : 15;
+
+        $queries = [];
+
         if ($canDocs && $filters['type'] !== 'archive') {
             $scope = PermissionHelper::getEffectiveScope($user, AnnexDocument::class);
+            $documentQuery = AnnexDocument::query()
+                ->selectRaw("'document' as row_kind, annex_documents.id as row_id, COALESCE(annex_documents.period_end, annex_documents.created_at) as sort_at")
+                ->when(! $scope['sees_all'], fn ($q) => $q->whereIn('annex_documents.project_id', $scope['project_ids']))
+                ->when(in_array($filters['type'], ['structured', 'external'], true), fn ($q) => $q->where('annex_documents.document_kind', $filters['type']))
+                ->when($filters['status'], fn ($q, $v) => $q->where('annex_documents.status', $v))
+                ->when($filters['project_id'], fn ($q, $v) => $q->where('annex_documents.project_id', $v))
+                ->when($filters['path_id'], fn ($q, $v) => $q->whereHas('project', fn ($p) => $p->where('path_id', $v)))
+                ->when($filters['center_id'], fn ($q, $v) => $q->where('annex_documents.center_id', $v))
+                ->when($filters['template_id'], fn ($q, $v) => $q->where('annex_documents.template_id', $v))
+                ->when($periodFrom, fn ($q) => $q->whereNotNull('annex_documents.period_start')->where('annex_documents.period_start', '<=', $periodTo ?? '9999-12-31'))
+                ->when($periodFrom, fn ($q) => $q->where('annex_documents.period_end', '>=', $periodFrom))
+                ->when(! $periodFrom && $periodTo, fn ($q) => $q->whereNotNull('annex_documents.period_start')->where('annex_documents.period_start', '<=', $periodTo))
+                ->when($filters['q'], function ($q, $search) {
+                    $q->where(function ($w) use ($search) {
+                        $w->where('annex_documents.title', 'like', "%{$search}%")
+                            ->orWhere('annex_documents.period', 'like', "%{$search}%")
+                            ->orWhereHas('template', fn ($t) => $t->where('title_ar', 'like', "%{$search}%"))
+                            ->orWhereHas('project', fn ($p) => $p->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
+                    });
+                });
 
-            $documents = AnnexDocument::with(['template', 'project', 'creator', 'linkedFiles'])
-                ->when(! $scope['sees_all'], fn ($q) => $q->whereIn('project_id', $scope['project_ids']))
-                ->when($filters['type'], fn ($q, $v) => $q->where('document_kind', $v))
-                ->when($filters['status'], fn ($q, $v) => $q->where('status', $v))
-                ->when($filters['project_id'], fn ($q, $v) => $q->where('project_id', $v))
-                ->when($filters['year'], fn ($q, $v) => $q->whereYear('created_at', $v))
-                ->when($filters['q'], fn ($q, $v) => $q->where('title', 'like', "%{$v}%"))
-                ->get();
-
-            $rows = $rows->merge($documents->map(fn ($document) => [
-                'kind' => 'document',
-                'source' => $document->isExternal() ? 'external' : 'structured',
-                'model' => $document,
-                'title' => $document->title ?: ($document->template?->title_ar ?? 'وثيقة'),
-                'subtitle' => $document->isExternal() ? 'ملف مرفوع (PDF)' : ($document->template?->title_ar ?? '—'),
-                'project' => $document->project?->name,
-                'center' => null,
-                'when' => $document->updated_at,
-                'person' => $document->creator?->name,
-                'file' => $document->isExternal() ? $document->linkedFiles->sortByDesc('id')->first() : null,
-            ])->all());
+            $queries[] = $documentQuery;
         }
 
-        // ===== ملفات الأرشيف المستقلة (غير المرتبطة بوثيقة) =====
-        // فلتر الحالة لا حياة دورته للملفات المستقلة — يُهدأ الأرشيف حينها
-        if ($canArchive && in_array($filters['type'], [null, 'archive'], true) && ! $filters['status']) {
-            $rows = $rows->merge($this->unifiedArchiveRows($user, $filters));
+        if ($canArchive && in_array($filters['type'], [null, 'archive'], true) && ! $filters['status'] && ! $filters['template_id']) {
+            $scope = PermissionHelper::getEffectiveScope($user, UploadedDocument::class);
+            $archiveQuery = UploadedDocument::query()
+                ->whereNull('annex_document_id')
+                ->selectRaw("'archive' as row_kind, uploaded_documents.id as row_id, COALESCE(uploaded_documents.document_date, uploaded_documents.created_at) as sort_at")
+                ->when(! $scope['sees_all'] && $user->type !== 'super-admin', function ($q) use ($scope) {
+                    $centerIds = $scope['center_ids'] ?: [0];
+                    $projectIds = $scope['project_ids'] ?: [0];
+                    $q->where(function ($w) use ($centerIds, $projectIds) {
+                        $w->where(fn ($unassigned) => $unassigned->whereNull('center_id')->whereNull('project_id'))
+                            ->orWhereIn('center_id', $centerIds)
+                            ->orWhereIn('project_id', $projectIds);
+                    });
+                })
+                ->when($filters['category'], fn ($q, $v) => $q->where('uploaded_documents.category', $v))
+                ->when($filters['project_id'], fn ($q, $v) => $q->where('uploaded_documents.project_id', $v))
+                ->when($filters['path_id'], fn ($q, $v) => $q->whereHas('project', fn ($p) => $p->where('path_id', $v)))
+                ->when($filters['center_id'], fn ($q, $v) => $q->where('uploaded_documents.center_id', $v))
+                ->when($periodFrom, fn ($q) => $q->whereNotNull('uploaded_documents.document_date')->where('uploaded_documents.document_date', '>=', $periodFrom))
+                ->when($periodTo, fn ($q) => $q->whereNotNull('uploaded_documents.document_date')->where('uploaded_documents.document_date', '<=', $periodTo))
+                ->when($filters['q'], function ($q, $search) {
+                    $q->where(function ($w) use ($search) {
+                        $w->where('uploaded_documents.title', 'like', "%{$search}%")
+                            ->orWhere('uploaded_documents.description', 'like', "%{$search}%")
+                            ->orWhere('uploaded_documents.file_name', 'like', "%{$search}%")
+                            ->orWhereHas('project', fn ($p) => $p->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
+                    });
+                });
+
+            $queries[] = $archiveQuery;
         }
 
-        $rows = $rows
-            ->sortByDesc(fn ($row) => $row['when'] ? $row['when']->timestamp : 0)
-            ->values();
+        if ($queries === []) {
+            $documents = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(), 0, $perPage, 1, ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            $union = array_shift($queries);
+            foreach ($queries as $query) {
+                $union->unionAll($query);
+            }
 
-        $page = max(1, (int) $request->get('page', 1));
-        $perPage = 15;
+            $documents = DB::query()
+                ->fromSub($union, 'unified_documents')
+                ->orderByDesc('sort_at')
+                ->orderByDesc('row_id')
+                ->orderBy('row_kind')
+                ->paginate($perPage)
+                ->withQueryString();
 
-        $documents = new \Illuminate\Pagination\LengthAwarePaginator(
-            $rows->slice(($page - 1) * $perPage, $perPage)->values(),
-            $rows->count(),
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'query' => $request->query()]
-        );
+            $entries = $documents->getCollection();
+            $documentIds = $entries->where('row_kind', 'document')->pluck('row_id')->all();
+            $archiveIds = $entries->where('row_kind', 'archive')->pluck('row_id')->all();
+
+            $annexById = AnnexDocument::with(['template', 'project.path', 'creator', 'linkedFiles'])
+                ->whereIn('id', $documentIds)->get()->keyBy('id');
+            $archiveById = UploadedDocument::with(['project.path', 'center', 'uploader'])
+                ->whereIn('id', $archiveIds)->get()->keyBy('id');
+
+            $rows = $entries->map(function ($entry) use ($annexById, $archiveById) {
+                if ($entry->row_kind === 'archive') {
+                    $model = $archiveById->get($entry->row_id);
+                    if (! $model) {
+                        return null;
+                    }
+
+                    return [
+                        'kind' => 'archive', 'source' => 'archive', 'model' => $model,
+                        'title' => $model->title, 'subtitle' => $model->categoryLabel(),
+                        'project' => $model->project?->name, 'path' => $model->project?->path?->name,
+                        'center' => $model->center?->name, 'period' => null,
+                        'when' => $model->document_date ?? $model->created_at,
+                        'person' => $model->uploader?->name, 'file' => $model,
+                    ];
+                }
+
+                $model = $annexById->get($entry->row_id);
+                if (! $model) {
+                    return null;
+                }
+
+                $file = $model->isExternal() ? $model->linkedFiles->sortByDesc('id')->first() : null;
+
+                return [
+                    'kind' => 'document', 'source' => $model->isExternal() ? 'external' : 'structured', 'model' => $model,
+                    'title' => $model->title ?: ($model->template?->title_ar ?? 'وثيقة'),
+                    'subtitle' => $model->isExternal() ? 'ملف مرفوع (PDF)' : ($model->template?->title_ar ?? '—'),
+                    'project' => $model->project?->name, 'path' => $model->project?->path?->name,
+                    'center' => null, 'period' => $model->periodLabel(),
+                    'when' => $file?->document_date ?? $model->created_at,
+                    'person' => $model->creator?->name, 'file' => $file,
+                ];
+            })->filter()->values();
+
+            $documents->setCollection($rows);
+        }
 
         return view('admin.project-docs.documents.index', [
             'documents' => $documents,
-            'rows' => $rows,
             'filters' => $filters,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
             'canDocs' => $canDocs,
             'canArchive' => $canArchive,
-            'projects' => Project::ordered()->get(),
+            'projects' => Project::ordered()->with('path')->get(),
+            'paths' => ProjectPath::ordered()->get(),
+            'templates' => AnnexTemplate::orderBy('title_ar')->get(),
             'centers' => \App\Models\Admin\Center::orderBy('name')->get(),
             'categories' => UploadedDocument::CATEGORIES,
             'typeCounts' => $this->unifiedTypeCounts($user, $canDocs, $canArchive),
         ]);
-    }
-
-    private function unifiedArchiveRows($user, array $filters): array
-    {
-        $scope = PermissionHelper::getEffectiveScope($user, UploadedDocument::class);
-
-        return UploadedDocument::with(['project', 'center', 'uploader'])
-            ->whereNull('annex_document_id')
-            ->when(! $scope['sees_all'] && $user->type !== 'super-admin', function ($q) use ($scope) {
-                $centerIds = $scope['center_ids'] ?: [0];
-                $projectIds = $scope['project_ids'] ?: [0];
-
-                $q->where(function ($w) use ($centerIds, $projectIds) {
-                    $w->whereNull('center_id')->whereNull('project_id')
-                        ->orWhereIn('center_id', $centerIds)
-                        ->orWhereIn('project_id', $projectIds);
-                });
-            })
-            ->when($filters['category'], fn ($q, $v) => $q->where('category', $v))
-            ->when($filters['project_id'], fn ($q, $v) => $q->where('project_id', $v))
-            ->when($filters['center_id'], fn ($q, $v) => $q->where('center_id', $v))
-            ->when($filters['year'], fn ($q, $v) => $q->whereYear('document_date', $v))
-            ->when($filters['q'], function ($q, $v) {
-                $q->where(fn ($w) => $w->where('title', 'like', "%{$v}%")->orWhere('description', 'like', "%{$v}%"));
-            })
-            ->get()
-            ->map(fn ($file) => [
-                'kind' => 'archive',
-                'source' => 'archive',
-                'model' => $file,
-                'title' => $file->title,
-                'subtitle' => $file->categoryLabel(),
-                'project' => $file->project?->name,
-                'center' => $file->center?->name,
-                'when' => $file->document_date ?? $file->created_at,
-                'person' => $file->uploader?->name,
-                'file' => $file,
-            ])
-            ->all();
     }
 
     private function unifiedTypeCounts($user, bool $canDocs, bool $canArchive): array
@@ -203,7 +290,9 @@ class AnnexDocumentController extends Controller
             'template_id' => 'required_if:mode,structured|nullable|exists:annex_templates,id',
             'title' => 'nullable|string|max:255',
             'project_id' => 'nullable|exists:projects,id',
-            'period' => 'nullable|string|max:20',
+            'period' => 'nullable|string|max:40',
+            'period_start' => 'nullable|required_with:period_end|date_format:Y-m',
+            'period_end' => 'nullable|date_format:Y-m|after_or_equal:period_start',
             'category' => 'required_if:mode,external|nullable|string|in:' . implode(',', array_keys(UploadedDocument::CATEGORIES)),
             'document_date' => 'nullable|date',
             'file' => 'required_if:mode,external|nullable|file|mimes:pdf|max:25600',
@@ -219,6 +308,7 @@ class AnnexDocumentController extends Controller
         }
 
         $template = AnnexTemplate::findOrFail($validated['template_id']);
+        $periodData = $this->periodData($validated);
         // عدد الصفحات يُقرأ حصراً من القالب — لا يُقبل من نموذج الوثيقة
         $pageCount = max(1, min(60, (int) ($template->default_page_count ?? 1)));
 
@@ -227,7 +317,7 @@ class AnnexDocumentController extends Controller
             'template_version' => $template->version,
             'title' => $validated['title'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
-            'period' => $validated['period'] ?? null,
+            ...$periodData,
             'status' => 'draft',
             'document_kind' => AnnexDocument::KIND_STRUCTURED,
             'page_count' => $pageCount,
@@ -260,13 +350,14 @@ class AnnexDocumentController extends Controller
     private function storeExternal(Request $request, array $validated)
     {
         $template = AnnexDocument::externalTemplate();
+        $periodData = $this->periodData($validated);
 
         $document = AnnexDocument::create([
             'template_id' => $template->id,
             'template_version' => $template->version,
             'title' => $validated['title'] ?? $template->title_ar,
             'project_id' => $validated['project_id'] ?? null,
-            'period' => $validated['period'] ?? null,
+            ...$periodData,
             'status' => 'draft',
             'document_kind' => AnnexDocument::KIND_EXTERNAL,
             'page_count' => 1,
@@ -302,6 +393,31 @@ class AnnexDocumentController extends Controller
             ->with('success', 'تم إنشاء الوثيقة من الملف المرفوع');
     }
 
+    /** Store month ranges as indexed dates while retaining the legacy display string. */
+    private function periodData(array $input): array
+    {
+        $startMonth = $input['period_start'] ?? null;
+        $endMonth = $input['period_end'] ?? null;
+
+        if (! $startMonth) {
+            return [
+                'period' => $input['period'] ?? null,
+                'period_start' => null,
+                'period_end' => null,
+            ];
+        }
+
+        $endMonth = $endMonth ?: $startMonth;
+        $start = new \DateTimeImmutable($startMonth . '-01');
+        $end = (new \DateTimeImmutable($endMonth . '-01'))->modify('last day of this month');
+
+        return [
+            'period' => $startMonth === $endMonth ? $startMonth : $startMonth . ' — ' . $endMonth,
+            'period_start' => $start->format('Y-m-d'),
+            'period_end' => $end->format('Y-m-d'),
+        ];
+    }
+
     public function duplicate(AnnexDocument $document)
     {
         if ($document->isExternal()) {
@@ -317,6 +433,8 @@ class AnnexDocumentController extends Controller
             'title' => trim(($document->title ?: ($template?->title_ar ?? 'وثيقة')) . ' — نسخة'),
             'project_id' => $document->project_id,
             'period' => $document->period,
+            'period_start' => $document->period_start,
+            'period_end' => $document->period_end,
             'status' => 'draft',
             'page_count' => $pageCount,
             'data' => $document->data,
@@ -392,8 +510,31 @@ class AnnexDocumentController extends Controller
             return back()->with('error', 'الوثيقة ليست في حالة قابلة للتعديل حالياً');
         }
 
+        $documentInput = $request->validate([
+            'title' => 'sometimes|nullable|string|max:255',
+            'period_start' => 'sometimes|nullable|required_with:period_end|date_format:Y-m',
+            'period_end' => 'sometimes|nullable|date_format:Y-m|after_or_equal:period_start',
+        ]);
+
         $user = auth()->user();
         $isCreator = $user->id === (int) $document->created_by;
+
+        $documentChanges = [];
+        if (array_key_exists('title', $documentInput)) {
+            $documentChanges['title'] = $documentInput['title'];
+        }
+        if (array_key_exists('period_start', $documentInput) && filled($documentInput['period_start'])) {
+            $documentChanges = array_merge($documentChanges, $this->periodData($documentInput));
+        } elseif (array_key_exists('period_start', $documentInput) && $document->period_start) {
+            $documentChanges = array_merge($documentChanges, [
+                'period' => null,
+                'period_start' => null,
+                'period_end' => null,
+            ]);
+        }
+        if ($documentChanges !== []) {
+            $document->update($documentChanges);
+        }
 
         $coverInput = $request->validate([
             'cover_image' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:8192',

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Exports\BaseExport;
+use App\Helpers\PermissionHelper;
+use App\Exports\ProjectPathsExport;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Project;
 use App\Models\Admin\ProjectPath;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ProjectPathController extends Controller
@@ -27,8 +29,9 @@ class ProjectPathController extends Controller
 
         $paths = ProjectPath::withCount('projects')
             ->when($search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
-            ->orderBy('name')
-            ->paginate(15);
+            ->ordered()
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.paths.index', compact('paths', 'search'));
     }
@@ -36,26 +39,53 @@ class ProjectPathController extends Controller
     public function create()
     {
         $projects = Project::ordered()->get();
-        return view('admin.paths.form', compact('projects'));
+        $canCreateProjects = PermissionHelper::can(auth()->user(), Project::class, 'create');
+        $newProjectOrder = 1;
+
+        return view('admin.paths.form', compact('projects', 'canCreateProjects', 'newProjectOrder'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'sort_order' => 'required|integer|min:1|max:9999',
             'code' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'projects' => 'nullable|array',
             'projects.*' => 'exists:projects,id',
+            'new_project' => 'nullable|array',
+            'new_project.name' => 'nullable|string|max:255',
+            'new_project.code' => 'nullable|string|max:100',
+            'new_project.sort_order' => 'required_with:new_project.name|nullable|integer|min:1|max:9999',
+            'new_project.status' => 'nullable|in:' . implode(',', array_keys(Project::STATUSES)),
         ]);
 
-        $path = ProjectPath::create([
-            'name' => $validated['name'],
-            'code' => $validated['code'] ?? null,
-            'description' => $validated['description'] ?? null,
-        ]);
+        $newProjectName = trim((string) ($validated['new_project']['name'] ?? ''));
+        abort_unless($newProjectName === '' || PermissionHelper::can(auth()->user(), Project::class, 'create'), 403);
 
-        $this->syncProjects($path, $validated['projects'] ?? []);
+        $path = DB::transaction(function () use ($validated, $newProjectName) {
+            $path = ProjectPath::create([
+                'name' => $validated['name'],
+                'sort_order' => $validated['sort_order'],
+                'code' => $validated['code'] ?? null,
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            $projectIds = $validated['projects'] ?? [];
+            if ($newProjectName !== '') {
+                $projectIds[] = Project::create([
+                    'name' => $newProjectName,
+                    'code' => $validated['new_project']['code'] ?? null,
+                    'status' => $validated['new_project']['status'] ?? 'active',
+                    'sort_order' => $validated['new_project']['sort_order'],
+                ])->id;
+            }
+
+            $this->syncProjects($path, $projectIds);
+
+            return $path;
+        });
 
         return redirect()->route('admin.paths.index')
             ->with('success', 'تم إضافة المسار بنجاح');
@@ -65,26 +95,51 @@ class ProjectPathController extends Controller
     {
         $projects = Project::ordered()->get();
         $path->load('projects');
-        return view('admin.paths.form', compact('path', 'projects'));
+        $canCreateProjects = PermissionHelper::can(auth()->user(), Project::class, 'create');
+        $newProjectOrder = max(1, ((int) $path->projects->max('sort_order')) + 1);
+
+        return view('admin.paths.form', compact('path', 'projects', 'canCreateProjects', 'newProjectOrder'));
     }
 
     public function update(Request $request, ProjectPath $path)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'sort_order' => 'required|integer|min:1|max:9999',
             'code' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'projects' => 'nullable|array',
             'projects.*' => 'exists:projects,id',
+            'new_project' => 'nullable|array',
+            'new_project.name' => 'nullable|string|max:255',
+            'new_project.code' => 'nullable|string|max:100',
+            'new_project.sort_order' => 'required_with:new_project.name|nullable|integer|min:1|max:9999',
+            'new_project.status' => 'nullable|in:' . implode(',', array_keys(Project::STATUSES)),
         ]);
 
-        $path->update([
-            'name' => $validated['name'],
-            'code' => $validated['code'] ?? null,
-            'description' => $validated['description'] ?? null,
-        ]);
+        $newProjectName = trim((string) ($validated['new_project']['name'] ?? ''));
+        abort_unless($newProjectName === '' || PermissionHelper::can(auth()->user(), Project::class, 'create'), 403);
 
-        $this->syncProjects($path, $validated['projects'] ?? []);
+        DB::transaction(function () use ($path, $validated, $newProjectName) {
+            $path->update([
+                'name' => $validated['name'],
+                'sort_order' => $validated['sort_order'],
+                'code' => $validated['code'] ?? null,
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            $projectIds = $validated['projects'] ?? [];
+            if ($newProjectName !== '') {
+                $projectIds[] = Project::create([
+                    'name' => $newProjectName,
+                    'code' => $validated['new_project']['code'] ?? null,
+                    'status' => $validated['new_project']['status'] ?? 'active',
+                    'sort_order' => $validated['new_project']['sort_order'],
+                ])->id;
+            }
+
+            $this->syncProjects($path, $projectIds);
+        });
 
         return redirect()->route('admin.paths.index')
             ->with('success', 'تم تحديث المسار بنجاح');
@@ -120,7 +175,7 @@ class ProjectPathController extends Controller
         $query = ProjectPath::with(['projects' => fn ($q) => $q
             ->when($request->filled('status'), fn ($s) => $s->where('status', $request->status))
             ->ordered()])
-            ->orderBy('id');
+            ->ordered();
 
         if ($request->filled('status')) {
             $query->whereHas('projects', fn ($q) => $q->where('status', $request->status));
@@ -140,26 +195,12 @@ class ProjectPathController extends Controller
     public function exportExcel(Request $request)
     {
         $columns = $this->columnsQuery($request);
-        $width = $columns->max(fn (array $col) => count($col['items'])) ?: 0;
-
-        $headings = $columns->map(fn (array $col) => $col['title'])->all();
-        $rows = [];
-
-        for ($i = 0; $i < $width; $i++) {
-            $rows[] = $columns->map(function (array $col) use ($i) {
-                $item = $col['items'][$i] ?? null;
-
-                return $item ? sprintf('%d. %s%s — %s', $i + 1, $item['name'], $item['code'] ? ' ('.$item['code'].')' : '', $item['status']) : '';
-            })->all();
+        if (! $request->boolean('include_orphans')) {
+            $columns = $columns->reject(fn (array $column) => $column['orphan'] ?? false)->values();
         }
 
-        $columns_closures = array_map(
-            fn ($index) => fn (array $row) => $row[$index] ?? '',
-            array_keys($headings)
-        );
-
         return Excel::download(
-            new BaseExport(collect($rows), $headings, $columns_closures),
+            new ProjectPathsExport($columns),
             'paths-projects-' . now()->format('Y_m_d') . '.xlsx',
         );
     }
@@ -177,6 +218,7 @@ class ProjectPathController extends Controller
             ->map(fn (Project $project) => [
                 'name' => $project->name,
                 'code' => $project->code,
+                'sort_order' => $project->sort_order,
                 'status' => $project->statusLabel(),
                 'status_key' => $project->status,
             ])
@@ -184,22 +226,24 @@ class ProjectPathController extends Controller
             ->all();
 
         $query = ProjectPath::with(['projects' => fn ($q) => $q->ordered()])
-            ->orderBy('id');
+            ->ordered();
 
         if ($status) {
             $query->whereHas('projects', fn ($q) => $q->where('status', $status));
         }
 
         $columns = $query->get()->map(fn (ProjectPath $path) => [
-            'title' => trim($path->name . ' (' . ($path->code ?? '') . ')'),
+            'title' => $path->name,
+            'sort_order' => $path->sort_order,
             'code' => $path->code,
+            'orphan' => false,
             'items' => $map($path->projects),
         ]);
 
         $orphans = $map(Project::whereNull('path_id')->ordered()->get());
 
         if ($orphans) {
-            $columns->push(['title' => 'مشاريع بدون مسار', 'code' => null, 'items' => $orphans]);
+            $columns->push(['title' => 'مشاريع بدون مسار', 'sort_order' => null, 'code' => null, 'orphan' => true, 'items' => $orphans]);
         }
 
         return $columns->filter(fn (array $col) => $col['items'] !== [])->values();
@@ -208,7 +252,14 @@ class ProjectPathController extends Controller
     public function exportPdf(Request $request)
     {
         $columns = $this->columnsQuery($request);
+        $orphanColumn = $columns->firstWhere('orphan', true);
+        $orphanCount = count($orphanColumn['items'] ?? []);
+        $includeOrphans = $request->boolean('include_orphans');
 
-        return view('admin.paths.print', compact('columns'));
+        if (! $includeOrphans) {
+            $columns = $columns->reject(fn (array $column) => $column['orphan'] ?? false)->values();
+        }
+
+        return view('admin.paths.print', compact('columns', 'orphanCount', 'includeOrphans'));
     }
 }

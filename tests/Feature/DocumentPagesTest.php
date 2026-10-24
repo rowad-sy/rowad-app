@@ -298,6 +298,237 @@ it('keeps empty middle cells aligned when saving monthly report table rows', fun
     expect($value)->toBe([['a', null, 'c'], ['x', 'y', 'z']]);
 });
 
+it('lets a draft monthly report update its title and section spacing', function () {
+    $user = pagesSuperAdmin();
+    $template = monthlyTemplate();
+    $report = MonthlyReport::create([
+        'template_id' => $template->id,
+        'template_version' => 1,
+        'title' => 'العنوان السابق',
+        'status' => 'draft',
+        'page_count' => 3,
+        'created_by' => $user->id,
+    ]);
+    foreach ($template->sections() as $section) {
+        $report->blocks()->create(['block_key' => $section['key'], 'page_number' => (int) ($section['page'] ?? 1)]);
+    }
+
+    $this->actingAs($user)->put(route('admin.monthly-reports.update', $report), [
+        'title' => 'العنوان الجديد',
+        'section_spacing' => 'spacious',
+    ])->assertRedirect();
+
+    $report->refresh();
+    expect($report->title)->toBe('العنوان الجديد')
+        ->and($report->data['section_spacing'])->toBe('spacious');
+
+    $this->actingAs($user)->get(route('admin.monthly-reports.show', $report))
+        ->assertOk()
+        ->assertSee('data-section-spacing="spacious"', false);
+    $this->actingAs($user)->get(route('admin.monthly-reports.print', $report))
+        ->assertOk()
+        ->assertSee('data-section-spacing="spacious"', false);
+});
+
+it('lets a draft project document update its title', function () {
+    $user = pagesSuperAdmin();
+    $template = AnnexTemplate::create([
+        'key' => 'smr-document-title',
+        'title_ar' => 'قالب وثيقة تجريبي',
+        'version' => 1,
+        'default_page_count' => 1,
+        'is_active' => true,
+        'json_definition' => [
+            'sections' => [['key' => 'intro', 'title' => 'مقدمة', 'type' => 'paragraph', 'page' => 1]],
+        ],
+    ]);
+    $document = AnnexDocument::create([
+        'template_id' => $template->id,
+        'template_version' => 1,
+        'title' => 'الاسم السابق',
+        'status' => 'draft',
+        'page_count' => 1,
+        'created_by' => $user->id,
+    ]);
+    $document->blocks()->create(['block_key' => 'intro', 'page_number' => 1]);
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.edit', $document))
+        ->assertOk()
+        ->assertSee('name="title"', false)
+        ->assertSee('value="الاسم السابق"', false);
+
+    $this->actingAs($user)->put(route('admin.project-docs.documents.update', $document), [
+        'title' => 'الاسم الجديد',
+    ])->assertRedirect();
+
+    expect($document->refresh()->title)->toBe('الاسم الجديد');
+    $this->actingAs($user)->get(route('admin.project-docs.documents.show', $document))
+        ->assertOk()
+        ->assertSee('الاسم الجديد');
+});
+
+it('allows selecting and paginating project documents by page size', function () {
+    $user = pagesSuperAdmin();
+    $template = AnnexTemplate::create([
+        'key' => 'smr-document-page-size',
+        'title_ar' => 'قالب ترقيم الوثائق',
+        'version' => 1,
+        'default_page_count' => 1,
+        'is_active' => true,
+        'json_definition' => ['sections' => []],
+    ]);
+
+    foreach (range(1, 27) as $number) {
+        AnnexDocument::create([
+            'template_id' => $template->id,
+            'template_version' => 1,
+            'title' => "وثيقة {$number}",
+            'status' => 'draft',
+            'page_count' => 1,
+            'created_by' => $user->id,
+        ]);
+    }
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.index', ['per_page' => 10]))
+        ->assertOk()
+        ->assertSee('name="per_page"', false)
+        ->assertSee('value="10" selected', false)
+        ->assertViewHas('documents', fn ($documents) => $documents->perPage() === 10 && $documents->count() === 10);
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.index', ['per_page' => 10, 'page' => 2]))
+        ->assertOk()
+        ->assertViewHas('documents', fn ($documents) => $documents->perPage() === 10
+            && $documents->currentPage() === 2
+            && $documents->count() === 10);
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.index', ['per_page' => 999]))
+        ->assertOk()
+        ->assertViewHas('documents', fn ($documents) => $documents->perPage() === 15);
+});
+
+it('stores normalized reporting periods and filters documents by template and month range', function () {
+    $user = pagesSuperAdmin();
+    $template = AnnexTemplate::create([
+        'key' => 'smr-period-filter',
+        'title_ar' => 'قالب فترة اختبارية',
+        'version' => 1,
+        'default_page_count' => 1,
+        'is_active' => true,
+        'json_definition' => ['sections' => []],
+    ]);
+    $otherTemplate = AnnexTemplate::create([
+        'key' => 'smr-period-filter-other',
+        'title_ar' => 'قالب آخر',
+        'version' => 1,
+        'default_page_count' => 1,
+        'is_active' => true,
+        'json_definition' => ['sections' => []],
+    ]);
+
+    $this->actingAs($user)->post(route('admin.project-docs.documents.store'), [
+        'mode' => 'structured',
+        'template_id' => $template->id,
+        'title' => 'وثيقة تغطي الربيع',
+        'period_start' => '2025-04',
+        'period_end' => '2025-06',
+    ])->assertRedirect();
+
+    $target = AnnexDocument::firstWhere('title', 'وثيقة تغطي الربيع');
+    expect($target->period)->toBe('2025-04 — 2025-06')
+        ->and($target->period_start->format('Y-m-d'))->toBe('2025-04-01')
+        ->and($target->period_end->format('Y-m-d'))->toBe('2025-06-30');
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.edit', $target))
+        ->assertOk()
+        ->assertSee('value="2025-04"', false)
+        ->assertSee('value="2025-06"', false);
+
+    $this->actingAs($user)->put(route('admin.project-docs.documents.update', $target), [
+        'period_start' => '2025-04',
+        'period_end' => '2025-06',
+    ])->assertRedirect();
+
+    expect($target->refresh()->period_end->format('Y-m-d'))->toBe('2025-06-30');
+
+    foreach ([
+        ['title' => 'وثيقة بعد الفترة', 'template_id' => $template->id, 'period' => '2025-07', 'start' => '2025-07-01', 'end' => '2025-07-31'],
+        ['title' => 'قالب مختلف في الفترة', 'template_id' => $otherTemplate->id, 'period' => '2025-05', 'start' => '2025-05-01', 'end' => '2025-05-31'],
+    ] as $record) {
+        AnnexDocument::create([
+            'template_id' => $record['template_id'],
+            'template_version' => 1,
+            'title' => $record['title'],
+            'period' => $record['period'],
+            'period_start' => $record['start'],
+            'period_end' => $record['end'],
+            'status' => 'draft',
+            'page_count' => 1,
+            'created_by' => $user->id,
+        ]);
+    }
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.index', [
+        'template_id' => $template->id,
+        'period_from' => '2025-05',
+        'period_to' => '2025-05',
+    ]))
+        ->assertOk()
+        ->assertSee('وثيقة تغطي الربيع')
+        ->assertDontSee('وثيقة بعد الفترة')
+        ->assertDontSee('قالب مختلف في الفترة')
+        ->assertViewHas('documents', fn ($documents) => $documents->total() === 1);
+});
+
+it('preserves all columns for dynamically added rows in project document output tables', function () {
+    $user = pagesSuperAdmin();
+    $template = AnnexTemplate::create([
+        'key' => 'smr-output-table',
+        'title_ar' => 'دراسة أولية تجريبية',
+        'version' => 1,
+        'default_page_count' => 1,
+        'is_active' => true,
+        'json_definition' => [
+            'sections' => [[
+                'key' => 'design_outputs',
+                'title' => 'المخرجات',
+                'type' => 'table',
+                'columns' => ['المخرج', 'المؤشر', 'وسيلة التحقق'],
+                'page' => 1,
+            ]],
+        ],
+    ]);
+    $document = AnnexDocument::create([
+        'template_id' => $template->id,
+        'template_version' => 1,
+        'title' => 'دراسة تجريبية',
+        'status' => 'draft',
+        'page_count' => 1,
+        'created_by' => $user->id,
+    ]);
+    $document->blocks()->create(['block_key' => 'design_outputs', 'page_number' => 1]);
+
+    $this->actingAs($user)->get(route('admin.project-docs.documents.edit', $document))
+        ->assertOk()
+        ->assertSee('data-next-row-index="1"', false)
+        ->assertSee("const inputName = 'blocks[' + addRow.dataset.key + '][rows][' + rowIndex + ']';", false);
+
+    $this->actingAs($user)->put(route('admin.project-docs.documents.update', $document), [
+        'blocks' => ['design_outputs' => ['rows' => [
+            ['المخرج الأول', 'مؤشر أول', 'تحقق أول'],
+            ['المخرج الثاني', 'مؤشر ثان', 'تحقق ثان'],
+        ]]],
+    ])->assertRedirect();
+
+    expect($document->refresh()->blocks->firstWhere('block_key', 'design_outputs')->json_value)->toBe([
+        ['المخرج الأول', 'مؤشر أول', 'تحقق أول'],
+        ['المخرج الثاني', 'مؤشر ثان', 'تحقق ثان'],
+    ]);
+    $this->actingAs($user)->get(route('admin.project-docs.documents.show', $document))
+        ->assertOk()
+        ->assertSee('مؤشر أول')
+        ->assertSee('تحقق ثان');
+});
+
 it('serves the shared robust add-row script on both edit pages', function () {
     $user = pagesSuperAdmin();
     $template = monthlyTemplate();

@@ -18,7 +18,7 @@ class AnnexDocument extends Model
 
     protected $fillable = [
         'template_id', 'template_version', 'title',
-        'project_id', 'period', 'status', 'document_kind', 'page_count', 'data', 'cover_path',
+        'project_id', 'period', 'period_start', 'period_end', 'status', 'document_kind', 'page_count', 'data', 'cover_path',
         'created_by', 'assigned_to', 'signed_at',
     ];
 
@@ -39,6 +39,8 @@ class AnnexDocument extends Model
         return [
             'template_version' => 'integer',
             'page_count' => 'integer',
+            'period_start' => 'date',
+            'period_end' => 'date',
             'data' => 'array',
             'signed_at' => 'datetime',
         ];
@@ -87,6 +89,22 @@ class AnnexDocument extends Model
     public function isExternal(): bool
     {
         return $this->document_kind === self::KIND_EXTERNAL;
+    }
+
+    public function periodLabel(): ?string
+    {
+        if (! $this->period_start) {
+            return $this->period;
+        }
+
+        $start = $this->period_start->locale('ar');
+        $end = $this->period_end?->locale('ar');
+
+        if (! $end || $start->format('Y-m') === $end->format('Y-m')) {
+            return $start->translatedFormat('F Y');
+        }
+
+        return $start->translatedFormat('F Y') . ' — ' . $end->translatedFormat('F Y');
     }
 
     public static function externalTemplate(): AnnexTemplate

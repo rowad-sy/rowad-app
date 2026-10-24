@@ -45,7 +45,14 @@
                     <td class="fw-medium">{{ $project->name }}</td>
                     <td class="text-muted">{{ $project->sort_order ?? '—' }}</td>
                     <td class="text-muted">{{ $project->code ?? '—' }}</td>
-                    <td class="text-muted">{{ $project->path?->name ?? '—' }}</td>
+                    <td class="text-muted">
+                        @if ($project->path)
+                            <span class="badge bg-light text-dark border me-1">{{ $project->path->sort_order ?? '—' }}</span>
+                            {{ $project->path->name }}
+                        @else
+                            —
+                        @endif
+                    </td>
                     <td><span class="status-pill {{ $project->statusBadgeClass() }}">{{ $project->statusLabel() }}</span></td>
                     <td>
                         @foreach ($project->centers as $center)

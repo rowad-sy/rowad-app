@@ -15,6 +15,14 @@
 @endphp
 
 @php $tone = ['success' => 'success', 'warning' => 'warning', 'danger' => 'danger', 'info' => 'info', 'primary' => 'brand'][$badge] ?? 'neutral'; @endphp
+@php $sectionSpacing = $report->data['section_spacing'] ?? 'normal'; @endphp
+@push('styles')
+<style>
+    .monthly-report-sections[data-section-spacing="compact"] .report-section-card { margin-bottom: .5rem !important; }
+    .monthly-report-sections[data-section-spacing="normal"] .report-section-card { margin-bottom: 1rem !important; }
+    .monthly-report-sections[data-section-spacing="spacious"] .report-section-card { margin-bottom: 1.5rem !important; }
+</style>
+@endpush
 <x-page-header :title="$report->title ?: $report->template->title_ar"
                :breadcrumb="[['label' => 'التقارير الشهرية', 'url' => route('admin.monthly-reports.index')], ['label' => 'عرض']]">
     <x-slot:meta><div class="mt-2"><x-status-badge :tone="$tone">{{ $report::STATUSES[$report->status] }}</x-status-badge></div></x-slot:meta>
@@ -98,12 +106,13 @@
             </div>
         </div>
 
+        <div class="monthly-report-sections" data-section-spacing="{{ $sectionSpacing }}">
         @foreach ($report->sections() as $section)
             @php
                 $block = $report->blocks->firstWhere('block_key', $section['key'] ?? null);
                 $filled = $block && $report->isBlockComplete($block);
             @endphp
-            <div class="card mb-3">
+            <div class="card mb-3 report-section-card">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <span class="fw-bold">{{ $section['title'] ?? $section['key'] }}</span>
                     <span>
@@ -131,6 +140,7 @@
                 </div>
             </div>
         @endforeach
+        </div>
     </div>
 
     <div class="col-lg-4">

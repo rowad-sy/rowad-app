@@ -32,6 +32,8 @@
         .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 12px; font-size: .85rem; margin-bottom: 14px; }
         .meta-grid .m-item b { font-weight: 600; }
         h2.section-title { background: var(--accent); color: #fff; font-size: .95rem; font-weight: 700; margin: 18px 0 8px; padding: 4px 10px; }
+        .print-sheet[data-section-spacing="compact"] h2.section-title { margin-top: 10px; margin-bottom: 5px; }
+        .print-sheet[data-section-spacing="spacious"] h2.section-title { margin-top: 26px; margin-bottom: 12px; }
         h2.section-title small { color: #fff3e6; }
         .block-body table { font-size: .8rem; }
         .block-body table, .block-body th, .block-body td { border: 1px solid #000 !important; border-collapse: collapse; }
@@ -81,7 +83,7 @@
     @endif
 
     @for ($p = 1; $p <= $totalPages; $p++)
-        <div class="print-sheet">
+        <div class="print-sheet" data-section-spacing="{{ $report->data['section_spacing'] ?? 'normal' }}">
             <div class="sheet-head">
                 <div class="text-center">
                     <div class="doc-title">{{ $report->title ?: $report->template->title_ar }}</div>

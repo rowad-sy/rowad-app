@@ -111,9 +111,20 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">الفترة (شهر/سنة)</label>
-                    <input type="text" name="period" class="form-control" dir="ltr" value="{{ old('period') }}"
-                           placeholder="مثال: 2026-09 — للتقارير الشهرية">
+                    <label class="form-label">فترة الوثيقة</label>
+                    <div class="row g-2">
+                        <div class="col-sm-6">
+                            <label class="form-label small mb-1" for="periodStart">من شهر</label>
+                            <input id="periodStart" type="month" name="period_start" class="form-control @error('period_start') is-invalid @enderror" value="{{ old('period_start') }}">
+                            @error('period_start') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small mb-1" for="periodEnd">إلى شهر</label>
+                            <input id="periodEnd" type="month" name="period_end" class="form-control @error('period_end') is-invalid @enderror" value="{{ old('period_end') }}">
+                            @error('period_end') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                    <div class="form-text">اختياري. اترك النهاية فارغة إذا كانت الوثيقة لشهر واحد فقط.</div>
                 </div>
 
                 <button class="btn btn-primary">إنشاء الوثيقة</button>

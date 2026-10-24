@@ -28,6 +28,41 @@
 
     <div class="table-container mb-3">
         <div class="p-3">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="documentTitle" class="form-label small mb-1">اسم الوثيقة</label>
+                    <input id="documentTitle" type="text" name="title" maxlength="255"
+                           class="form-control form-control-sm @error('title') is-invalid @enderror"
+                           value="{{ old('title', $document->title) }}"
+                           placeholder="{{ $document->template->title_ar }}">
+                    @error('title') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">فترة الوثيقة</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="month" name="period_start" aria-label="فترة الوثيقة من شهر"
+                                   class="form-control form-control-sm @error('period_start') is-invalid @enderror"
+                                   value="{{ old('period_start', $document->period_start?->format('Y-m')) }}">
+                            @error('period_start') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-6">
+                            <input type="month" name="period_end" aria-label="فترة الوثيقة إلى شهر"
+                                   class="form-control form-control-sm @error('period_end') is-invalid @enderror"
+                                   value="{{ old('period_end', $document->period_end?->format('Y-m')) }}">
+                            @error('period_end') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                    @if ($document->period && ! $document->period_start)
+                        <div class="form-text">الفترة القديمة محفوظة كما هي: {{ $document->period }}</div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-container mb-3">
+        <div class="p-3">
             <div class="row align-items-center g-3">
                 <div class="col-md-6">
                     <label class="form-label small mb-1"><i class="bi bi-card-image me-1" aria-hidden="true"></i>غلاف الوثيقة — صورة A4 عمودية (تُطبع كأول صفحة)</label>

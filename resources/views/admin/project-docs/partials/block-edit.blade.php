@@ -20,8 +20,12 @@
                     <th style="width: 40px;"></th>
                 </tr>
             </thead>
-            <tbody class="table-edit-rows">
-                @php $rows = (array) ($value ?? []); @endphp
+            @php
+                $rows = array_values((array) ($value ?? []));
+                // An empty table still renders a placeholder row at index 0.
+                $nextRowIndex = max(1, count($rows));
+            @endphp
+            <tbody class="table-edit-rows" data-next-row-index="{{ $nextRowIndex }}">
                 @forelse ($rows as $r => $row)
                     <tr class="table-edit-row">
                         @foreach (($section['columns'] ?? []) as $c => $column)

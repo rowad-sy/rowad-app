@@ -52,12 +52,12 @@
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">رقم الترتيب في القوائم</label>
-                        <input type="number" name="sort_order" min="0" max="9999"
+                        <label class="form-label">رقم الترتيب داخل المسار</label>
+                        <input type="number" name="sort_order" min="1" max="9999"
                                class="form-control @error('sort_order') is-invalid @enderror"
                                value="{{ old('sort_order', $project->sort_order ?? '') }}">
                         @error('sort_order') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        <div class="form-text">1 = يظهر أولاً في كل القوائم — اتركه فارغاً ليظهر آخر القائمة بالاسم</div>
+                        <div class="form-text">مطلوب عند اختيار مسار. يُرتّب المشروع داخل مساره، ويبدأ ترتيب كل مسار من 1.</div>
                     </div>
                 </div>
 
@@ -66,7 +66,7 @@
                     <select name="path_id" class="form-select @error('path_id') is-invalid @enderror">
                         <option value="">— بدون مسار —</option>
                         @foreach ($paths as $path)
-                            <option value="{{ $path->id }}" @selected((int) old('path_id', $project->path_id ?? $defaultPathId ?? 0) === $path->id)>{{ $path->name }}</option>
+                            <option value="{{ $path->id }}" @selected((int) old('path_id', $project->path_id ?? $defaultPathId ?? 0) === $path->id)>{{ $path->sort_order }} — {{ $path->name }}</option>
                         @endforeach
                     </select>
                     @error('path_id') <div class="invalid-feedback">{{ $message }}</div> @enderror

@@ -31,7 +31,7 @@
     <table class="table table-hover align-middle mb-0">
         <thead>
             <tr>
-                <th>#</th>
+                <th>ترتيب المسار</th>
                 <th>اسم المسار</th>
                 <th>الكود</th>
                 <th>الوصف</th>
@@ -42,7 +42,7 @@
         <tbody>
             @forelse ($paths as $path)
                 <tr>
-                    <td>{{ $path->id }}</td>
+                    <td>{{ $path->sort_order ?? '—' }}</td>
                     <td class="fw-medium">{{ $path->name }}</td>
                     <td class="text-muted">{{ $path->code ?? '—' }}</td>
                     <td class="text-muted" style="max-width: 280px;">

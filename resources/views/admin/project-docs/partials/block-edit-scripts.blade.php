@@ -25,7 +25,9 @@ document.addEventListener('click', function (e) {
         const tbody = scope.querySelector('.table-edit-rows');
         if (!tbody) return;
         const cols = Math.max(1, parseInt(addRow.dataset.cols, 10) || 0);
-        const inputName = 'blocks[' + addRow.dataset.key + '][rows][]';
+        const rowIndex = parseInt(tbody.dataset.nextRowIndex, 10) || 0;
+        tbody.dataset.nextRowIndex = rowIndex + 1;
+        const inputName = 'blocks[' + addRow.dataset.key + '][rows][' + rowIndex + ']';
         let html = '<tr class="table-edit-row">';
         for (let c = 0; c < cols; c++) {
             html += '<td><input type="text" name="' + inputName + '[' + c + ']" class="form-control form-control-sm"></td>';

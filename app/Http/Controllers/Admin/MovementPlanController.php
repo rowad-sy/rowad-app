@@ -111,7 +111,7 @@ class MovementPlanController extends Controller
 
         $export = new \App\Exports\MovementPlanExport(
             collect($rows->all()),
-            ['رقم الخطة', 'شهر الخطة', 'التاريخ', 'اليوم', 'الانطلاق', 'العودة', 'من', 'إلى', 'الغاية', 'ملاحظات البند', 'حالة الخطة', 'المركز', 'المشروع', 'أنشأها', 'مسؤول الحركة', 'المتابِعون'],
+            ['رقم الخطة', 'شهر الخطة', 'التاريخ', 'اليوم', 'الانطلاق', 'العودة', 'من', 'إلى', 'الغاية', 'حالة الخطة', 'مسؤول الحركة', 'المتابِعون'],
             [
                 'month' => $request->month,
                 'status' => $request->filled('status') ? MovementPlan::STATUSES[$request->status] : null,
@@ -156,12 +156,14 @@ class MovementPlanController extends Controller
 
         $export = new \App\Exports\MovementPlanExport(
             $rows,
-            ['رقم الخطة', 'شهر الخطة', 'التاريخ', 'اليوم', 'الانطلاق', 'العودة', 'من', 'إلى', 'الغاية', 'ملاحظات البند', 'حالة الخطة', 'المركز', 'المشروع', 'أنشأها', 'مسؤول الحركة', 'المتابِعون'],
+            ['رقم الخطة', 'شهر الخطة', 'التاريخ', 'اليوم', 'الانطلاق', 'العودة', 'من', 'إلى', 'الغاية', 'حالة الخطة', 'مسؤول الحركة', 'المتابِعون'],
             [
                 'month' => $movementPlan->plan_month?->format('Y-m'),
                 'status' => MovementPlan::STATUSES[$movementPlan->status] ?? null,
                 'count' => $rows->count(),
                 'plan' => $movementPlan->request_number,
+                'center' => $movementPlan->center?->name,
+                'project' => $movementPlan->project?->name,
             ],
         );
 

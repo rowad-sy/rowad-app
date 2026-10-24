@@ -20,6 +20,14 @@
                     @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
                 <div class="mb-3">
+                    <label class="form-label">ترتيب المسار <span class="text-danger">*</span></label>
+                    <input type="number" name="sort_order" min="1" max="9999"
+                           class="form-control @error('sort_order') is-invalid @enderror"
+                           value="{{ old('sort_order', $path->sort_order ?? '') }}" required>
+                    @error('sort_order') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="form-text">يُعرض المسار بهذا الترتيب قبل ترتيب المشاريع داخله.</div>
+                </div>
+                <div class="mb-3">
                     <label class="form-label">كود المسار</label>
                     <input type="text" name="code" class="form-control @error('code') is-invalid @enderror"
                            value="{{ old('code', $path->code ?? '') }}">
@@ -60,6 +68,47 @@
                 <div class="text-muted small mt-2">
                     <i class="bi bi-info-circle me-1"></i> المشروع ينتمي لمسار واحد؛ اختياره هنا يفصله عن أي مسار آخر.
                 </div>
+
+                @if ($canCreateProjects)
+                    <hr>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="bi bi-plus-square text-primary" aria-hidden="true"></i>
+                        <h6 class="mb-0">إضافة مشروع جديد إلى هذا المسار</h6>
+                    </div>
+                    <div class="text-muted small mb-2">اختياري — يُنشأ المشروع ويرتبط بالمسار عند حفظ النموذج.</div>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label small mb-1" for="newProjectName">اسم المشروع</label>
+                            <input id="newProjectName" type="text" name="new_project[name]" maxlength="255"
+                                   class="form-control form-control-sm @error('new_project.name') is-invalid @enderror"
+                                   value="{{ old('new_project.name') }}">
+                            @error('new_project.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1" for="newProjectOrder">الترتيب داخل المسار</label>
+                            <input id="newProjectOrder" type="number" name="new_project[sort_order]" min="1" max="9999"
+                                   class="form-control form-control-sm @error('new_project.sort_order') is-invalid @enderror"
+                                   value="{{ old('new_project.sort_order', $newProjectOrder) }}">
+                            @error('new_project.sort_order') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1" for="newProjectCode">الكود</label>
+                            <input id="newProjectCode" type="text" name="new_project[code]" maxlength="100"
+                                   class="form-control form-control-sm @error('new_project.code') is-invalid @enderror"
+                                   value="{{ old('new_project.code') }}">
+                            @error('new_project.code') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small mb-1" for="newProjectStatus">الحالة</label>
+                            <select id="newProjectStatus" name="new_project[status]" class="form-select form-select-sm @error('new_project.status') is-invalid @enderror">
+                                @foreach (\App\Models\Admin\Project::STATUSES as $key => $label)
+                                    <option value="{{ $key }}" @selected(old('new_project.status', 'active') === $key)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('new_project.status') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

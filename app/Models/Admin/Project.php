@@ -36,14 +36,27 @@ class Project extends Model
     protected $fillable = ['name', 'description', 'path_id', 'status', 'code', 'sort_order'];
 
     /**
-     * الترتيب الموحّد لقوائم المشاريع في كل النظام:
-     * رقم الترتيب أولاً (1 = أول)، ومن دونه أو عند التساوي بالاسم.
+     * ترتيب المشاريع في كل النظام: ترتيب المسار أولاً، ثم رقم المشروع داخل
+     * مساره. المسارات غير المرتبة تأتي بعد المرتبة، والمشاريع بلا مسار أخيراً.
      */
     public function scopeOrdered($query)
     {
+        $pathOrder = ProjectPath::query()
+            ->select('id as ordering_path_id')
+            ->addSelect('sort_order as ordering_path_rank')
+            ->addSelect('name as ordering_path_name');
+
         return $query
+            ->leftJoinSub($pathOrder, 'ordered_project_paths', function ($join) {
+                $join->on('ordered_project_paths.ordering_path_id', '=', 'projects.path_id');
+            })
+            ->orderByRaw('CASE WHEN projects.path_id IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderByRaw('COALESCE(ordered_project_paths.ordering_path_rank, 999999) ASC')
+            ->orderBy('ordered_project_paths.ordering_path_name')
+            ->orderBy('ordered_project_paths.ordering_path_id')
             ->orderByRaw('COALESCE(projects.sort_order, 999999) ASC')
-            ->orderBy('name');
+            ->orderBy('projects.name')
+            ->orderBy('projects.id');
     }
 
     public function path(): BelongsTo

@@ -177,6 +177,11 @@ class MonthlyReportController extends Controller
             return back()->with('error', 'التقرير ليس في حالة قابلة للتعديل حالياً');
         }
 
+        $reportInput = $request->validate([
+            'title' => 'sometimes|nullable|string|max:255',
+            'section_spacing' => 'sometimes|in:compact,normal,spacious',
+        ]);
+
         $user = auth()->user();
         $isCreator = $user->id === (int) $report->created_by;
 
@@ -193,6 +198,19 @@ class MonthlyReportController extends Controller
         } elseif (! empty($coverInput['remove_cover']) && $report->cover_path) {
             \Illuminate\Support\Facades\Storage::disk('public')->delete($report->cover_path);
             $report->update(['cover_path' => null]);
+        }
+
+        $reportChanges = [];
+        if (array_key_exists('title', $reportInput)) {
+            $reportChanges['title'] = $reportInput['title'];
+        }
+        if (array_key_exists('section_spacing', $reportInput)) {
+            $reportChanges['data'] = array_merge($report->data ?? [], [
+                'section_spacing' => $reportInput['section_spacing'],
+            ]);
+        }
+        if ($reportChanges !== []) {
+            $report->update($reportChanges);
         }
 
         // عدد الصفحات غير قابل للتعديل من التقرير — يُدار من القالب فقط
