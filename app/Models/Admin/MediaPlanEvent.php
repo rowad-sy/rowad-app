@@ -16,7 +16,7 @@ class MediaPlanEvent extends Model
 
     protected $fillable = [
         'media_plan_id', 'event_date', 'office', 'event_name', 'day',
-        'event_time', 'location', 'responsible_user_id', 'summary',
+        'event_time', 'event_end_time', 'location', 'responsible_user_id', 'summary',
         'coverage_type', 'notes',
         'execution_status', 'execution_note', 'execution_by', 'execution_at',
         'coverage_status', 'refer_to_reporter_id', 'not_covered_reason',

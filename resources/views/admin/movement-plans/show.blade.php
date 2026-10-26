@@ -4,14 +4,8 @@
 
 @section('content')
 @php
-    $colors = ['review' => 'bg-warning text-dark', 'approved' => 'bg-info', 'assigned' => 'bg-primary', 'completed' => 'bg-success', 'rejected' => 'bg-danger', 'cancelled' => 'bg-secondary'];
-
-    $user = auth()->user();
-    $uid = $user->id;
-    $isSuper = $user->type === 'super-admin';
-    $isPm2 = $uid === (int) $plan->refer_to_pm2_id;
-    $isOfficer = $uid === (int) $plan->refer_to_movement_officer_id;
-    $isCurrentHolder = $plan->isCurrentRecipient($uid);
+    $colors = ['review' => 'bg-warning text-dark', 'approved' => 'bg-info', 'officer_accepted' => 'bg-primary', 'assigned' => 'bg-primary', 'completed' => 'bg-success', 'rejected' => 'bg-danger', 'cancelled' => 'bg-secondary'];
+    $uid = auth()->id();
 @endphp
 
 @php $tone = (function ($c) { foreach (['success' => 'success', 'danger' => 'danger', 'warning' => 'warning', 'info' => 'info', 'primary' => 'brand'] as $k => $t) { if (str_contains((string) $c, $k)) return $t; } return 'neutral'; })($colors[$plan->status] ?? ''); @endphp
@@ -51,7 +45,7 @@
                     <tr><th>المركز</th><td>{{ $plan->center?->name ?? '—' }}</td></tr>
                     <tr><th>المشروع</th><td>{{ $plan->project?->name ?? '—' }}</td></tr>
                     <tr><th>أنشأها</th><td>{{ $plan->creator?->name ?? '—' }}</td></tr>
-                    <tr><th>المُحال للمراجعة</th><td>{{ $plan->projectsManager?->name ?? '—' }}</td></tr>
+                    <tr><th>المُحال للمراجعة</th><td>{{ $plan->projectsManager?->name ?? ($plan->review_role_key ? 'دور مدير المشاريع' : '—') }}</td></tr>
                     <tr><th>مسؤول الحركة</th><td>{{ $plan->movementOfficer?->name ?? '—' }}</td></tr>
                     <tr><th>وزّع المتابعة</th><td>{{ $plan->assigner?->name ?? '—' }} {{ $plan->assigned_at ? '— ' . $plan->assigned_at->format('Y-m-d H:i') : '' }}</td></tr>
                     @if ($plan->reason)
@@ -69,10 +63,12 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>التاريخ</th>
-                            <th>الانطلاق</th>
-                            <th>العودة</th>
-                            <th>من ← إلى</th>
+                            <th>تاريخ الانطلاق</th>
+                            <th>تاريخ العودة</th>
+                            <th>من</th>
+                            <th>إلى</th>
+                            <th>وقت الانطلاق</th>
+                            <th>وقت العودة</th>
                             <th>الغاية</th>
                             <th>ملاحظات</th>
                         </tr>
@@ -82,14 +78,16 @@
                             <tr>
                                 <td class="num">{{ $loop->iteration }}</td>
                                 <td class="num">{{ $en->movement_date->format('Y-m-d') }}</td>
+                                <td class="num">{{ $en->return_date?->format('Y-m-d') ?? $en->movement_date->format('Y-m-d') }}</td>
+                                <td>{{ $en->from_location ?: '—' }}</td>
+                                <td>{{ $en->to_location ?: '—' }}</td>
                                 <td class="num">{{ $en->departure_time ? substr((string) $en->departure_time, 0, 5) : '—' }}</td>
                                 <td class="num">{{ $en->return_time ? substr((string) $en->return_time, 0, 5) : '—' }}</td>
-                                <td>{{ $en->from_location ?: '—' }} <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ $en->to_location ?: '—' }}</td>
                                 <td style="min-width:180px">{{ $en->purpose }}</td>
                                 <td class="text-muted">{{ $en->notes ?? '—' }}</td>
                             </tr>
                         @empty
-                            <x-empty-row colspan="7" title="لا توجد حركات في هذه الخطة" />
+                            <x-empty-row colspan="9" title="لا توجد حركات في هذه الخطة" />
                         @endforelse
                     </tbody>
                 </table>
@@ -143,7 +141,9 @@
     <div class="col-lg-4">
         @canPermission('App\Models\Admin\MovementPlan', 'edit')
         @if ($plan->status === 'review')
-            @if ($isSuper || $isPm2 || $isCurrentHolder || ($plan->refer_to_pm2_id === null && $uid !== (int) $plan->created_by))
+            @if ($plan->review_role_key === \App\Models\Admin\Group::ROLE_PROJECTS_MANAGER
+                ? ($isSuper || $isPm2)
+                : ($isSuper || $isPm2 || $isCurrentHolder || ($plan->refer_to_pm2_id === null && $uid !== (int) $plan->created_by)))
             <div class="table-container mb-3">
                 <div class="p-3 border-bottom"><h5 class="mb-0">إجراءات إدارة المشاريع</h5></div>
                 <div class="p-3">
@@ -153,11 +153,20 @@
                         <select name="movement_officer_id" class="user-picker form-select form-select-sm mb-1 @error('movement_officer_id') is-invalid @enderror" required
                                 data-placeholder="ابحث عن مسؤول الحركة...">
                             <option value="">— اختر مسؤول الحركة —</option>
-                            @foreach ($users as $u)
+                            @foreach ($movementOfficers as $u)
                                 <option value="{{ $u->id }}" @selected((int) old('movement_officer_id') === $u->id)>{{ $u->name }}</option>
                             @endforeach
                         </select>
                         @error('movement_officer_id') <div class="invalid-feedback d-block mb-2">{{ $message }}</div> @enderror
+                        @if ($movementOfficers->isEmpty())
+                            <div class="alert alert-danger py-2 small">
+                                @if (! $movementOfficerRoleConfigured)
+                                    دور «مسؤول الحركة» غير معرّف في الأدوار والنطاقات.
+                                @else
+                                    لا يوجد حامل نشط ومخوّل لدور مسؤول الحركة ضمن نطاق هذه الخطة.
+                                @endif
+                            </div>
+                        @endif
                         <input type="text" name="note" class="form-control form-control-sm mb-2" placeholder="ملاحظة (اختياري)">
                         <button class="btn btn-sm btn-success w-100"><i class="bi bi-check-lg me-1"></i> اعتماد</button>
                     </form>
@@ -171,7 +180,22 @@
                 </div>
             </div>
             @endif
-        @elseif ($plan->status === 'approved')
+        @elseif ($plan->status === 'approved' && $plan->review_role_key === \App\Models\Admin\Group::ROLE_PROJECTS_MANAGER)
+            @if ($isOfficer || $isSuper)
+            <div class="table-container mb-3">
+                <div class="p-3 border-bottom"><h5 class="mb-0">استلام الخطة (مسؤول الحركة)</h5></div>
+                <div class="p-3">
+                    <p class="small text-muted">راجع بيانات الحركة ثم أكّد استلامها. بعد ذلك يمكنك تحديد المتابعين.</p>
+                    <form method="POST" action="{{ route('admin.movement-plans.accept', $plan) }}">
+                        @csrf
+                        <button class="btn btn-sm btn-success w-100"><i class="bi bi-check-circle me-1"></i> قبول واستلام الخطة</button>
+                    </form>
+                </div>
+            </div>
+            @endif
+        @endif
+
+        @if (in_array($plan->status, ['officer_accepted', 'assigned'], true) || ($plan->status === 'approved' && ! $plan->review_role_key))
             @if ($isSuper || $isOfficer || $isCurrentHolder)
             <div class="table-container mb-3">
                 <div class="p-3 border-bottom"><h5 class="mb-0">توزيع المتابعة (مسؤول الحركة)</h5></div>
@@ -189,7 +213,9 @@
                 </div>
             </div>
             @endif
-        @elseif ($plan->status === 'assigned')
+        @endif
+
+        @if ($plan->status === 'assigned')
             @if ($isSuper || $isOfficer || $isCurrentHolder)
             <div class="table-container mb-3">
                 <div class="p-3 border-bottom"><h5 class="mb-0">إكمال الخطة</h5></div>
@@ -204,13 +230,6 @@
         @endif
         @endcanPermission
 
-        @php
-            $referColumn = $plan->status === 'review' ? $plan->refer_to_pm2_id : $plan->refer_to_movement_officer_id;
-            $canReRefer = $isSuper
-                || $isCurrentHolder
-                || ($plan->status === 'review' ? ($isPm2 || (int) $plan->created_by === $uid) : $isOfficer)
-                || $referColumn === null;
-        @endphp
         @if (! in_array($plan->status, ['completed', 'rejected', 'cancelled'], true) && $canReRefer)
         <div class="table-container mb-3">
             <div class="p-3 border-bottom"><h5 class="mb-0">إعادة إحالة</h5></div>

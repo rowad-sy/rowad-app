@@ -2,8 +2,10 @@
 
 namespace App\Models\Admin;
 
+use App\Helpers\PermissionHelper;
 use App\Models\Concerns\ManagesReferrals;
 use App\Models\Concerns\RecordsWorkflow;
+use App\Models\Admin\Group;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,8 +20,8 @@ class MovementPlan extends Model
     protected $fillable = [
         'request_number', 'created_by', 'center_id', 'project_id', 'plan_month',
         'notes',
-        'refer_to_movement_officer_id', 'refer_to_pm2_id', 'assigned_by', 'assigned_at',
-        'completed_at', 'status', 'reason',
+        'refer_to_movement_officer_id', 'refer_to_pm2_id', 'review_role_key', 'officer_accepted_at',
+        'assigned_by', 'assigned_at', 'completed_at', 'status', 'reason',
     ];
 
     protected function casts(): array
@@ -27,6 +29,7 @@ class MovementPlan extends Model
         return [
             'plan_month' => 'date',
             'assigned_at' => 'datetime',
+            'officer_accepted_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
     }
@@ -39,6 +42,7 @@ class MovementPlan extends Model
     public const STATUSES = [
         'review' => 'بانتظار مراجعة إدارة المشاريع',
         'approved' => 'أُحيلت لمسؤول الحركة',
+        'officer_accepted' => 'قبلها مسؤول الحركة',
         'assigned' => 'قيد المتابعة',
         'completed' => 'منجزة',
         'rejected' => 'مرفوضة',
@@ -105,10 +109,28 @@ class MovementPlan extends Model
             return true;
         }
 
-        return in_array($userId, [
+        if (in_array($userId, [
             (int) $this->refer_to_pm2_id,
             (int) $this->refer_to_movement_officer_id,
-        ], true);
+        ], true)) {
+            return true;
+        }
+
+        $user = User::find($userId);
+        if (! $user) {
+            return false;
+        }
+
+        if (PermissionHelper::canAccessRecord($user, self::class, 'view', $this)) {
+            return true;
+        }
+
+        return $this->status === 'review'
+            && $this->review_role_key === Group::ROLE_PROJECTS_MANAGER
+            && Group::roles()->where('role_key', $this->review_role_key)
+                ->whereHas('users', fn ($q) => $q->where('users.id', $userId))
+                ->exists()
+            && PermissionHelper::canAccessRecord($user, self::class, 'edit', $this);
     }
 
     /*

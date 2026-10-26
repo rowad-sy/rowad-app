@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $colors = ['review' => 'bg-warning text-dark', 'approved' => 'bg-info', 'assigned' => 'bg-primary', 'completed' => 'bg-success', 'rejected' => 'bg-danger', 'cancelled' => 'bg-secondary'];
+    $colors = ['review' => 'bg-warning text-dark', 'approved' => 'bg-info', 'officer_accepted' => 'bg-primary', 'assigned' => 'bg-primary', 'completed' => 'bg-success', 'rejected' => 'bg-danger', 'cancelled' => 'bg-secondary'];
     $exportQuery = request()->only(['status', 'center_id', 'project_id', 'month']);
 @endphp
 

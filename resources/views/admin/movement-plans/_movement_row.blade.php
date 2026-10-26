@@ -15,43 +15,49 @@
     @endif
 
     <div class="row g-2">
-        <div class="col-md-2">
-            <label class="form-label small">التاريخ <span class="text-danger">*</span></label>
+        <div class="col-md-3">
+            <label class="form-label small">تاريخ الانطلاق <span class="text-danger">*</span></label>
             <input type="date" name="entries[{{ $i }}][movement_date]" class="form-control form-control-sm"
                    value="{{ old('entries.' . $i . '.movement_date', $dateVal($en?->movement_date)) }}">
             @error('entries.' . $i . '.movement_date') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
+            <label class="form-label small">تاريخ العودة <span class="text-danger">*</span></label>
+            <input type="date" name="entries[{{ $i }}][return_date]" class="form-control form-control-sm"
+                   value="{{ old('entries.' . $i . '.return_date', $dateVal($en?->return_date ?? $en?->movement_date)) }}">
+            @error('entries.' . $i . '.return_date') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+        </div>
+        <div class="col-md-3">
             <label class="form-label small">من</label>
             <input type="text" name="entries[{{ $i }}][from_location]" class="form-control form-control-sm" placeholder="المركز / المدينة"
                    value="{{ old('entries.' . $i . '.from_location', $en?->from_location ?? '') }}">
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label small">إلى</label>
             <input type="text" name="entries[{{ $i }}][to_location]" class="form-control form-control-sm" placeholder="المركز / المدينة"
                    value="{{ old('entries.' . $i . '.to_location', $en?->to_location ?? '') }}">
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label small">وقت الانطلاق</label>
             <input type="time" name="entries[{{ $i }}][departure_time]" class="form-control form-control-sm"
                    value="{{ old('entries.' . $i . '.departure_time', $timeVal($en?->departure_time)) }}">
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label small">وقت العودة</label>
             <input type="time" name="entries[{{ $i }}][return_time]" class="form-control form-control-sm"
                    value="{{ old('entries.' . $i . '.return_time', $timeVal($en?->return_time)) }}">
             @error('entries.' . $i . '.return_time') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label small">الغاية <span class="text-danger">*</span></label>
             <input type="text" name="entries[{{ $i }}][purpose]" class="form-control form-control-sm"
                    value="{{ old('entries.' . $i . '.purpose', $en?->purpose ?? '') }}">
             @error('entries.' . $i . '.purpose') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
-    </div>
-    <div class="mt-2">
-        <label class="form-label small">ملاحظات البند</label>
-        <input type="text" name="entries[{{ $i }}][notes]" class="form-control form-control-sm"
-               value="{{ old('entries.' . $i . '.notes', $en?->notes ?? '') }}">
+        <div class="col-md-3">
+            <label class="form-label small">ملاحظات البند</label>
+            <input type="text" name="entries[{{ $i }}][notes]" class="form-control form-control-sm"
+                   value="{{ old('entries.' . $i . '.notes', $en?->notes ?? '') }}">
+        </div>
     </div>
 </div>

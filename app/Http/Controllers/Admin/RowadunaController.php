@@ -83,8 +83,10 @@ class RowadunaController extends Controller
                 ->get();
         }
 
-        $plansAwaitingAssign = $outstanding('rowaduna_review');
-        $plansInProgress = $outstanding('in_progress');
+        $plansAwaitingAssign = $outstanding('rowaduna_review')
+            ->concat($outstanding('simple_rowaduna'))->unique('id')->values();
+        $plansInProgress = $outstanding('in_progress')
+            ->concat($outstanding('simple_in_progress'))->unique('id')->values();
         $adReviewQueue = $canDesign
             ? AdDesignRequest::whereIn('status', ['pm2_review', 'rowaduna_review'])->latest()->limit(8)->get()
             : collect();

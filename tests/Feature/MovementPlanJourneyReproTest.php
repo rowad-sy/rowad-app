@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Admin\MovementPlan;
+use App\Models\Admin\Group;
 use App\Models\Admin\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,10 +42,27 @@ function reproPm2Permission(User $user): Permission
     ]);
 }
 
+function reproProjectsManagerRole(User $user): void
+{
+    $role = Group::create([
+        'name' => 'إدارة المشاريع للاختبار',
+        'kind' => Group::KIND_ROLE,
+        'role_key' => Group::ROLE_PROJECTS_MANAGER,
+    ]);
+    Permission::create([
+        'group_id' => $role->id,
+        'model_names' => [REPRO_MOVEMENT_MODEL],
+        'can_view' => true,
+        'can_edit' => true,
+    ]);
+    $role->users()->attach($user->id);
+}
+
 function reproEntry(array $overrides = []): array
 {
     return array_merge([
         'movement_date' => now()->addDays(2)->toDateString(),
+        'return_date' => now()->addDays(2)->toDateString(),
         'departure_time' => '10:00',
         'return_time' => '14:00',
         'from_location' => 'موقع الانطلاق',
@@ -54,11 +72,11 @@ function reproEntry(array $overrides = []): array
     ], $overrides);
 }
 
-it('reproduces the full create journey: index, create, store, show, refer, index again', function () {
+it('reproduces the create journey with review routed to the projects-manager role', function () {
     $user = reproUser();
     reproFullPermission($user);
     $pm2 = reproUser();
-    reproPm2Permission($pm2);
+    reproProjectsManagerRole($pm2);
 
     $this->actingAs($user);
 
@@ -75,23 +93,21 @@ it('reproduces the full create journey: index, create, store, show, refer, index
     $plan = MovementPlan::latest('id')->firstOrFail();
 
     expect($plan->created_by)->toBe($user->id)
-        ->and($plan->status)->toBe('review');
+        ->and($plan->status)->toBe('review')
+        ->and($plan->review_role_key)->toBe(Group::ROLE_PROJECTS_MANAGER);
 
     $show = $this->get('/admin/movement-plans/' . $plan->id);
     $show->assertOk();
-    // الواجهة تعرض لوحة «الإحالة» للمنشئ
-    $show->assertSee('/admin/movement-plans/' . $plan->id . '/refer', false);
-
-    $third = reproUser();
+    $show->assertDontSee('/admin/movement-plans/' . $plan->id . '/refer', false);
 
     $this->post("/admin/movement-plans/{$plan->id}/refer", [
         'step' => 'pm2',
-        'to_user_id' => $third->id,
-    ])->assertStatus(302);
+        'to_user_id' => $user->id,
+    ])->assertStatus(403);
 
     $plan->refresh();
-    expect($plan->refer_to_pm2_id)->toBe($third->id)
-        ->and($plan->activeReferrals()->where('step', 'pm2')->pluck('to_user_id')->all())->toBe([$third->id]);
+    expect($plan->refer_to_pm2_id)->toBeNull()
+        ->and($plan->review_role_key)->toBe(Group::ROLE_PROJECTS_MANAGER);
 
     // الصفحة الرئيسية تعمل بعد الإحالة
     $this->get('/admin/movement-plans')->assertOk();

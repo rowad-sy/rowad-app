@@ -41,7 +41,7 @@ class MovementPlanExport implements FromCollection, WithHeadings, WithMapping, W
 
     public function columnWidths(): array
     {
-        return ['A' => 16, 'B' => 12, 'C' => 13, 'D' => 10, 'E' => 11, 'F' => 11, 'G' => 22, 'H' => 22, 'I' => 38, 'J' => 24, 'K' => 20, 'L' => 32];
+        return ['A' => 16, 'B' => 12, 'C' => 13, 'D' => 13, 'E' => 22, 'F' => 22, 'G' => 12, 'H' => 12, 'I' => 34, 'J' => 28, 'K' => 24, 'L' => 20, 'M' => 32];
     }
 
     public function map($row): array
@@ -50,12 +50,13 @@ class MovementPlanExport implements FromCollection, WithHeadings, WithMapping, W
             $row['request_number'] ?? '',
             $row['plan_month'] ?? '',
             $row['movement_date'] ?? '',
-            $row['day_name'] ?? '',
-            $row['departure_time'] ?? '',
-            $row['return_time'] ?? '',
+            $row['return_date'] ?? '',
             $row['from_location'] ?? '',
             $row['to_location'] ?? '',
+            $row['departure_time'] ?? '',
+            $row['return_time'] ?? '',
             $row['purpose'] ?? '',
+            $row['entry_notes'] ?? '',
             $row['status'] ?? '',
             $row['officer'] ?? '',
             $row['recipients'] ?? '',
@@ -112,7 +113,7 @@ class MovementPlanExport implements FromCollection, WithHeadings, WithMapping, W
         $sheet->freezePane('A4');
 
         $statusColors = [
-            'review' => 'FFFFF0C7', 'approved' => 'FFDDE8F5', 'assigned' => 'FFFFF0C7',
+            'review' => 'FFFFF0C7', 'approved' => 'FFDDE8F5', 'officer_accepted' => 'FFDDE8F5', 'assigned' => 'FFFFF0C7',
             'completed' => 'FFDCEFE1', 'rejected' => 'FFF5DADB', 'cancelled' => 'FFE7EAF0',
         ];
         foreach ($this->rows->values() as $index => $row) {
@@ -120,7 +121,7 @@ class MovementPlanExport implements FromCollection, WithHeadings, WithMapping, W
             if ($index % 2 === 1) {
                 $sheet->getStyle("A{$excelRow}:{$lastCol}{$excelRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::LABEL_BG);
             }
-            $sheet->getStyle("J{$excelRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($statusColors[$row['status_key'] ?? ''] ?? 'FFFFFFFF');
+            $sheet->getStyle("K{$excelRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($statusColors[$row['status_key'] ?? ''] ?? 'FFFFFFFF');
             if ($index === 0 || ($this->rows[$index - 1]['request_number'] ?? null) !== ($row['request_number'] ?? null)) {
                 $sheet->getStyle("A{$excelRow}:{$lastCol}{$excelRow}")->getBorders()->getTop()->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setARGB('FFD95300');
             }

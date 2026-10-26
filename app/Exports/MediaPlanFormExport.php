@@ -47,6 +47,10 @@ class MediaPlanFormExport implements FromCollection, WithMapping, WithColumnWidt
 
     public function columnWidths(): array
     {
+        if ($this->plan->isSimple()) {
+            return ['A' => 6, 'B' => 13, 'C' => 10, 'D' => 10, 'E' => 30, 'F' => 24, 'G' => 20, 'H' => 24, 'I' => 20, 'J' => 34];
+        }
+
         return [
             'A' => 6, 'B' => 12, 'C' => 10, 'D' => 9, 'E' => 14, 'F' => 25,
             'G' => 18, 'H' => 18, 'I' => 15, 'J' => 25, 'K' => 18, 'L' => 22,
@@ -64,6 +68,21 @@ class MediaPlanFormExport implements FromCollection, WithMapping, WithColumnWidt
         $coverage = MediaPlanEvent::COVERAGE_STATUSES[$event->coverage_status] ?? (string) $event->coverage_status;
         if ($event->not_covered_reason) {
             $coverage .= "\n" . $event->not_covered_reason;
+        }
+
+        if ($this->plan->isSimple()) {
+            return [
+                $row['number'],
+                $event->event_date->format('Y-m-d'),
+                substr((string) $event->event_time, 0, 5),
+                $event->event_end_time ? substr((string) $event->event_end_time, 0, 5) : '—',
+                $event->event_name,
+                $event->location ?? '—',
+                $event->coverage_type ?? '—',
+                $event->reporter?->name ?? '—',
+                $coverage,
+                $event->not_covered_reason ?: ($event->coverage_note ?: ($event->notes ?? '—')),
+            ];
         }
 
         return [
@@ -96,6 +115,11 @@ class MediaPlanFormExport implements FromCollection, WithMapping, WithColumnWidt
 
     private function decorate($sheet): void
     {
+        if ($this->plan->isSimple()) {
+            $this->decorateSimple($sheet);
+            return;
+        }
+
         $p = $this->palette();
         $plan = $this->plan;
         $month = optional($plan->month_date)->format('Y-m');
@@ -197,6 +221,54 @@ class MediaPlanFormExport implements FromCollection, WithMapping, WithColumnWidt
             $drawing->setOffsetX(5);
             $drawing->setOffsetY(2);
             $drawing->setWorksheet($sheet);
+        }
+    }
+
+    private function decorateSimple($sheet): void
+    {
+        $p = $this->palette();
+        $last = 'J';
+        $plan = $this->plan;
+        $sheet->setRightToLeft(true);
+        $sheet->getPageSetup()->setPaperSize(PageSetup::PAPERSIZE_A4)
+            ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)->setFitToPage(true)->setFitToWidth(1)->setFitToHeight(0);
+        $sheet->insertNewRowBefore(1, 4);
+        $sheet->mergeCells("A1:{$last}1");
+        $sheet->setCellValue('A1', $this->orgName() . ' — الخطة الإعلامية');
+        $sheet->getStyle("A1:{$last}1")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($p['title']);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A1:{$last}1")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $meta = 'الشهر: ' . $plan->month_date->format('Y-m')
+            . ' | المركز: ' . ($plan->center?->name ?? '—')
+            . ' | المشروع: ' . ($plan->project?->name ?? '—')
+            . ' | أنشأها: ' . ($plan->creator?->name ?? '—');
+        $sheet->mergeCells("A2:{$last}2");
+        $sheet->setCellValue('A2', $meta);
+        $sheet->getStyle("A2:{$last}2")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($p['soft']);
+        $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
+        $sheet->mergeCells("A3:{$last}3");
+        $sheet->setCellValue('A3', 'الحالة: ' . (MediaPlan::STATUSES[$plan->status] ?? $plan->status) . ' | الملاحظات: ' . ($plan->note ?: '—'));
+        $sheet->getStyle("A3:{$last}3")->getAlignment()->setWrapText(true);
+
+        $headings = ['#', 'التاريخ', 'من', 'إلى', 'الفعالية', 'الموقع', 'نوع التغطية', 'المراسل', 'حالة التغطية', 'الملاحظة / سبب عدم التغطية'];
+        foreach ($headings as $index => $heading) {
+            $sheet->setCellValue(Coordinate::stringFromColumnIndex($index + 1) . '4', $heading);
+        }
+        $lastRow = $sheet->getHighestRow();
+        $sheet->getStyle("A4:{$last}4")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($p['head']);
+        $sheet->getStyle("A4:{$last}4")->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A4:{$last}{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle("A4:{$last}{$lastRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+        $sheet->freezePane('A5');
+        foreach ($plan->events->values() as $index => $event) {
+            $row = 5 + $index;
+            if ($index % 2 === 1) {
+                $sheet->getStyle("A{$row}:{$last}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($p['soft']);
+            }
+            $coverageColors = ['covered' => 'FFDCEFE1', 'not_covered' => 'FFF5DADB', 'assigned' => 'FFFFF0C7', 'pending' => 'FFE7EAF0'];
+            $sheet->getStyle("I{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($coverageColors[$event->coverage_status] ?? 'FFFFFFFF');
+            $sheet->getRowDimension($row)->setRowHeight(28);
         }
     }
 }

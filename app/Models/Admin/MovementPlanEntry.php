@@ -10,7 +10,7 @@ class MovementPlanEntry extends Model
     protected $table = 'movement_plan_entries';
 
     protected $fillable = [
-        'movement_plan_id', 'movement_date', 'departure_time', 'return_time',
+        'movement_plan_id', 'movement_date', 'return_date', 'departure_time', 'return_time',
         'from_location', 'to_location', 'purpose', 'notes',
     ];
 
@@ -18,6 +18,7 @@ class MovementPlanEntry extends Model
     {
         return [
             'movement_date' => 'date',
+            'return_date' => 'date',
         ];
     }
 

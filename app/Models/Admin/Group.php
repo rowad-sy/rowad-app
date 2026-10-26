@@ -14,9 +14,20 @@ class Group extends Model
 
     public const KIND_ROLE = 'role';
 
+    public const ROLE_PROJECT_MANAGER = 'project_manager';
+    public const ROLE_PROJECTS_MANAGER = 'projects_manager';
+    public const ROLE_MOVEMENT_OFFICER = 'movement_officer';
+
+    /** Stable keys for workflow roles; display names remain editable/localized. */
+    public const ROLE_KEYS = [
+        self::ROLE_PROJECT_MANAGER => 'مدير المشروع / Project Manager',
+        self::ROLE_PROJECTS_MANAGER => 'مدير المشاريع / Projects Manager',
+        self::ROLE_MOVEMENT_OFFICER => 'مسؤول الحركة / Movement Officer',
+    ];
+
     protected $table = 'groups';
 
-    protected $fillable = ['name', 'description', 'kind'];
+    protected $fillable = ['name', 'description', 'kind', 'role_key'];
 
     public function isRole(): bool
     {

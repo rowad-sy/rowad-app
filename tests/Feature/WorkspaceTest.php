@@ -1,8 +1,10 @@
 <?php
 
 use App\Models\Admin\Hr\Employee;
+use App\Models\Admin\Group;
 use App\Models\Admin\MovementPlan;
 use App\Models\Admin\Permission;
+use App\Models\Admin\Project;
 use App\Models\User;
 
 function workspaceUser(array $flags = []): User
@@ -18,6 +20,21 @@ function workspaceUser(array $flags = []): User
     ], $flags));
 
     return $user;
+}
+
+function workspaceProjectsManager(User $user): void
+{
+    $role = Group::firstOrCreate(
+        ['role_key' => Group::ROLE_PROJECTS_MANAGER],
+        ['name' => 'مدير المشاريع', 'kind' => Group::KIND_ROLE],
+    );
+    Permission::create([
+        'group_id' => $role->id,
+        'model_names' => ['App\\Models\\Admin\\MovementPlan'],
+        'can_view' => true,
+        'can_edit' => true,
+    ]);
+    $role->users()->syncWithoutDetaching([$user->id]);
 }
 
 test('guest is redirected from workspace dashboard', function () {
@@ -82,15 +99,19 @@ test('movement plans excel export returns a spreadsheet for viewer', function ()
 
 test('movement plans print page renders entries of visible plans only', function () {
     $pm = workspaceUser(['can_create' => true]);
+    workspaceProjectsManager($pm);
+    $project = Project::create(['name' => 'مشروع الطباعة']);
     $this->actingAs($pm)->post('/admin/movement-plans', [
         'plan_month' => now()->format('Y-m'),
+        'project_id' => $project->id,
         'entries' => [
-            ['movement_date' => now()->addDays(2)->toDateString(), 'purpose' => 'جولة توزيع'],
-            ['movement_date' => now()->addDays(4)->toDateString(), 'purpose' => 'نقل مستلزمات'],
+            ['movement_date' => now()->addDays(2)->toDateString(), 'return_date' => now()->addDays(2)->toDateString(), 'purpose' => 'جولة توزيع'],
+            ['movement_date' => now()->addDays(4)->toDateString(), 'return_date' => now()->addDays(4)->toDateString(), 'purpose' => 'نقل مستلزمات'],
         ],
     ]);
 
-    $viewer = workspaceUser();
+    $otherProject = Project::create(['name' => 'مشروع خارج النطاق']);
+    $viewer = workspaceUser(['project_id' => $otherProject->id]);
     $this->actingAs($viewer)
         ->get('/admin/movement-plans/print')
         ->assertOk();
@@ -102,7 +123,7 @@ test('movement plans print page renders entries of visible plans only', function
         ->assertSeeText('نقل مستلزمات')
         ->assertSeeText('خطط الحركة');
 
-    $outsider = workspaceUser();
+    $outsider = workspaceUser(['project_id' => $otherProject->id]);
     $this->actingAs($outsider)
         ->get('/admin/movement-plans/print')
         ->assertOk()
@@ -111,9 +132,10 @@ test('movement plans print page renders entries of visible plans only', function
 
 test('export and print respect status and month filters', function () {
     $pm = workspaceUser(['can_create' => true]);
+    workspaceProjectsManager($pm);
     $this->actingAs($pm)->post('/admin/movement-plans', [
         'plan_month' => now()->format('Y-m'),
-        'entries' => [['movement_date' => now()->addDays(1)->toDateString(), 'purpose' => 'غاية مفلترة']],
+        'entries' => [['movement_date' => now()->addDays(1)->toDateString(), 'return_date' => now()->addDays(1)->toDateString(), 'purpose' => 'غاية مفلترة']],
     ]);
 
     $this->actingAs($pm)

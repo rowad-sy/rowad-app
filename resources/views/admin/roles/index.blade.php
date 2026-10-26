@@ -37,6 +37,7 @@
                     <thead>
                         <tr>
                             <th>الدور</th>
+                            <th>مفتاح النظام</th>
                             <th>ما يشمله</th>
                             <th>الأعضاء</th>
                             <th>الإجراءات</th>
@@ -52,6 +53,7 @@
                                     {{ $role->name }}
                                     <div class="text-muted small">{{ $role->description ?? '—' }}</div>
                                 </td>
+                                <td><code dir="ltr">{{ $role->role_key ?? '—' }}</code></td>
                                 <td>
                                     <x-status-badge tone="neutral">{{ $models->count() }} موديل</x-status-badge>
                                     <div class="text-muted small mt-1">{{ $models->map(fn($m) => class_basename($m))->take(5)->implode('، ') }}{{ $models->count() > 5 ? '…' : '' }}</div>
@@ -81,7 +83,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <x-empty-row colspan="4" title="لا توجد أدوار بعد" hint="اضغط «تعريف دور جديد» وابدأ بدور مثل «مدير مشروع»" />
+                            <x-empty-row colspan="5" title="لا توجد أدوار بعد" hint="اضغط «تعريف دور جديد» وابدأ بدور مثل «مدير مشروع»" />
                         @endforelse
                     </tbody>
                 </table>

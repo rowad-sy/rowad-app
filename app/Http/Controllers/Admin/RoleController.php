@@ -43,7 +43,7 @@ class RoleController extends Controller
 
     public function create()
     {
-        return view('admin.roles.form');
+        return view('admin.roles.form', ['roleKeys' => Group::ROLE_KEYS]);
     }
 
     public function store(Request $request)
@@ -51,8 +51,10 @@ class RoleController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('groups', 'name')],
             'description' => 'nullable|string',
+            'role_key' => ['nullable', 'string', Rule::in(array_keys(Group::ROLE_KEYS)), Rule::unique('groups', 'role_key')],
         ], [
             'name.unique' => 'هذا الاسم مستخدم في النظام (دور أو مجموعة) — الأسماء فريدة على مستوى النظام.',
+            'role_key.unique' => 'هذا المفتاح الوظيفي مرتبط بدور آخر.',
         ]);
 
         $role = Group::create($validated + ['kind' => Group::KIND_ROLE]);
@@ -65,7 +67,7 @@ class RoleController extends Controller
     {
         $this->assertRole($role);
 
-        return view('admin.roles.form', compact('role'));
+        return view('admin.roles.form', ['role' => $role, 'roleKeys' => Group::ROLE_KEYS]);
     }
 
     public function update(Request $request, Group $role)
@@ -75,9 +77,15 @@ class RoleController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('groups', 'name')->ignore($role->id)],
             'description' => 'nullable|string',
+            'role_key' => ['nullable', 'string', Rule::in(array_keys(Group::ROLE_KEYS)), Rule::unique('groups', 'role_key')->ignore($role->id)],
         ], [
             'name.unique' => 'هذا الاسم مستخدم في النظام (دور أو مجموعة) — الأسماء فريدة على مستوى النظام.',
+            'role_key.unique' => 'هذا المفتاح الوظيفي مرتبط بدور آخر.',
         ]);
+
+        if ($role->role_key && ($validated['role_key'] ?? null) !== $role->role_key) {
+            return back()->withInput()->withErrors(['role_key' => 'مفتاح الدور المرتبط بسير عمل لا يمكن تغييره.']);
+        }
 
         $role->update($validated);
 

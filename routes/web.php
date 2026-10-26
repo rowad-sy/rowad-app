@@ -146,6 +146,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
             Route::post('events/{event}/reschedule', [MediaPlanController::class, 'rescheduleEvent'])->name('events.reschedule');
             Route::post('{plan}/direct-manager-decide', [MediaPlanController::class, 'directManagerDecide'])->name('direct-manager-decide');
             Route::post('{plan}/pm2-decide', [MediaPlanController::class, 'pm2Decide'])->name('pm2-decide');
+            Route::post('{plan}/reopen', [MediaPlanController::class, 'reopenSimple'])->name('reopen');
             Route::post('{plan}/finalize', [MediaPlanController::class, 'finalize'])->name('finalize');
             Route::post('{plan}/refer', [MediaPlanController::class, 'refer'])->name('refer');
         });
@@ -180,6 +181,7 @@ Route::middleware(['auth', 'verified', 'active', 'password_changed'])->group(fun
         Route::get('{movement_plan}', [MovementPlanController::class, 'show'])->name('show');
             Route::post('{movement_plan}/approve', [MovementPlanController::class, 'approve'])->name('approve');
             Route::post('{movement_plan}/reject', [MovementPlanController::class, 'reject'])->name('reject');
+            Route::post('{movement_plan}/accept', [MovementPlanController::class, 'accept'])->name('accept');
             Route::post('{movement_plan}/assign', [MovementPlanController::class, 'assign'])->name('assign');
             Route::post('{movement_plan}/complete', [MovementPlanController::class, 'complete'])->name('complete');
             Route::post('{movement_plan}/refer', [MovementPlanController::class, 'refer'])->name('refer');

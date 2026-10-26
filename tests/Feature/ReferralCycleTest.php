@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Admin\Center;
+use App\Models\Admin\Group;
 use App\Models\Admin\MediaPlan;
 use App\Models\Admin\MovementPlan;
 use App\Models\Admin\Permission;
@@ -45,6 +46,56 @@ function cycleGrant(User $user, string $model, array $flags = []): void
 function cycleGrantPage(User $user): void
 {
     cyclePermission($user, MED_PAGE, ['can_view' => true]);
+}
+
+function cycleMovementRole(User $user, string $roleKey, string $name): void
+{
+    $role = Group::firstOrCreate(
+        ['role_key' => $roleKey],
+        ['name' => $name, 'kind' => Group::KIND_ROLE],
+    );
+
+    if (! $role->permissions()->whereJsonContains('model_names', MOV_MODEL)->exists()) {
+        Permission::create([
+            'group_id' => $role->id,
+            'model_names' => [MOV_MODEL],
+            'can_view' => true,
+            'can_edit' => true,
+        ]);
+    }
+
+    $role->users()->syncWithoutDetaching([$user->id]);
+}
+
+/** Create a pre-simplification plan to verify historical plans keep their workflow. */
+function cycleLegacyMediaPlan(User $creator, string $month, array $events, ?User $direct = null, ?User $pm2 = null): MediaPlan
+{
+    $plan = MediaPlan::create([
+        'month_date' => $month,
+        'created_by' => $creator->id,
+        'workflow_version' => 'legacy',
+        'status' => $direct ? 'review' : 'pm2_review',
+        'refer_to_direct_manager_id' => $direct?->id,
+        'refer_to_pm2_id' => $pm2?->id,
+    ]);
+
+    foreach ($events as $event) {
+        $plan->events()->create(array_merge([
+            'event_date' => $month,
+            'event_time' => '10:00',
+            'event_name' => 'فعالية قديمة',
+        ], $event));
+    }
+
+    if ($direct) {
+        $plan->logWorkflow('create', $direct->id, 'إنشاء خطة قديمة', 'review');
+        $plan->referTo($direct->id, 'direct_manager');
+    } elseif ($pm2) {
+        $plan->logWorkflow('create', $pm2->id, 'إنشاء خطة قديمة وإحالة مباشرة', 'pm2_review');
+        $plan->referTo($pm2->id, 'pm2');
+    }
+
+    return $plan;
 }
 
 function cycleCenter(): Center
@@ -338,12 +389,14 @@ test('Movement: full cycle flows to completion', function () {
     $pm = cycleEmployee();
     cyclePermission($pm, MOV_MODEL, ['can_create' => true, 'can_view' => true]);
     $pm2 = cycleEmployee();
-    cycleGrantPage($pm2);
     cycleGrant($pm2, MOV_MODEL);
+    cycleMovementRole($pm2, Group::ROLE_PROJECTS_MANAGER, 'مدير المشاريع');
     $pm2b = cycleEmployee();
     cycleGrant($pm2b, MOV_MODEL);
+    cycleMovementRole($pm2b, Group::ROLE_PROJECTS_MANAGER, 'مدير المشاريع');
     $officer = cycleEmployee();
     cycleGrant($officer, MOV_MODEL);
+    cycleMovementRole($officer, Group::ROLE_MOVEMENT_OFFICER, 'مسؤول الحركة');
     $rek1 = cycleEmployee();
     $rek2 = cycleEmployee();
     $outsider = cycleEmployee();
@@ -354,6 +407,7 @@ test('Movement: full cycle flows to completion', function () {
         'entries' => [
             [
                 'movement_date' => now()->addDays(2)->toDateString(),
+                'return_date' => now()->addDays(2)->toDateString(),
                 'departure_time' => '08:00',
                 'return_time' => '16:00',
                 'from_location' => 'المكتب',
@@ -367,34 +421,25 @@ test('Movement: full cycle flows to completion', function () {
     $plan = MovementPlan::first();
 
     expect($plan->status)->toBe('review')
-        ->and($plan->refer_to_pm2_id)->toBe($pm2->id)
-        ->and($plan->currentRecipientIds())->toContain($pm2->id);
-
-    // إعادة إحالة PM2 → PM2 آخر قبل الموافقة
-    $this->actingAs($pm2)
-        ->post("/admin/movement-plans/{$plan->id}/refer", ['step' => 'pm2', 'to_user_id' => $pm2b->id])
-        ->assertRedirect();
-
-    $plan = $plan->fresh();
-    expect($plan->refer_to_pm2_id)->toBe($pm2b->id)
-        ->and($plan->currentRecipientIds())->not->toContain($pm2->id);
+        ->and($plan->review_role_key)->toBe(Group::ROLE_PROJECTS_MANAGER)
+        ->and($plan->refer_to_pm2_id)->toBeNull();
 
     $this->actingAs($pm2)
         ->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id])
-        ->assertStatus(403);
+        ->assertRedirect();
 
-    // PM2 الجديد يوافق
+    // أي حامل للدور يمكنه مراجعة الطلب، لكن التعيين لمسؤول الحركة يبقى فردياً.
     $this->actingAs($pm2b)
         ->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id])
-        ->assertRedirect();
+        ->assertStatus(403);
 
     $plan = $plan->fresh();
     expect($plan->status)->toBe('approved')
         ->and($plan->refer_to_movement_officer_id)->toBe($officer->id)
-        ->and($plan->referrals()->where('step', 'pm2')->where('status', 'done')->exists())->toBeTrue()
         ->and($plan->referrals()->where('step', 'movement_officer')->where('status', 'active')->exists())->toBeTrue();
 
-    // مسؤول الحركة يعيّن متابعين
+    // مسؤول الحركة يقبل الاستلام ثم يعيّن متابعين.
+    $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/accept")->assertRedirect();
     $this->actingAs($officer)
         ->post("/admin/movement-plans/{$plan->id}/assign", [
             'user_ids' => [$rek1->id, $rek2->id],
@@ -428,17 +473,21 @@ test('Movement: show visibility scoped to creator, holders and officers', functi
     $pm = cycleEmployee();
     cyclePermission($pm, MOV_MODEL, ['can_create' => true, 'can_view' => true]);
     $pm2 = cycleEmployee();
-    cycleGrantPage($pm2);
     cycleGrant($pm2, MOV_MODEL);
+    cycleMovementRole($pm2, Group::ROLE_PROJECTS_MANAGER, 'مدير المشاريع');
     $officer = cycleEmployee();
     cycleGrant($officer, MOV_MODEL);
+    cycleMovementRole($officer, Group::ROLE_MOVEMENT_OFFICER, 'مسؤول الحركة');
     $outsider = cycleEmployee();
-    cyclePermission($outsider, MOV_MODEL, ['can_view' => true]);
+    $targetProject = Project::create(['name' => 'مشروع الخطة']);
+    $outsideProject = Project::create(['name' => 'مشروع خارجي']);
+    cyclePermission($outsider, MOV_MODEL, ['can_view' => true, 'project_id' => $outsideProject->id]);
 
     $this->actingAs($pm)->post('/admin/movement-plans', [
         'plan_month' => now()->format('Y-m'),
+        'project_id' => $targetProject->id,
         'entries' => [
-            ['movement_date' => now()->addDays(2)->toDateString(), 'purpose' => 'جولة ميدانية'],
+            ['movement_date' => now()->addDays(2)->toDateString(), 'return_date' => now()->addDays(2)->toDateString(), 'purpose' => 'جولة ميدانية'],
         ],
     ])->assertRedirect();
 
@@ -474,17 +523,12 @@ test('Media: full rowaduna cycle flows to published and auto-closes plan', funct
     $pub = cycleEmployee();
     cycleGrant($pub, MED_MODEL);
     $outsider = cycleEmployee();
-    cyclePermission($outsider, MED_MODEL, ['can_view' => true, 'can_edit' => true]);
+    cyclePermission($outsider, MED_MODEL, ['can_view' => false, 'can_edit' => true]);
 
-    $this->actingAs($creator)->post('/admin/media-plans', [
-        'month_date' => '2026-11-01',
-        'note' => 'خطة توعية',
-        'events' => [
-            0 => ['event_date' => '2026-11-05', 'event_time' => '10:00', 'event_name' => 'لقاء أهالي'],
-        ],
-    ])->assertRedirect();
-
-    $plan = MediaPlan::first();
+    $this->actingAs($creator);
+    $plan = cycleLegacyMediaPlan($creator, '2026-11-01', [
+        ['event_date' => '2026-11-05', 'event_time' => '10:00', 'event_name' => 'لقاء أهالي'],
+    ], $direct);
     expect($plan->status)->toBe('review')
         ->and($plan->refer_to_direct_manager_id)->toBe($direct->id)
         ->and($plan->currentRecipientIds())->toContain($direct->id);
@@ -603,12 +647,10 @@ test('Media: not covered requires reason and can be rescheduled by project owner
     $rep = cycleEmployee();
     cycleGrant($rep, MED_MODEL);
 
-    $this->actingAs($creator)->post('/admin/media-plans', [
-        'month_date' => '2026-11-01',
-        'events' => [0 => ['event_date' => '2026-11-10', 'event_time' => '12:00', 'event_name' => 'ندوة']],
-    ]);
-
-    $plan = MediaPlan::first();
+    $this->actingAs($creator);
+    $plan = cycleLegacyMediaPlan($creator, '2026-11-01', [
+        ['event_date' => '2026-11-10', 'event_time' => '12:00', 'event_name' => 'ندوة'],
+    ], $direct);
     $this->actingAs($direct)->post("/admin/media-plans/{$plan->id}/direct-manager-decide", ['decision' => 'approve', 'refer_to_pm2_id' => $pm2->id]);
     $this->actingAs($pm2)->post("/admin/media-plans/{$plan->id}/pm2-decide", ['decision' => 'approve', 'refer_to_rowaduna_id' => $rw->id]);
     $plan = $plan->fresh();
@@ -661,13 +703,10 @@ test('Media: two coverages cannot be assigned to the same reporter at the same t
         $pm2 = cycleEmployee();
         cycleGrant($pm2, MED_MODEL);
 
-        $this->actingAs($creator)->post('/admin/media-plans', [
-            'month_date' => $month,
-            'refer_to_direct_manager_id' => $direct->id,
-            'events' => [0 => ['event_date' => '2026-11-15', 'event_time' => '09:00', 'event_name' => 'فعالية ' . $month]],
-        ]);
-
-        $plan = MediaPlan::latest('id')->first();
+        $this->actingAs($creator);
+        $plan = cycleLegacyMediaPlan($creator, $month, [
+            ['event_date' => '2026-11-15', 'event_time' => '09:00', 'event_name' => 'فعالية ' . $month],
+        ], $direct);
 
         $this->actingAs($direct)->post("/admin/media-plans/{$plan->id}/direct-manager-decide", ['decision' => 'approve', 'refer_to_pm2_id' => $pm2->id]);
         $this->actingAs($pm2)->post("/admin/media-plans/{$plan->id}/pm2-decide", ['decision' => 'approve', 'refer_to_rowaduna_id' => $rw->id]);
@@ -702,14 +741,10 @@ test('Media: plan created by a project manager skips the direct manager', functi
     $rw = cycleEmployee();
     cycleGrant($rw, MED_MODEL);
 
-    $this->actingAs($pm)->post('/admin/media-plans', [
-        'month_date' => '2026-12-01',
-        'skip_direct_manager' => '1',
-        'refer_to_pm2_id' => $pm2->id,
-        'events' => [0 => ['event_date' => '2026-12-03', 'event_time' => '10:00', 'event_name' => 'حفل']],
-    ])->assertRedirect();
-
-    $plan = MediaPlan::latest('id')->first();
+    $this->actingAs($pm);
+    $plan = cycleLegacyMediaPlan($pm, '2026-12-01', [
+        ['event_date' => '2026-12-03', 'event_time' => '10:00', 'event_name' => 'حفل'],
+    ], null, $pm2);
     expect($plan->status)->toBe('pm2_review')
         ->and($plan->refer_to_direct_manager_id)->toBeNull()
         ->and($plan->refer_to_pm2_id)->toBe($pm2->id)
@@ -736,16 +771,16 @@ test('Media: show visibility includes reporters and holders, blocks outsiders', 
     $rep = cycleEmployee();
     cycleGrant($rep, MED_MODEL);
 
-    $this->actingAs($creator)->post('/admin/media-plans', [
-        'month_date' => '2026-11-01',
-        'refer_to_direct_manager_id' => $direct->id,
-        'events' => [0 => ['event_date' => '2026-11-08', 'event_time' => '10:00', 'event_name' => 'زيارة']],
-    ]);
-
-    $plan = MediaPlan::first();
+    $this->actingAs($creator);
+    $plan = cycleLegacyMediaPlan($creator, '2026-11-01', [
+        ['event_date' => '2026-11-08', 'event_time' => '10:00', 'event_name' => 'زيارة'],
+    ], $direct);
+    $targetCenter = cycleCenter();
+    $otherCenter = cycleCenter();
+    $plan->update(['center_id' => $targetCenter->id]);
 
     $outsider = cycleEmployee();
-    cyclePermission($outsider, MED_MODEL, ['can_view' => true]);
+    cyclePermission($outsider, MED_MODEL, ['can_view' => true, 'center_id' => $otherCenter->id]);
     $this->actingAs($outsider)->get("/admin/media-plans/{$plan->id}")->assertStatus(403);
     $this->actingAs($creator)->get("/admin/media-plans/{$plan->id}")->assertOk();
     $this->actingAs($direct)->get("/admin/media-plans/{$plan->id}")->assertOk();

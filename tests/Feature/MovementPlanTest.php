@@ -2,6 +2,8 @@
 
 use App\Models\Admin\MovementPlan;
 use App\Models\Admin\MovementPlanEntry;
+use App\Models\Admin\Group;
+use App\Models\Admin\Project;
 use App\Models\Admin\Permission;
 use App\Models\User;
 
@@ -27,6 +29,38 @@ function movementPermission(User $user, array $flags = []): Permission
     ], $flags));
 }
 
+function movementAssignRole(User $user, string $roleKey): void
+{
+    Group::roles()->where('role_key', $roleKey)->firstOrFail()->users()->syncWithoutDetaching([$user->id]);
+}
+
+beforeEach(function () {
+    $this->projectsManagerRole = Group::create([
+        'name' => 'مدير المشاريع للاختبار',
+        'kind' => Group::KIND_ROLE,
+        'role_key' => Group::ROLE_PROJECTS_MANAGER,
+    ]);
+    $this->movementOfficerRole = Group::create([
+        'name' => 'مسؤول الحركة للاختبار',
+        'kind' => Group::KIND_ROLE,
+        'role_key' => Group::ROLE_MOVEMENT_OFFICER,
+    ]);
+
+    foreach ([$this->projectsManagerRole, $this->movementOfficerRole] as $role) {
+        Permission::create([
+            'group_id' => $role->id,
+            'model_names' => [MOVEMENT_MODEL],
+            'can_view' => true,
+            'can_edit' => true,
+        ]);
+    }
+
+    $this->roleManager = movementUser();
+    $this->projectsManagerRole->users()->attach($this->roleManager->id);
+    $this->roleOfficer = movementUser();
+    $this->movementOfficerRole->users()->attach($this->roleOfficer->id);
+});
+
 function projectsManagerPermission(User $user): Permission
 {
     return Permission::create([
@@ -41,8 +75,11 @@ function projectsManagerPermission(User $user): Permission
 
 function movementEntry(array $overrides = []): array
 {
+    $departureDate = $overrides['movement_date'] ?? now()->addDays(2)->toDateString();
+
     return array_merge([
-        'movement_date' => now()->addDays(2)->toDateString(),
+        'movement_date' => $departureDate,
+        'return_date' => $overrides['return_date'] ?? $departureDate,
         'departure_time' => '10:00',
         'return_time' => '14:00',
         'from_location' => 'مكتب الرواد - عفرين',
@@ -127,6 +164,70 @@ test('a plan requires at least one movement entry', function () {
     expect(MovementPlan::count())->toBe(0);
 });
 
+test('creation shows a clear error when the projects-manager role is missing', function () {
+    $this->projectsManagerRole->update(['role_key' => null]);
+    $creator = movementUser();
+    movementPermission($creator, ['can_create' => true]);
+
+    $this->actingAs($creator)
+        ->post('/admin/movement-plans', movementPlanFields())
+        ->assertRedirect()
+        ->assertSessionHasErrors(['role_assignment' => 'دور مدير المشاريع غير معرّف في الأدوار والنطاقات.']);
+
+    expect(MovementPlan::count())->toBe(0);
+});
+
+test('creation shows a clear error when no eligible projects-manager holder exists', function () {
+    $this->projectsManagerRole->users()->detach();
+    $creator = movementUser();
+    movementPermission($creator, ['can_create' => true]);
+
+    $this->actingAs($creator)
+        ->post('/admin/movement-plans', movementPlanFields())
+        ->assertRedirect()
+        ->assertSessionHasErrors(['role_assignment' => 'لا يوجد مستخدم نشط ومخوّل ضمن دور مدير المشاريع لهذا المركز/المشروع.']);
+
+    expect(MovementPlan::count())->toBe(0);
+});
+
+test('return date cannot precede departure date', function () {
+    $creator = movementUser();
+    movementPermission($creator, ['can_create' => true]);
+    $departure = now()->addDays(4);
+
+    $this->actingAs($creator)
+        ->post('/admin/movement-plans', movementPlanFields([
+            'entries' => [movementEntry([
+                'movement_date' => $departure->toDateString(),
+                'return_date' => $departure->copy()->subDay()->toDateString(),
+            ])],
+        ]))
+        ->assertRedirect()
+        ->assertSessionHasErrors('entries.0.return_date');
+
+    expect(MovementPlan::count())->toBe(0);
+});
+
+test('approval cannot select a movement officer assigned outside the plan scope', function () {
+    $project = Project::create(['name' => 'مشروع الخطة المحدد']);
+    $otherProject = Project::create(['name' => 'مشروع مسؤول آخر']);
+    $creator = movementUser();
+    movementPermission($creator, ['can_create' => true]);
+    $this->actingAs($creator)->post('/admin/movement-plans', movementPlanFields(['project_id' => $project->id]));
+    $plan = MovementPlan::firstOrFail();
+
+    $this->movementOfficerRole->users()->detach();
+    $this->movementOfficerRole->users()->attach($this->roleOfficer->id, ['project_id' => $otherProject->id]);
+
+    $this->actingAs($this->roleManager)
+        ->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $this->roleOfficer->id])
+        ->assertRedirect()
+        ->assertSessionHasErrors('movement_officer_id');
+
+    expect($plan->fresh()->status)->toBe('review')
+        ->and($plan->fresh()->refer_to_movement_officer_id)->toBeNull();
+});
+
 test('users without create permission cannot store a plan (403)', function () {
     $user = movementUser();
     movementPermission($user, ['can_create' => false]);
@@ -155,20 +256,19 @@ test('return_time earlier than departure_time is rejected per entry', function (
     expect(MovementPlan::count())->toBe(0);
 });
 
-test('store accepts an explicit referral target chosen by the creator', function () {
+test('store routes a plan to the projects-manager role instead of a fixed person', function () {
     $pm = movementUser();
     movementPermission($pm, ['can_create' => true]);
-    $referee = movementUser();
-    movementPermission($referee, ['can_edit' => true]);
 
     $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields([
-        'refer_to_pm2_id' => $referee->id,
+        'refer_to_pm2_id' => movementUser()->id, // قيمة قديمة/مزوّرة يجب ألا تغيّر هدف الدور
     ]))->assertRedirect();
 
     $plan = MovementPlan::first();
 
-    expect($plan->refer_to_pm2_id)->toBe($referee->id)
-        ->and($plan->currentRecipientIds())->toContain($referee->id);
+    expect($plan->review_role_key)->toBe(Group::ROLE_PROJECTS_MANAGER)
+        ->and($plan->refer_to_pm2_id)->toBeNull()
+        ->and($plan->currentRecipientIds())->toBeEmpty();
 });
 
 test('PM2 with edit permission can approve and forward to movement officer', function () {
@@ -181,6 +281,9 @@ test('PM2 with edit permission can approve and forward to movement officer', fun
     $pm2 = movementUser();
     $officer = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
+    movementAssignRole($pm2, Group::ROLE_PROJECTS_MANAGER);
+    movementPermission($officer, ['can_edit' => true]);
+    movementAssignRole($officer, Group::ROLE_MOVEMENT_OFFICER);
 
     $this->actingAs($pm2)
         ->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id])
@@ -287,20 +390,18 @@ test('edit is forbidden for non-creators and after approval', function () {
     $this->actingAs($other)->get("/admin/movement-plans/{$plan->id}/edit")->assertStatus(403);
     $this->actingAs($pm)->get("/admin/movement-plans/{$plan->id}/edit")->assertOk();
 
-    movementPermission($pm, ['can_edit' => true]);
-    $this->actingAs($pm)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $other->id]);
+    $this->actingAs($this->roleManager)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $this->roleOfficer->id]);
 
     $this->actingAs($pm)->get("/admin/movement-plans/{$plan->id}/edit")->assertStatus(403);
 });
 
-test('movement officer can reject with a reason', function () {
+test('a projects-manager role holder can reject with a reason', function () {
     $pm = movementUser();
     movementPermission($pm, ['can_create' => true]);
     $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
 
     $plan = MovementPlan::first();
-    $pm2 = movementUser();
-    movementPermission($pm2, ['can_edit' => true]);
+    $pm2 = $this->roleManager;
 
     $this->actingAs($pm2)
         ->post("/admin/movement-plans/{$plan->id}/reject", ['reason' => 'غير ممكن حالياً'])
@@ -320,9 +421,13 @@ test('movement officer can assign multiple recipients then complete the plan', f
 
     $pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
+    movementAssignRole($pm2, Group::ROLE_PROJECTS_MANAGER);
     $officer = movementUser();
     movementPermission($officer, ['can_edit' => true]);
+    movementAssignRole($officer, Group::ROLE_MOVEMENT_OFFICER);
     $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id]);
+
+    $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/accept")->assertRedirect();
 
     $recipientA = movementUser();
     $recipientB = movementUser();
@@ -345,7 +450,7 @@ test('movement officer can assign multiple recipients then complete the plan', f
 
     expect($plan->fresh()->status)->toBe('completed')
         ->and($plan->fresh()->completed_at)->not->toBeNull()
-        ->and($plan->fresh()->workflowActions()->count())->toBe(4);
+        ->and($plan->fresh()->workflowActions()->count())->toBe(5);
 });
 
 test('assigning a plan replaces the previous recipients', function () {
@@ -357,9 +462,13 @@ test('assigning a plan replaces the previous recipients', function () {
 
     $pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
+    movementAssignRole($pm2, Group::ROLE_PROJECTS_MANAGER);
     $officer = movementUser();
     movementPermission($officer, ['can_edit' => true]);
+    movementAssignRole($officer, Group::ROLE_MOVEMENT_OFFICER);
     $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id]);
+
+    $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/accept")->assertRedirect();
 
     $recipientA = movementUser();
     $recipientB = movementUser();
@@ -380,10 +489,12 @@ test('assigning a plan replaces the previous recipients', function () {
 test('index scope: unrelated users with view permission do not see other plans', function () {
     $pm = movementUser();
     movementPermission($pm, ['can_create' => true]);
-    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
+    $visibleProject = Project::create(['name' => 'مشروع ضمن النطاق']);
+    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields(['project_id' => $visibleProject->id]));
 
     $outsider = movementUser();
-    movementPermission($outsider);
+    $otherProject = Project::create(['name' => 'مشروع خارج النطاق']);
+    movementPermission($outsider, ['can_view' => true, 'project_id' => $otherProject->id]);
 
     $this->actingAs($outsider)
         ->get('/admin/movement-plans')
@@ -400,9 +511,12 @@ test('index scope: recipients see plans they were assigned to', function () {
 
     $pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
+    movementAssignRole($pm2, Group::ROLE_PROJECTS_MANAGER);
     $officer = movementUser();
     movementPermission($officer, ['can_edit' => true]);
+    movementAssignRole($officer, Group::ROLE_MOVEMENT_OFFICER);
     $this->actingAs($pm2)->post("/admin/movement-plans/{$plan->id}/approve", ['movement_officer_id' => $officer->id]);
+    $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/accept")->assertRedirect();
 
     $recipient = movementUser();
     movementPermission($recipient);
@@ -434,7 +548,7 @@ test('delete requires delete permission', function () {
     expect(MovementPlan::count())->toBe(0);
 });
 
-test('create form renders with month header, entries repeater and searchable referral', function () {
+test('create form renders the role-based reviewer notice and movement fields', function () {
     $user = movementUser();
     movementPermission($user, ['can_create' => true]);
 
@@ -443,8 +557,10 @@ test('create form renders with month header, entries repeater and searchable ref
         ->assertOk()
         ->assertSeeText('خطة حركة جديدة')
         ->assertSeeText('شهر الخطة')
-        ->assertSeeText('إحالة المراجعة إلى')
-        ->assertSee('user-picker', false)
+        ->assertSeeText('الإحالة حسب الدور')
+        ->assertSeeText('تاريخ الانطلاق')
+        ->assertSeeText('تاريخ العودة')
+        ->assertSee('name="entries[0][return_date]"', false)
         ->assertSee('addMovementRow', false);
 });
 
@@ -461,11 +577,13 @@ test('show page renders all movement entries through every workflow stage', func
 
     $pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
+    movementAssignRole($pm2, Group::ROLE_PROJECTS_MANAGER);
     projectsManagerPermission($pm2);
 
     $recipient = movementUser();
     $officer = movementUser();
     movementPermission($officer, ['can_edit' => true]);
+    movementAssignRole($officer, Group::ROLE_MOVEMENT_OFFICER);
 
     $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields([
         'entries' => [movementEntry(), movementEntry(['purpose' => 'حركة يومية ثانية', 'movement_date' => now()->addDays(3)->toDateString()])],
@@ -483,6 +601,11 @@ test('show page renders all movement entries through every workflow stage', func
         ->assertOk()
         ->assertSeeText('أُحيلت لمسؤول الحركة');
 
+    $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/assign", [
+        'user_ids' => [$recipient->id],
+        'role_labels' => ['متابعة'],
+    ])->assertStatus(403);
+    $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/accept")->assertRedirect();
     $this->actingAs($officer)->post("/admin/movement-plans/{$plan->id}/assign", [
         'user_ids' => [$recipient->id],
         'role_labels' => ['متابعة'],
@@ -504,6 +627,7 @@ test('show page renders a rejected plan with its reason', function () {
 
     $pm2 = movementUser();
     movementPermission($pm2, ['can_edit' => true]);
+    movementAssignRole($pm2, Group::ROLE_PROJECTS_MANAGER);
     projectsManagerPermission($pm2);
 
     $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
@@ -520,7 +644,8 @@ test('show page renders a rejected plan with its reason', function () {
 test('per-plan print and excel exports respect visibility', function () {
     $pm = movementUser();
     movementPermission($pm, ['can_create' => true]);
-    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields());
+    $project = Project::create(['name' => 'مشروع خطة الطباعة']);
+    $this->actingAs($pm)->post('/admin/movement-plans', movementPlanFields(['project_id' => $project->id]));
     $plan = MovementPlan::first();
 
     $this->actingAs($pm)->get(route('admin.movement-plans.print-one', $plan))
@@ -531,9 +656,32 @@ test('per-plan print and excel exports respect visibility', function () {
     $this->actingAs($pm)->get(route('admin.movement-plans.export-one', $plan))->assertOk();
 
     $outsider = movementUser();
-    movementPermission($outsider);
+    $otherProject = Project::create(['name' => 'مشروع خارج نطاق الطباعة']);
+    movementPermission($outsider, ['project_id' => $otherProject->id]);
     $this->actingAs($outsider)->get(route('admin.movement-plans.print-one', $plan))->assertStatus(403);
     $this->actingAs($outsider)->get(route('admin.movement-plans.export-one', $plan))->assertStatus(403);
+});
+
+test('a project-scoped viewer can see plans but receives no workflow actions', function () {
+    $creator = movementUser();
+    movementPermission($creator, ['can_create' => true]);
+    $project = Project::create(['name' => 'مشروع القراءة فقط']);
+    $this->actingAs($creator)->post('/admin/movement-plans', movementPlanFields(['project_id' => $project->id]));
+    $plan = MovementPlan::firstOrFail();
+
+    $reader = movementUser();
+    movementPermission($reader, ['project_id' => $project->id]);
+
+    $this->actingAs($reader)->get('/admin/movement-plans')
+        ->assertOk()
+        ->assertSeeText($plan->request_number);
+    $this->actingAs($reader)->get("/admin/movement-plans/{$plan->id}")
+        ->assertOk()
+        ->assertDontSee('name="movement_officer_id"', false)
+        ->assertDontSee('name="reason"', false);
+    $this->actingAs($reader)->post("/admin/movement-plans/{$plan->id}/reject", ['reason' => 'محاولة غير مصرح بها'])
+        ->assertStatus(403);
+    expect($plan->fresh()->status)->toBe('review');
 });
 
 test('creating again after a deletion never reuses an existing request number', function () {

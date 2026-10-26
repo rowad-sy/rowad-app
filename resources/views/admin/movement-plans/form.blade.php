@@ -41,18 +41,31 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">إحالة المراجعة إلى <span class="text-danger">*</span></label>
-                        <select name="refer_to_pm2_id" class="user-picker @error('refer_to_pm2_id') is-invalid @enderror"
-                                data-placeholder="ابحث عن المستخدم..." required>
-                            <option value="">— اختر —</option>
-                            @foreach ($users as $u)
-                                <option value="{{ $u->id }}" @selected((int) old('refer_to_pm2_id', $plan?->refer_to_pm2_id ?? $defaultReferralId ?? 0) === $u->id)>
-                                    {{ $u->name }} ({{ $u->email }})
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('refer_to_pm2_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                        <div class="form-text">المُرسَّلة افتراضياً لإدارة المشاريع — يمكن اختيار أي مستخدم آخر للمرونة.</div>
+                        @if ($plan && ! $plan->review_role_key)
+                            <label class="form-label">المراجع في الخطة القديمة</label>
+                            <select name="refer_to_pm2_id" class="user-picker form-select @error('refer_to_pm2_id') is-invalid @enderror" data-placeholder="ابحث عن المستخدم...">
+                                <option value="">— غير محدد —</option>
+                                @foreach ($users as $u)
+                                    <option value="{{ $u->id }}" @selected((int) old('refer_to_pm2_id', $plan->refer_to_pm2_id ?? 0) === $u->id)>{{ $u->name }} ({{ $u->email }})</option>
+                                @endforeach
+                            </select>
+                            @error('refer_to_pm2_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            <div class="form-text">هذه خطة قديمة مرتبطة بمستخدم محدد؛ لن يتغير مسارها تلقائيًا.</div>
+                        @else
+                            <div class="border rounded p-2 h-100 bg-light">
+                                <div class="small fw-bold"><i class="bi bi-people me-1" aria-hidden="true"></i>الإحالة حسب الدور</div>
+                                @if (! $projectsManagerRoleConfigured)
+                                    <div class="small text-danger mt-1">دور «مدير المشاريع» غير معرّف.</div>
+                                @elseif ($plan && $projectsManagerCount === 0)
+                                    <div class="small text-danger mt-1">لا يوجد عضو نشط ومخوّل في دور «مدير المشاريع» لهذا النطاق.</div>
+                                @elseif (! $plan)
+                                    <div class="small text-muted mt-1">ستُحال تلقائيًا إلى الدور، ويتحقق النظام من أهلية حامليه بحسب المركز/المشروع عند الحفظ.</div>
+                                @else
+                                    <div class="small text-muted mt-1">ستُحال تلقائيًا إلى دور «مدير المشاريع» ({{ $projectsManagerCount }} مؤهل).</div>
+                                @endif
+                                @error('role_assignment') <div class="small text-danger mt-1">{{ $message }}</div> @enderror
+                            </div>
+                        @endif
                     </div>
                 </div>
 

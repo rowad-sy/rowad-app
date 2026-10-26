@@ -24,6 +24,26 @@
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label">مفتاح الدور الوظيفي</label>
+                    @if (isset($role) && $role->role_key)
+                        <input type="text" class="form-control font-monospace" dir="ltr" value="{{ $role->role_key }}" readonly>
+                        <input type="hidden" name="role_key" value="{{ $role->role_key }}">
+                        <div class="form-text">مفتاح ثابت تستخدمه إجراءات النظام؛ تغيير الاسم الظاهر لا يغير ربطه.</div>
+                    @else
+                        <select name="role_key" class="form-select @error('role_key') is-invalid @enderror">
+                            <option value="">دور مخصص — لا يرتبط بإجراء آلي</option>
+                            @foreach ($roleKeys as $key => $label)
+                                <option value="{{ $key }}" @selected(old('role_key', $role->role_key ?? '') === $key)>
+                                    {{ $label }} — {{ $key }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('role_key') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="form-text">اختر مفتاحًا عند ربط الدور بسير عمل آلي. لا يمنح المفتاح صلاحيات بحد ذاته.</div>
+                    @endif
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label">الوصف</label>
                     <textarea name="description" rows="2" class="form-control @error('description') is-invalid @enderror"
                               placeholder="ما وظيفة هذا الدور في المؤسسة؟">{{ old('description', $role->description ?? '') }}</textarea>

@@ -6,6 +6,7 @@ use App\Exports\MediaPlanFormExport;
 use App\Helpers\PermissionHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Center;
+use App\Models\Admin\Group;
 use App\Models\Admin\Hr\Employee;
 use App\Models\Admin\MediaPlan;
 use App\Models\Admin\MediaPlanEvent;
@@ -18,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 
 class MediaPlanController extends Controller
@@ -30,7 +32,7 @@ class MediaPlanController extends Controller
         $this->middleware('permission:App\Models\Admin\MediaPlan,create')->only(['create', 'store']);
         $this->middleware('permission:App\Models\Admin\MediaPlan,edit')->only([
             'edit', 'update', 'storeEvent', 'destroyEvent', 'addComment',
-            'directManagerDecide', 'pm2Decide', 'finalize', 'refer',
+            'directManagerDecide', 'pm2Decide', 'reopenSimple', 'finalize', 'refer',
             'assignEvent', 'reporterDecide', 'publisherPreview', 'reviewerDecide', 'publishFinal', 'rescheduleEvent',
         ]);
         $this->middleware('permission:App\Models\Admin\MediaPlan,delete')->only(['destroy']);
@@ -43,7 +45,13 @@ class MediaPlanController extends Controller
         $query = MediaPlan::with(['center', 'project', 'creator', 'events'])->withCount('events');
 
         if ($user->type !== 'super-admin') {
-            $query->where(function ($q) use ($user) {
+            $scope = PermissionHelper::getEffectiveScope($user, MediaPlan::class, 'can_view');
+
+            if (! $scope['sees_all']) {
+                $scopedIds = $this->scopedVisiblePlanIds($user, $scope);
+                $projectsManagerIds = $this->projectsManagerPlanIds($user);
+
+                $query->where(function ($q) use ($user, $scopedIds, $projectsManagerIds) {
                 $q->where('created_by', $user->id)
                     ->orWhere('refer_to_direct_manager_id', $user->id)
                     ->orWhere('refer_to_pm2_id', $user->id)
@@ -53,8 +61,11 @@ class MediaPlanController extends Controller
                         $e->where('refer_to_reporter_id', $user->id)
                             ->orWhere('refer_to_publisher_id', $user->id)
                             ->orWhere('refer_to_reviewer_id', $user->id);
-                    });
-            });
+                    })
+                    ->orWhereIn('id', $scopedIds ?: [-1])
+                    ->orWhereIn('id', $projectsManagerIds ?: [-1]);
+                });
+            }
         }
 
         if ($request->filled('month')) {
@@ -83,10 +94,10 @@ class MediaPlanController extends Controller
     {
         $centers = Center::orderBy('name')->get();
         $projects = Project::ordered()->get();
-        $users = User::orderBy('name')->get();
-        $creatorIsPm = $this->creatorIsProjectManager();
+        $defaultCenterId = $this->employeeCenterId();
+        $defaultProjectId = $this->employeeProjectId();
 
-        return view('admin.media-plans.form', compact('centers', 'projects', 'users', 'creatorIsPm'));
+        return view('admin.media-plans.simple-form', compact('centers', 'projects', 'defaultCenterId', 'defaultProjectId'));
     }
 
     public function help()
@@ -96,73 +107,181 @@ class MediaPlanController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $this->validatePlan($request);
-        $events = $this->normalizeEvents($request->input('events', []));
-
-        $this->assertBatchHasNoConflicts($events);
-
+        $validated = $this->validateSimplePlan($request);
+        $centerId = $validated['center_id'] ?? $this->employeeCenterId();
         $projectId = $validated['project_id'] ?? $this->employeeProjectId();
-        $skipDirect = $this->creatorIsProjectManager() || $request->boolean('skip_direct_manager');
-
-        $directorId = $skipDirect ? null : ($validated['refer_to_direct_manager_id'] ?? $this->defaultDirectManagerId($projectId));
-
-        if (! $skipDirect) {
-            if ($directorId === null || (int) $directorId === (int) auth()->id()) {
-                throw ValidationException::withMessages([
-                    'refer_to_direct_manager_id' => 'اختر المدير المباشر (لا يمكن أن تكون نفسك)، أو فعّل «أنا مدير المشروع — إرسال مباشر لمدير المشاريع».',
-                ]);
-            }
+        $context = new MediaPlan(['center_id' => $centerId, 'project_id' => $projectId, 'workflow_version' => 'simple']);
+        if (! PermissionHelper::canAccessRecord(auth()->user(), MediaPlan::class, 'create', $context)) {
+            throw ValidationException::withMessages(['center_id' => 'لا تملك صلاحية إنشاء خطة لهذا المركز أو المشروع.']);
         }
+        $this->assertProjectsManagerConfigured($context);
 
-        $pm2Id = $skipDirect
-            ? ($validated['refer_to_pm2_id'] ?? $this->defaultProjectsManagerId())
-            : null;
-
-        if ($skipDirect && ($pm2Id === null || (int) $pm2Id === (int) auth()->id())) {
-            throw ValidationException::withMessages(['refer_to_pm2_id' => 'اختر مدير المشاريع للإحالة إليه مباشرة.']);
-        }
-
-        try {
-            DB::beginTransaction();
+        $plan = DB::transaction(function () use ($validated, $centerId, $projectId) {
+            Center::whereKey($centerId)->lockForUpdate()->firstOrFail();
+            $this->assertSimpleScheduleFree($centerId, $validated['events']);
 
             $plan = MediaPlan::create([
                 'month_date' => $validated['month_date'],
-                'center_id' => $validated['center_id'] ?? $this->employeeCenterId(),
+                'center_id' => $centerId,
                 'project_id' => $projectId,
                 'created_by' => auth()->id(),
                 'note' => $validated['note'] ?? null,
-                'refer_to_direct_manager_id' => $directorId,
-                'refer_to_rowaduna_id' => $this->defaultRowadunaId(),
-                'status' => $skipDirect ? 'pm2_review' : 'review',
+                'workflow_version' => 'simple',
+                'status' => 'simple_review',
             ]);
 
-            $this->saveEvents($plan, $events);
+            $this->saveSimpleEvents($plan, $validated['events']);
+            $plan->logWorkflow('create', null, 'أُنشئت الخطة وأُحيلت إلى دور مدير المشاريع', 'simple_review');
 
-            DB::commit();
-        } catch (QueryException) {
-            DB::rollBack();
-
-            return back()->withInput()->with('error', 'لا يمكن حفظ الخطة — يوجد تعارض في مواعيد الفعاليات (نفس التاريخ والساعة).');
-        }
-
-        if ($skipDirect) {
-            $plan->update(['refer_to_pm2_id' => $pm2Id]);
-            $plan->logWorkflow('create', $pm2Id, 'أنشأ مدير المشروع الخطة وأرسلها مباشرة إلى مدير المشاريع', 'pm2_review');
-            $plan->referTo($pm2Id, 'pm2');
-        } else {
-            $plan->logWorkflow('create', $directorId, 'تم إنشاء الخطة الإعلامية وإحالتها للمدير المباشر', 'review');
-            $plan->referTo($directorId, 'direct_manager');
-        }
+            return $plan;
+        });
 
         return redirect()->route('admin.media-plans.show', $plan)
             ->with('success', 'تم إنشاء الخطة الإعلامية بنجاح');
     }
 
+    /** IDs visible through center/project view permissions. */
+    private function scopedVisiblePlanIds(User $user, array $scope): array
+    {
+        $projectIds = array_map('intval', $scope['project_ids'] ?? []);
+        $centerIds = array_map('intval', $scope['center_ids'] ?? []);
+        if ($projectIds === [] && $centerIds === []) {
+            return [];
+        }
+
+        return MediaPlan::query()
+            ->where(function ($query) use ($projectIds, $centerIds) {
+                if ($projectIds !== []) {
+                    $query->whereIn('project_id', $projectIds);
+                }
+                if ($centerIds !== []) {
+                    $query->{$projectIds === [] ? 'whereIn' : 'orWhereIn'}('center_id', $centerIds);
+                }
+            })
+            ->get(['id', 'center_id', 'project_id'])
+            ->filter(fn (MediaPlan $plan) => PermissionHelper::canAccessRecord($user, MediaPlan::class, 'view', $plan))
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /** Simple-workflow plans visible to any eligible projects-manager role holder. */
+    private function projectsManagerPlanIds(User $user): array
+    {
+        return MediaPlan::query()->where('workflow_version', 'simple')
+            ->get(['id', 'center_id', 'project_id', 'workflow_version', 'status'])
+            ->filter(fn (MediaPlan $plan) => $this->isProjectsManagerForPlan($user, $plan))
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    private function projectsManagerCandidates(MediaPlan $plan)
+    {
+        $role = Group::roles()->where('role_key', Group::ROLE_PROJECTS_MANAGER)->first();
+        if (! $role) {
+            return collect();
+        }
+
+        $eligibleIds = RoleHoldersLookup::userIds(MediaPlan::class, 'edit', $plan->project_id, $plan->center_id);
+
+        return $role->users()->whereIn('users.id', $eligibleIds)
+            ->where('users.type', 'employee')->where('users.is_active', true)
+            ->orderBy('users.name')->get()
+            ->filter(fn (User $user) => PermissionHelper::canAccessRecord($user, MediaPlan::class, 'edit', $plan))
+            ->values();
+    }
+
+    private function eligibleRowadunaUsers(MediaPlan $plan)
+    {
+        $scope = [$plan->project_id, $plan->center_id];
+        $rowadunaIds = RoleHoldersLookup::userIds(self::ROWADUNA_PAGE, 'view', ...$scope);
+        $editIds = RoleHoldersLookup::userIds(MediaPlan::class, 'edit', ...$scope);
+        $ids = array_values(array_intersect($rowadunaIds, $editIds));
+
+        return User::whereIn('id', $ids)->where('is_active', true)->orderBy('name')->get()
+            ->filter(fn (User $user) => PermissionHelper::canViewPage($user, 'admin.rowaduna.dashboard')
+                && PermissionHelper::canAccessRecord($user, MediaPlan::class, 'edit', $plan))
+            ->values();
+    }
+
+    private function eligibleReporters(MediaPlan $plan)
+    {
+        $ids = RoleHoldersLookup::userIds(MediaPlan::class, 'edit', $plan->project_id, $plan->center_id);
+
+        return User::whereIn('id', $ids)->where('is_active', true)->orderBy('name')->get()
+            ->filter(fn (User $user) => PermissionHelper::canAccessRecord($user, MediaPlan::class, 'edit', $plan))
+            ->values();
+    }
+
+    private function isProjectsManagerForPlan(User $user, MediaPlan $plan): bool
+    {
+        if (! $plan->isSimple() || ! Group::roles()->where('role_key', Group::ROLE_PROJECTS_MANAGER)
+            ->whereHas('users', fn ($query) => $query->where('users.id', $user->id))->exists()) {
+            return false;
+        }
+
+        return PermissionHelper::canAccessRecord($user, MediaPlan::class, 'edit', $plan);
+    }
+
+    private function canViewPlan(User $user, MediaPlan $plan): bool
+    {
+        return $user->type === 'super-admin'
+            || $plan->isVisibleToUserId($user->id)
+            || ($plan->isSimple() && $this->isProjectsManagerForPlan($user, $plan));
+    }
+
+    private function assertProjectsManagerConfigured(MediaPlan $plan): void
+    {
+        if (! Group::roles()->where('role_key', Group::ROLE_PROJECTS_MANAGER)->exists()) {
+            throw ValidationException::withMessages(['role_assignment' => 'دور مدير المشاريع غير معرّف في الأدوار والنطاقات.']);
+        }
+
+        if ($this->projectsManagerCandidates($plan)->isEmpty()) {
+            throw ValidationException::withMessages(['role_assignment' => 'لا يوجد مدير مشاريع نشط ومخوّل لهذا المركز/المشروع.']);
+        }
+    }
+
+    private function authorizeProjectsManager(MediaPlan $plan, array $statuses): void
+    {
+        abort_unless($this->isProjectsManagerForPlan(auth()->user(), $plan), 403, 'الإجراء متاح لحاملي دور مدير المشاريع المخولين ضمن نطاق الخطة فقط.');
+        abort_unless(in_array($plan->status, $statuses, true), 403, 'حالة الخطة لا تسمح بهذا الإجراء.');
+    }
+
+    private function authorizeSimpleRowaduna(MediaPlan $plan, array $statuses): void
+    {
+        $user = auth()->user();
+        abort_unless($plan->isSimple() && (int) $plan->refer_to_rowaduna_id === (int) $user->id, 403, 'الخطة ليست محالة إليك من روادنا.');
+        abort_unless(PermissionHelper::canAccessRecord($user, MediaPlan::class, 'edit', $plan), 403, 'لا تملك صلاحية تعديل الخطة ضمن نطاقها.');
+        abort_unless(in_array($plan->status, $statuses, true), 403, 'حالة الخطة لا تسمح بهذا الإجراء.');
+    }
+
+    private function authorizeSimpleCreatorEdit(MediaPlan $plan): void
+    {
+        abort_unless($plan->isSimple() && $plan->status === 'simple_review', 403, 'لا يمكن تعديل الفعاليات بعد اعتماد الخطة.');
+        abort_unless(auth()->user()->type === 'super-admin' || (int) $plan->created_by === (int) auth()->id(), 403, 'تعديل الخطة متاح لمنشئها فقط قبل الاعتماد.');
+        abort_unless(PermissionHelper::canAccessRecord(auth()->user(), MediaPlan::class, 'edit', $plan), 403, 'لا تملك صلاحية تعديل الخطة ضمن نطاقها.');
+    }
+
     public function show(MediaPlan $plan)
     {
         $user = auth()->user();
-        if ($user->type !== 'super-admin' && ! $plan->isVisibleToUserId($user->id)) {
+        if (! $this->canViewPlan($user, $plan)) {
             abort(403, 'هذه الخطة ليست موجهة إليك');
+        }
+
+        if ($plan->isSimple()) {
+            $plan->load([
+                'center', 'project', 'creator', 'rowadunaUser', 'lockedByUser',
+                'events.reporter', 'events.comments.user',
+                'workflowActions.fromUser', 'workflowActions.toUser',
+            ]);
+
+            $isProjectsManager = $this->isProjectsManagerForPlan($user, $plan);
+            $isRowadunaOwner = (int) $plan->refer_to_rowaduna_id === (int) $user->id
+                && PermissionHelper::canAccessRecord($user, MediaPlan::class, 'edit', $plan);
+            $reporters = $this->eligibleReporters($plan);
+            $rowadunaUsers = $this->eligibleRowadunaUsers($plan);
+
+            return view('admin.media-plans.show-simple', compact(
+                'plan', 'isProjectsManager', 'isRowadunaOwner', 'reporters', 'rowadunaUsers'
+            ));
         }
 
         $plan->load([
@@ -186,6 +305,17 @@ class MediaPlanController extends Controller
 
     public function edit(MediaPlan $plan)
     {
+        if ($plan->isSimple()) {
+            abort_unless($plan->status === 'simple_review', 403, 'لا يمكن تعديل الخطة بعد اعتماد مدير المشاريع.');
+            abort_unless((int) $plan->created_by === (int) auth()->id(), 403, 'تعديل الخطة متاح لمنشئها فقط قبل الاعتماد.');
+
+            $plan->load('events');
+            $centers = Center::orderBy('name')->get();
+            $projects = Project::ordered()->get();
+
+            return view('admin.media-plans.simple-form', compact('plan', 'centers', 'projects'));
+        }
+
         abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد أول موافقة — لا يمكن تعديلها');
 
         $plan->load('events');
@@ -199,6 +329,13 @@ class MediaPlanController extends Controller
 
     public function update(Request $request, MediaPlan $plan)
     {
+        if ($plan->isSimple()) {
+            abort_unless($plan->status === 'simple_review', 403, 'لا يمكن تعديل الخطة بعد اعتماد مدير المشاريع.');
+            abort_unless((int) $plan->created_by === (int) auth()->id(), 403, 'تعديل الخطة متاح لمنشئها فقط قبل الاعتماد.');
+
+            return $this->updateSimplePlan($request, $plan);
+        }
+
         abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد أول موافقة — لا يمكن تعديلها');
         $validated = $this->validatePlan($request);
         $events = $this->normalizeEvents($request->input('events', []));
@@ -232,6 +369,10 @@ class MediaPlanController extends Controller
     public function destroy(MediaPlan $plan)
     {
         abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد أول موافقة — لا يمكن حذفها');
+        if ($plan->isSimple() && auth()->user()->type !== 'super-admin') {
+            abort_unless((int) $plan->created_by === (int) auth()->id(), 403, 'حذف الخطة متاح لمنشئها فقط قبل الاعتماد.');
+            abort_unless(PermissionHelper::canAccessRecord(auth()->user(), MediaPlan::class, 'delete', $plan), 403, 'الخطة خارج نطاق صلاحية الحذف.');
+        }
 
         $plan->delete();
 
@@ -241,6 +382,19 @@ class MediaPlanController extends Controller
 
     public function storeEvent(Request $request, MediaPlan $plan)
     {
+        if ($plan->isSimple()) {
+            $this->authorizeSimpleCreatorEdit($plan);
+            $validated = $this->validateSimpleEvent($request);
+
+            DB::transaction(function () use ($plan, $validated) {
+                Center::whereKey($plan->center_id)->lockForUpdate()->firstOrFail();
+                $this->assertSimpleScheduleFree($plan->center_id, [$validated]);
+                $this->saveSimpleEvent($plan, $validated);
+            });
+
+            return back()->with('success', 'أُضيفت الفعالية إلى الخطة.');
+        }
+
         abort_if($plan->isLocked(), 403, 'الخطة مُقفلة — لا يمكن إضافة فعاليات');
 
         $validated = $this->validateEvent($request);
@@ -261,6 +415,14 @@ class MediaPlanController extends Controller
 
     public function destroyEvent(MediaPlanEvent $event)
     {
+        if ($event->plan->isSimple()) {
+            $this->authorizeSimpleCreatorEdit($event->plan);
+            abort_if($event->plan->events()->count() <= 1, 403, 'يجب أن تحتوي الخطة على فعالية واحدة على الأقل.');
+            $event->delete();
+
+            return back()->with('success', 'حُذفت الفعالية من الخطة.');
+        }
+
         abort_if($event->plan->isLocked(), 403, 'الخطة مُقفلة — لا يمكن حذف الفعالية');
 
         $event->delete();
@@ -270,6 +432,8 @@ class MediaPlanController extends Controller
 
     public function addComment(Request $request, MediaPlanEvent $event)
     {
+        abort_if($event->plan->isSimple(), 404, 'التعليقات غير مفعّلة في المسار المبسّط حالياً.');
+
         $validated = $request->validate([
             'comment' => 'required|string|max:2000',
         ]);
@@ -288,6 +452,7 @@ class MediaPlanController extends Controller
      */
     public function directManagerDecide(Request $request, MediaPlan $plan)
     {
+        abort_if($plan->isSimple(), 404, 'الخطة المبسّطة لا تمر بالمدير المباشر.');
         $this->authorizePlanHolder($plan, 'direct_manager', ['review']);
 
         $validated = $request->validate([
@@ -323,6 +488,10 @@ class MediaPlanController extends Controller
      */
     public function pm2Decide(Request $request, MediaPlan $plan)
     {
+        if ($plan->isSimple()) {
+            return $this->simpleProjectsManagerDecide($request, $plan);
+        }
+
         $this->authorizePlanHolder($plan, 'pm2', ['pm2_review', 'manager_approved']);
 
         $validated = $request->validate([
@@ -359,12 +528,117 @@ class MediaPlanController extends Controller
         return back()->with('success', 'وافق مدير المشاريع — أُحيلت الخطة لمسؤول روادنا لإسناد التغطيات.');
     }
 
+    private function simpleProjectsManagerDecide(Request $request, MediaPlan $plan)
+    {
+        $this->authorizeProjectsManager($plan, ['simple_review']);
+        $rowadunaIds = $this->eligibleRowadunaUsers($plan)->modelKeys();
+
+        $validated = $request->validate([
+            'decision' => 'required|in:approve,reject',
+            'note' => 'nullable|string|max:2000',
+            'refer_to_rowaduna_id' => [
+                'nullable', 'integer',
+                Rule::in(array_map('intval', $rowadunaIds)),
+            ],
+            'reason' => 'required_if:decision,reject|nullable|string|max:255',
+        ], [
+            'refer_to_rowaduna_id.in' => 'اختر مستخدماً نشطاً مخولاً لصفحة روادنا ولإدارة الخطة.',
+            'reason.required_if' => 'أدخل سبب الرفض.',
+        ]);
+
+        $rowadunaId = $request->filled('refer_to_rowaduna_id')
+            ? (int) $validated['refer_to_rowaduna_id']
+            : null;
+
+        DB::transaction(function () use ($plan, $validated, $rowadunaId) {
+            $lockedPlan = MediaPlan::whereKey($plan->id)->lockForUpdate()->firstOrFail();
+            $this->authorizeProjectsManager($lockedPlan, ['simple_review']);
+            if ($rowadunaId !== null && ! $this->eligibleRowadunaUsers($lockedPlan)->contains('id', $rowadunaId)) {
+                throw ValidationException::withMessages(['refer_to_rowaduna_id' => 'لم يعد المستخدم المختار مخولاً لإدارة الخطة من روادنا.']);
+            }
+
+            if ($validated['decision'] === 'reject') {
+                $lockedPlan->update([
+                    'status' => 'simple_rejected',
+                    'reason' => $validated['reason'],
+                    'locked_at' => now(),
+                    'locked_by' => auth()->id(),
+                ]);
+                $lockedPlan->cancelActiveReferrals();
+                $lockedPlan->logWorkflow('rejected', null, $validated['reason'], 'simple_rejected');
+
+                return;
+            }
+
+            $lockedPlan->update([
+                'status' => $rowadunaId === null ? 'simple_completed' : 'simple_rowaduna',
+                'refer_to_rowaduna_id' => $rowadunaId,
+                'reason' => null,
+                'locked_at' => now(),
+                'locked_by' => auth()->id(),
+                'approved_at' => $rowadunaId === null ? now() : null,
+            ]);
+
+            if ($rowadunaId !== null) {
+                $lockedPlan->referTo($rowadunaId, 'rowaduna', $validated['note'] ?? null);
+            }
+
+            $lockedPlan->logWorkflow(
+                'pm2_approved',
+                $rowadunaId,
+                $validated['note'] ?? ($rowadunaId === null ? 'اعتماد وإنهاء دون إحالة إلى روادنا' : 'اعتماد وإحالة إلى روادنا'),
+                $rowadunaId === null ? 'simple_completed' : 'simple_rowaduna',
+            );
+        });
+
+        return back()->with('success', $rowadunaId === null
+            ? 'اعتُمدت الخطة وأُغلقت. يمكنك إعادة فتحها وإحالتها إلى روادنا لاحقاً.'
+            : 'اعتُمدت الخطة وأُحيلت إلى مسؤول روادنا.');
+    }
+
+    public function reopenSimple(Request $request, MediaPlan $plan)
+    {
+        abort_unless($plan->isSimple() && $plan->status === 'simple_completed', 403, 'لا يمكن إعادة فتح هذه الخطة في حالتها الحالية.');
+        abort_unless($plan->refer_to_rowaduna_id === null, 403, 'إعادة الفتح متاحة للخطة التي أُنهيت دون إحالتها إلى روادنا.');
+        $this->authorizeProjectsManager($plan, ['simple_completed']);
+
+        $rowadunaIds = array_map('intval', $this->eligibleRowadunaUsers($plan)->modelKeys());
+        $validated = $request->validate([
+            'refer_to_rowaduna_id' => ['required', 'integer', Rule::in($rowadunaIds)],
+            'note' => 'nullable|string|max:2000',
+        ], [
+            'refer_to_rowaduna_id.required' => 'اختر مسؤول روادنا لإعادة فتح الخطة وإحالتها.',
+            'refer_to_rowaduna_id.in' => 'المستخدم المختار غير مخول لإدارة هذه الخطة من روادنا.',
+        ]);
+
+        DB::transaction(function () use ($plan, $validated) {
+            $lockedPlan = MediaPlan::whereKey($plan->id)->lockForUpdate()->firstOrFail();
+            $this->authorizeProjectsManager($lockedPlan, ['simple_completed']);
+            if (! $this->eligibleRowadunaUsers($lockedPlan)->contains('id', (int) $validated['refer_to_rowaduna_id'])) {
+                throw ValidationException::withMessages(['refer_to_rowaduna_id' => 'لم يعد المستخدم المختار مخولاً لإدارة الخطة من روادنا.']);
+            }
+            $lockedPlan->update([
+                'status' => 'simple_rowaduna',
+                'refer_to_rowaduna_id' => (int) $validated['refer_to_rowaduna_id'],
+                'approved_at' => null,
+            ]);
+            $lockedPlan->referTo((int) $validated['refer_to_rowaduna_id'], 'rowaduna', $validated['note'] ?? null);
+            $lockedPlan->logWorkflow('reopened', (int) $validated['refer_to_rowaduna_id'], $validated['note'] ?? 'أُعيد فتح الخطة وأُحيلت إلى روادنا', 'simple_rowaduna');
+        });
+
+        return back()->with('success', 'أُعيد فتح الخطة وأُحيلت إلى مسؤول روادنا دون السماح بتعديل بياناتها.');
+    }
+
     /*
      * (3) مسؤول روادنا — يُسند فعالية إلى مراسل (مع فحص تعارض المواعيد).
      */
     public function assignEvent(Request $request, MediaPlanEvent $event)
     {
         $plan = $event->plan;
+
+        if ($plan->isSimple()) {
+            return $this->assignSimpleEvent($request, $event, $plan);
+        }
 
         $this->authorizeRowadunaHolder($plan, ['rowaduna_review', 'in_progress', 'pm2_approved', 'media_manager_approved']);
 
@@ -395,12 +669,45 @@ class MediaPlanController extends Controller
         return back()->with('success', 'أُسندت الفعالية إلى المراسل بنجاح.');
     }
 
+    private function assignSimpleEvent(Request $request, MediaPlanEvent $event, MediaPlan $plan)
+    {
+        $this->authorizeSimpleRowaduna($plan, ['simple_rowaduna', 'simple_in_progress']);
+        abort_unless(in_array($event->coverage_status, ['pending', 'assigned'], true), 403, 'لا يمكن تغيير المراسل بعد تسجيل نتيجة التغطية.');
+
+        $reporterIds = array_map('intval', $this->eligibleReporters($plan)->modelKeys());
+        $validated = $request->validate([
+            'reporter_user_id' => ['required', 'integer', Rule::in($reporterIds)],
+            'note' => 'nullable|string|max:2000',
+        ], [
+            'reporter_user_id.in' => 'المراسل المختار غير نشط أو لا يملك صلاحية العمل على الخطط الإعلامية ضمن هذا النطاق.',
+        ]);
+        if (! $this->eligibleReporters($plan)->contains('id', (int) $validated['reporter_user_id'])) {
+            throw ValidationException::withMessages(['reporter_user_id' => 'لم يعد المراسل المختار مؤهلاً ضمن نطاق الخطة.']);
+        }
+
+        $event->update([
+            'coverage_status' => 'assigned',
+            'refer_to_reporter_id' => (int) $validated['reporter_user_id'],
+            'not_covered_reason' => null,
+            'coverage_note' => null,
+        ]);
+        $plan->update(['status' => 'simple_in_progress']);
+        $event->referTo((int) $validated['reporter_user_id'], 'reporter', $validated['note'] ?? null);
+        $plan->logWorkflow('event_assigned', (int) $validated['reporter_user_id'], 'أُسندت فعالية «' . $event->event_name . '» إلى المراسل.');
+
+        return back()->with('success', 'أُسندت الفعالية إلى المراسل.');
+    }
+
     /*
      * (4) المراسل — تمت التغطية (+ رابط المواد على جوجل درايف + اختيار المونتير)
      * أو لم تتم (+ السبب، وتبقى قابلة لإعادة الجدولة).
      */
     public function reporterDecide(Request $request, MediaPlanEvent $event)
     {
+        if ($event->plan->isSimple()) {
+            return $this->reporterDecideSimple($request, $event);
+        }
+
         $this->authorizeEventHolder($event, 'reporter', 'assigned');
 
         $validated = $request->validate([
@@ -450,11 +757,48 @@ class MediaPlanController extends Controller
         return back()->with('success', 'سُجِّلت التغطية ورُفعت روابط المواد — أُحيلت للمونتير/الناشر للنشر المؤقت.');
     }
 
+    private function reporterDecideSimple(Request $request, MediaPlanEvent $event)
+    {
+        $plan = $event->plan;
+        $this->authorizeEventHolder($event, 'reporter', 'assigned');
+        abort_unless($plan->status === 'simple_in_progress', 403, 'الخطة ليست في مرحلة تسجيل التغطية.');
+
+        $validated = $request->validate([
+            'decision' => 'required|in:covered,not_covered',
+            'coverage_note' => 'nullable|string|max:2000',
+            'not_covered_reason' => 'required_if:decision,not_covered|nullable|string|max:2000',
+        ], [
+            'not_covered_reason.required_if' => 'اكتب سبب عدم التغطية.',
+        ]);
+
+        $covered = $validated['decision'] === 'covered';
+        $event->update([
+            'coverage_status' => $covered ? 'covered' : 'not_covered',
+            'coverage_note' => $validated['coverage_note'] ?? null,
+            'not_covered_reason' => $covered ? null : $validated['not_covered_reason'],
+            'execution_status' => $covered ? 'executed' : 'not_executed',
+            'execution_by' => auth()->id(),
+            'execution_at' => now(),
+        ]);
+        $event->completeReferral('reporter');
+        $plan->logWorkflow(
+            $covered ? 'covered' : 'not_covered',
+            null,
+            $covered
+                ? 'سُجلت تغطية فعالية «' . $event->event_name . '».'
+                : 'لم تتم تغطية فعالية «' . $event->event_name . '»: ' . $validated['not_covered_reason'],
+            'simple_in_progress',
+        );
+
+        return back()->with('success', $covered ? 'سُجلت الفعالية على أنها تمت تغطيتها.' : 'سُجل سبب عدم التغطية.');
+    }
+
     /*
      * (5) المونتير/الناشر — نشر مؤقت: يضع رابط المعاينة ويُحيل لمدير المشروع للمراجعة.
      */
     public function publisherPreview(Request $request, MediaPlanEvent $event)
     {
+        abort_if($event->plan->isSimple(), 404, 'النشر المؤقت غير موجود في المسار المبسّط.');
         $this->authorizeEventHolder($event, 'publisher', ['to_publish', 'rework']);
 
         $validated = $request->validate([
@@ -484,6 +828,7 @@ class MediaPlanController extends Controller
      */
     public function reviewerDecide(Request $request, MediaPlanEvent $event)
     {
+        abort_if($event->plan->isSimple(), 404, 'مراجعة المعاينة غير موجودة في المسار المبسّط.');
         $this->authorizeEventHolder($event, 'preview_review', 'to_review');
 
         $validated = $request->validate([
@@ -530,6 +875,7 @@ class MediaPlanController extends Controller
      */
     public function publishFinal(Request $request, MediaPlanEvent $event)
     {
+        abort_if($event->plan->isSimple(), 404, 'النشر النهائي غير موجود في المسار المبسّط.');
         $this->authorizeEventHolder($event, 'publisher', 'to_final');
 
         $validated = $request->validate([
@@ -571,6 +917,7 @@ class MediaPlanController extends Controller
     public function rescheduleEvent(Request $request, MediaPlanEvent $event)
     {
         $plan = $event->plan;
+        abort_if($plan->isSimple(), 404, 'إعادة الجدولة غير موجودة في المسار المبسّط حالياً.');
         $user = auth()->user();
 
         $allowed = in_array((int) $user->id, array_filter([
@@ -629,6 +976,10 @@ class MediaPlanController extends Controller
      */
     public function finalize(Request $request, MediaPlan $plan)
     {
+        if ($plan->isSimple()) {
+            return $this->finalizeSimple($request, $plan);
+        }
+
         $this->authorizeRowadunaHolder($plan, ['in_progress', 'rowaduna_review']);
 
         $validated = $request->validate(['force' => 'nullable|boolean']);
@@ -646,11 +997,38 @@ class MediaPlanController extends Controller
         return back()->with('success', 'أُغلقت الخطة الإعلامية كمنجزة.');
     }
 
+    private function finalizeSimple(Request $request, MediaPlan $plan)
+    {
+        $this->authorizeSimpleRowaduna($plan, ['simple_in_progress']);
+        abort_if($plan->events()->count() === 0, 403, 'لا يمكن إغلاق خطة بلا فعاليات.');
+
+        $open = $plan->events()->whereNotIn('coverage_status', ['covered', 'not_covered'])->count();
+        if ($open > 0) {
+            return back()->with('error', 'لا يمكن إغلاق الخطة قبل تسجيل نتيجة التغطية لجميع الفعاليات.');
+        }
+
+        DB::transaction(function () use ($plan, $request) {
+            $lockedPlan = MediaPlan::whereKey($plan->id)->lockForUpdate()->firstOrFail();
+            $this->authorizeSimpleRowaduna($lockedPlan, ['simple_in_progress']);
+            $openCount = $lockedPlan->events()->whereNotIn('coverage_status', ['covered', 'not_covered'])->count();
+            abort_if($openCount > 0, 403, 'هناك فعاليات لم تسجل نتيجتها بعد.');
+
+            $lockedPlan->update(['status' => 'simple_completed', 'approved_at' => now()]);
+            $lockedPlan->completeReferral('rowaduna');
+            $lockedPlan->cancelActiveReferrals('reporter');
+            $lockedPlan->logWorkflow('executed', null, $request->note ?: 'أُغلقت الخطة من مسؤول روادنا بعد تسجيل نتائج جميع الفعاليات.', 'simple_completed');
+        });
+
+        return back()->with('success', 'أُغلقت الخطة بعد تسجيل نتائج جميع الفعاليات.');
+    }
+
     /*
      * إعادة إحالة على مستوى الخطة — الحامل الحالي للخطوة فقط.
      */
     public function refer(Request $request, MediaPlan $plan)
     {
+        abort_if($plan->isSimple(), 404, 'إعادة الإحالة الفردية غير مستخدمة في المسار المبسّط.');
+
         $validated = $request->validate([
             'step' => 'required|in:direct_manager,pm2,rowaduna',
             'to_user_id' => 'required|exists:users,id',
@@ -674,6 +1052,13 @@ class MediaPlanController extends Controller
         $this->ensureVisible($plan);
 
         $theme = $request->get('theme') === 'rowaduna' ? 'rowaduna' : 'rowad';
+
+        if ($plan->isSimple()) {
+            return view('admin.media-plans.print-simple', [
+                'plan' => $plan->load(['center', 'project', 'creator', 'rowadunaUser', 'events.reporter']),
+                'theme' => $theme,
+            ]);
+        }
 
         return view('admin.media-plans.print', [
             'plan' => $plan->load(['center', 'project', 'creator', 'events.reporter', 'events.publisher', 'events.comments']),
@@ -803,9 +1188,169 @@ class MediaPlanController extends Controller
     private function ensureVisible(MediaPlan $plan): void
     {
         $user = auth()->user();
-        if ($user->type !== 'super-admin' && ! $plan->isVisibleToUserId($user->id)) {
+        if (! $this->canViewPlan($user, $plan)) {
             abort(403, 'هذه الخطة ليست موجهة إليك');
         }
+    }
+
+    private function updateSimplePlan(Request $request, MediaPlan $plan)
+    {
+        $validated = $this->validateSimplePlan($request);
+        $centerId = $validated['center_id'] ?? $plan->center_id ?? $this->employeeCenterId();
+        $projectId = $validated['project_id'] ?? $plan->project_id ?? $this->employeeProjectId();
+        if (! $centerId) {
+            throw ValidationException::withMessages(['center_id' => 'اختر مركزاً للخطة حتى يمكن فحص تعارض المواعيد.']);
+        }
+
+        $context = new MediaPlan(['center_id' => $centerId, 'project_id' => $projectId, 'workflow_version' => 'simple']);
+        if (! PermissionHelper::canAccessRecord(auth()->user(), MediaPlan::class, 'edit', $context)) {
+            throw ValidationException::withMessages(['center_id' => 'لا تملك صلاحية تعديل الخطة ضمن المركز أو المشروع المحدد.']);
+        }
+        $this->assertProjectsManagerConfigured($context);
+
+        DB::transaction(function () use ($plan, $validated, $centerId, $projectId) {
+            Center::whereKey($centerId)->lockForUpdate()->firstOrFail();
+            $this->assertSimpleScheduleFree($centerId, $validated['events'], $plan->id);
+
+            $plan->update([
+                'month_date' => $validated['month_date'],
+                'center_id' => $centerId,
+                'project_id' => $projectId,
+                'note' => $validated['note'] ?? null,
+            ]);
+            $plan->events()->delete();
+            $this->saveSimpleEvents($plan, $validated['events']);
+        });
+
+        return redirect()->route('admin.media-plans.show', $plan)->with('success', 'تم تحديث الخطة وفعالياتها.');
+    }
+
+    private function validateSimplePlan(Request $request): array
+    {
+        $validated = $request->validate([
+            'month_date' => 'required|date_format:Y-m',
+            'center_id' => 'nullable|exists:centers,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'note' => 'nullable|string|max:2000',
+            'events' => 'required|array|min:1',
+            'events.*.event_date' => 'required|date',
+            'events.*.event_time' => 'required|date_format:H:i',
+            'events.*.event_end_time' => 'required|date_format:H:i',
+            'events.*.event_name' => 'required|string|max:255',
+            'events.*.location' => 'nullable|string|max:255',
+            'events.*.coverage_type' => 'nullable|string|max:255',
+            'events.*.notes' => 'nullable|string|max:2000',
+        ], [
+            'events.required' => 'أضف فعالية واحدة على الأقل.',
+            'events.min' => 'أضف فعالية واحدة على الأقل.',
+            'events.*.event_end_time.required' => 'أدخل وقت نهاية الفعالية.',
+        ]);
+
+        foreach ($validated['events'] as $index => $event) {
+            if ($event['event_end_time'] <= $event['event_time']) {
+                throw ValidationException::withMessages([
+                    "events.$index.event_end_time" => 'وقت النهاية يجب أن يكون بعد وقت البداية في اليوم نفسه.',
+                ]);
+            }
+        }
+        $validated['events'] = array_values($validated['events']);
+        $validated['month_date'] .= '-01';
+
+        $centerId = $validated['center_id'] ?? $this->employeeCenterId();
+        if (! $centerId) {
+            throw ValidationException::withMessages(['center_id' => 'اختر مركزاً للخطة حتى يمكن فحص تعارض المواعيد.']);
+        }
+
+        return $validated;
+    }
+
+    private function validateSimpleEvent(Request $request): array
+    {
+        $event = $request->validate([
+            'event_date' => 'required|date',
+            'event_time' => 'required|date_format:H:i',
+            'event_end_time' => 'required|date_format:H:i',
+            'event_name' => 'required|string|max:255',
+            'location' => 'nullable|string|max:255',
+            'coverage_type' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:2000',
+        ]);
+
+        if ($event['event_end_time'] <= $event['event_time']) {
+            throw ValidationException::withMessages(['event_end_time' => 'وقت النهاية يجب أن يكون بعد وقت البداية في اليوم نفسه.']);
+        }
+
+        return $event;
+    }
+
+    /** Prevent intersecting reservations in a center, across all projects. */
+    private function assertSimpleScheduleFree(int $centerId, array $events, ?int $excludePlanId = null): void
+    {
+        $previousEvents = [];
+        foreach ($events as $index => $event) {
+            foreach ($previousEvents as $previous) {
+                if ($event['event_date'] === $previous['event_date']
+                    && $event['event_time'] < $previous['event_end_time']
+                    && $event['event_end_time'] > $previous['event_time']) {
+                    throw ValidationException::withMessages([
+                        "events.$index.event_time" => 'يتداخل موعد هذه الفعالية مع فعالية أخرى في الخطة نفسها.',
+                    ]);
+                }
+            }
+            $previousEvents[] = $event;
+
+            $conflict = MediaPlanEvent::query()
+                ->whereDate('event_date', $event['event_date'])
+                ->whereHas('plan', function ($query) use ($centerId, $excludePlanId) {
+                    $query->where('center_id', $centerId)
+                        ->whereNotIn('status', ['rejected', 'simple_rejected'])
+                        ->when($excludePlanId, fn ($q) => $q->where('id', '!=', $excludePlanId));
+                })
+                ->where(function ($query) use ($event) {
+                    // Legacy entries have no known duration; reserve their recorded instant.
+                    $query->where(function ($legacy) use ($event) {
+                        $legacy->whereNull('event_end_time')
+                            ->where('event_time', '>=', $event['event_time'])
+                            ->where('event_time', '<', $event['event_end_time']);
+                    })->orWhere(function ($interval) use ($event) {
+                        $interval->whereNotNull('event_end_time')
+                            ->where('event_time', '<', $event['event_end_time'])
+                            ->where('event_end_time', '>', $event['event_time']);
+                    });
+                })
+                ->with('plan.project')
+                ->first();
+
+            if ($conflict) {
+                throw ValidationException::withMessages([
+                    "events.$index.event_time" => 'يتعارض الموعد مع فعالية «' . $conflict->event_name . '» في الخطة '
+                        . $conflict->plan->month_date->locale('ar')->translatedFormat('F Y')
+                        . ($conflict->plan->project ? ' لمشروع «' . $conflict->plan->project->name . '»' : '')
+                        . ' في المركز نفسه.',
+                ]);
+            }
+        }
+    }
+
+    private function saveSimpleEvents(MediaPlan $plan, array $events): void
+    {
+        foreach ($events as $event) {
+            $this->saveSimpleEvent($plan, $event);
+        }
+    }
+
+    private function saveSimpleEvent(MediaPlan $plan, array $event): MediaPlanEvent
+    {
+        return $plan->events()->create([
+            'event_date' => $event['event_date'],
+            'event_time' => $event['event_time'],
+            'event_end_time' => $event['event_end_time'],
+            'day' => Carbon::parse($event['event_date'])->locale('ar')->translatedFormat('l'),
+            'event_name' => $event['event_name'],
+            'location' => $event['location'] ?? null,
+            'coverage_type' => $event['coverage_type'] ?? null,
+            'notes' => $event['notes'] ?? null,
+        ]);
     }
 
     private function creatorIsProjectManager(): bool

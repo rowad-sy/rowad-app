@@ -23,6 +23,7 @@
         .st { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
         .st-review { background: #fef3c7; color: #B45309; }
         .st-approved { background: #e0f2fe; color: #0369A1; }
+        .st-officer_accepted { background: #e0f2fe; color: #0369A1; }
         .st-assigned { background: #fff3ec; color: #B34700; }
         .st-completed { background: #d1fae5; color: #059669; }
         .st-rejected { background: #fee2e2; color: #DC2626; }
@@ -54,13 +55,14 @@
             <tr>
                 <th style="width:90px">رقم الخطة</th>
                 <th style="width:60px">الشهر</th>
-                <th style="width:85px">التاريخ</th>
-                <th style="width:60px">اليوم</th>
-                <th style="width:70px">الانطلاق</th>
-                <th style="width:70px">العودة</th>
+                <th style="width:78px">تاريخ الانطلاق</th>
+                <th style="width:78px">تاريخ العودة</th>
                 <th style="width:120px">من</th>
                 <th style="width:120px">إلى</th>
+                <th style="width:65px">وقت الانطلاق</th>
+                <th style="width:65px">وقت العودة</th>
                 <th>الغاية</th>
+                <th>ملاحظات البند</th>
                 <th style="width:90px">حالة الخطة</th>
                 <th style="width:110px">مسؤول الحركة</th>
                 <th style="width:130px">المتابِعون</th>
@@ -72,18 +74,19 @@
                     <td class="plan-no">{{ $row['request_number'] }}</td>
                     <td class="num">{{ $row['plan_month'] }}</td>
                     <td class="num">{{ $row['movement_date'] }}</td>
-                    <td>{{ $row['day_name'] }}</td>
-                    <td class="num">{{ $row['departure_time'] ?: '—' }}</td>
-                    <td class="num">{{ $row['return_time'] ?: '—' }}</td>
+                    <td class="num">{{ $row['return_date'] ?: '—' }}</td>
                     <td>{{ $row['from_location'] ?: '—' }}</td>
                     <td>{{ $row['to_location'] ?: '—' }}</td>
+                    <td class="num">{{ $row['departure_time'] ?: '—' }}</td>
+                    <td class="num">{{ $row['return_time'] ?: '—' }}</td>
                     <td>{{ $row['purpose'] }}</td>
+                    <td>{{ $row['entry_notes'] ?: '—' }}</td>
                     <td><span class="st st-{{ $row['status_key'] }}">{{ $row['status'] }}</span></td>
                     <td>{{ $row['officer'] ?: '—' }}</td>
                     <td>{{ $row['recipients'] ?: '—' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="12" style="text-align:center;padding:24px;color:#64748b">لا توجد خطط حركة مطابقة</td></tr>
+                <tr><td colspan="13" style="text-align:center;padding:24px;color:#64748b">لا توجد خطط حركة مطابقة</td></tr>
             @endforelse
         </tbody>
     </table>

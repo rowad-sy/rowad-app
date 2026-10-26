@@ -28,6 +28,8 @@ class WorkflowAction extends Model
         'design_submitted' => 'رفع التصميم',
         'design_returned' => 'إعادة التصميم للمصمم',
         'approved' => 'الموافقة/الاعتماد',
+        'officer_accepted' => 'استلام مسؤول الحركة',
+        'reopened' => 'إعادة فتح وإحالة',
     ];
 
     protected $table = 'workflow_actions';
