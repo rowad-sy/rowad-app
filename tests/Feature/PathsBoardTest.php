@@ -17,6 +17,7 @@ test('paths board renders one column per path with numbered projects and add-pro
 
     $html = $this->actingAs(pathsAdmin())->get('/admin/paths/tree')
         ->assertOk()
+        ->assertSee('title="شجرة المشاريع حسب المسار"', false)
         ->assertSee('مسار الرعاية الصحية')
         ->assertSee('CHR')
         ->assertSee('مشروع العيون')
@@ -50,6 +51,59 @@ test('project lists sort by path rank and then restart project order inside each
     $this->actingAs(pathsAdmin())->get('/admin/paths/tree')
         ->assertOk()
         ->assertSeeInOrder(['مسار التعليم', 'تعليم 1', 'تعليم 2', 'مسار الصحة', 'صحة 1', 'صحة 2']);
+});
+
+test('projects page supports changing page size while preserving search and ordering', function () {
+    $user = pathsAdmin();
+    $path = ProjectPath::create(['name' => 'مسار اختبار الصفحات', 'code' => 'PG', 'sort_order' => 1]);
+
+    foreach (range(1, 27) as $number) {
+        Project::create([
+            'name' => 'مشروع صفحات '.$number,
+            'path_id' => $path->id,
+            'sort_order' => $number,
+            'status' => 'active',
+        ]);
+    }
+
+    $this->actingAs($user)->get(route('admin.projects.index', ['search' => 'مشروع صفحات', 'per_page' => 25]))
+        ->assertOk()
+        ->assertSee('name="per_page"', false)
+        ->assertSee('value="25" selected', false)
+        ->assertViewHas('projects', fn ($projects) => $projects->perPage() === 25 && $projects->count() === 25 && $projects->total() === 27);
+
+    $this->actingAs($user)->get(route('admin.projects.index', ['search' => 'مشروع صفحات', 'per_page' => 25, 'page' => 2]))
+        ->assertOk()
+        ->assertViewHas('projects', fn ($projects) => $projects->perPage() === 25
+            && $projects->currentPage() === 2
+            && $projects->count() === 2);
+
+    $this->actingAs($user)->get(route('admin.projects.index', ['per_page' => 999]))
+        ->assertOk()
+        ->assertViewHas('projects', fn ($projects) => $projects->perPage() === 10);
+});
+
+test('projects page can filter by status and keeps search and page size in status tabs', function () {
+    $user = pathsAdmin();
+    Project::create(['name' => 'مشروع حالة فعّال', 'status' => 'active', 'sort_order' => 1]);
+    Project::create(['name' => 'مشروع حالة مغلق', 'status' => 'closed', 'sort_order' => 2]);
+    Project::create(['name' => 'مشروع حالة قيد الدراسة', 'status' => 'studying', 'sort_order' => 3]);
+
+    $response = $this->actingAs($user)->get(route('admin.projects.index', [
+        'status' => 'closed',
+        'search' => 'مشروع حالة',
+        'per_page' => 25,
+    ]))->assertOk()
+        ->assertSee('مشروع حالة مغلق')
+        ->assertDontSee('مشروع حالة فعّال')
+        ->assertViewHas('projects', fn ($projects) => $projects->total() === 1 && $projects->perPage() === 25)
+        ->getContent();
+
+    expect($response)->toContain(e(route('admin.projects.index', [
+        'status' => 'active',
+        'search' => 'مشروع حالة',
+        'per_page' => 25,
+    ])));
 });
 
 test('Excel export places each track in a three-column group like the print layout', function () {

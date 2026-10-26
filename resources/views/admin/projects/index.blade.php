@@ -12,15 +12,38 @@
     @endcanPermission
 </x-page-header>
 
+<nav class="d-flex flex-wrap gap-2 mb-3" aria-label="تصفية المشاريع حسب الحالة">
+    <a href="{{ route('admin.projects.index', array_filter(['search' => $search, 'per_page' => $perPage])) }}"
+       class="nav-link border rounded-pill px-3 py-2 {{ $status === null ? 'active bg-primary text-white' : 'bg-body text-body' }}">
+        الكل <span class="badge {{ $status === null ? 'bg-light text-dark' : 'bg-secondary-subtle text-secondary' }} ms-1">{{ $totalProjects }}</span>
+    </a>
+    @foreach (\App\Models\Admin\Project::STATUSES as $key => $label)
+        <a href="{{ route('admin.projects.index', array_filter(['status' => $key, 'search' => $search, 'per_page' => $perPage])) }}"
+           class="nav-link border rounded-pill px-3 py-2 {{ $status === $key ? 'active bg-primary text-white' : 'bg-body text-body' }}">
+            {{ $label }}
+            <span class="badge {{ $status === $key ? 'bg-light text-dark' : 'bg-secondary-subtle text-secondary' }} ms-1">{{ $statusCounts[$key] ?? 0 }}</span>
+        </a>
+    @endforeach
+</nav>
+
 <div class="table-container">
     <x-filter-bar>
-            <div class="col-md-4">
+            <div class="col-12 col-md-5 filter-field">
+                <label class="form-label" for="project-search">بحث عن مشروع</label>
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="بحث عن مشروع..." value="{{ $search }}">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        <i class="bi bi-search"></i>
+                    <input id="project-search" type="search" name="search" class="form-control" placeholder="اكتب اسم المشروع…" value="{{ $search }}">
+                    <button class="btn btn-outline-secondary" type="submit" aria-label="بحث">
+                        <i class="bi bi-search" aria-hidden="true"></i>
                     </button>
                 </div>
+            </div>
+            <div class="col-6 col-md-3 filter-field">
+                <label class="form-label" for="projects-per-page">عدد المشاريع في الصفحة</label>
+                <select id="projects-per-page" name="per_page" class="form-select">
+                    @foreach ($perPageOptions as $count)
+                        <option value="{{ $count }}" {{ $perPage === $count ? 'selected' : '' }}>{{ $count }}</option>
+                    @endforeach
+                </select>
             </div>
         </x-filter-bar>
 
@@ -81,13 +104,14 @@
                     </td>
                 </tr>
             @empty
-                <x-empty-row colspan="7" icon="bi-inbox" title="لا توجد مشاريع" />
+                <x-empty-row colspan="8" icon="bi-inbox" title="لا توجد مشاريع" />
             @endforelse
         </tbody>
     </table>
     </div>
 
     <div class="p-3">
+        <div class="text-muted small mb-2">إجمالي المشاريع: {{ $projects->total() }}</div>
         {{ $projects->links() }}
     </div>
 </div>

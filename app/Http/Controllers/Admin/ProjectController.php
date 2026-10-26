@@ -21,12 +21,29 @@ class ProjectController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $status = array_key_exists((string) $request->input('status'), Project::STATUSES) ? $request->input('status') : null;
+        $perPageOptions = [10, 15, 25, 50, 100];
+        $requestedPerPage = (int) $request->query('per_page', 10);
+        $perPage = in_array($requestedPerPage, $perPageOptions, true) ? $requestedPerPage : 10;
+
         $projects = Project::with(['centers', 'path'])
+            ->when($status, fn ($q, $value) => $q->where('projects.status', $value))
             ->when($search, function ($q, $search) {
                 return $q->where('name', 'like', "%{$search}%");
-            })->ordered()->paginate(10);
+            })
+            ->ordered()
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('admin.projects.index', compact('projects', 'search'));
+        $statusQuery = Project::query()
+            ->when($search, fn ($q, $value) => $q->where('name', 'like', "%{$value}%"));
+        $statusCounts = (clone $statusQuery)
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+        $totalProjects = $statusQuery->count();
+
+        return view('admin.projects.index', compact('projects', 'search', 'status', 'perPage', 'perPageOptions', 'statusCounts', 'totalProjects'));
     }
 
     public function create(\Illuminate\Http\Request $request)

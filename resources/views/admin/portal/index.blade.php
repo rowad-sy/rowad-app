@@ -81,7 +81,7 @@
                     <span>الإحصائيات</span>
                 </a>
 
-                <a href="https://www.youtube.com/watch?v=O-Z8fpXpnGY" target="_blank" rel="noopener" class="portal-btn" style="--angle:300deg; --n:5">
+                <a href="https://www.youtube.com/watch?v=JZVu3-uWXTA" target="_blank" rel="noopener" class="portal-btn" style="--angle:300deg; --n:5">
                     <span class="portal-btn-icon"><i class="bi bi-play-btn-fill"></i></span>
                     <span>البرومو</span>
                 </a>

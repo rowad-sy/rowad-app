@@ -588,6 +588,12 @@
                 <a href="{{ route('admin.dashboard') }}" class="btn {{ request()->routeIs('admin.dashboard') ? 'btn-primary' : 'btn-light' }} topbar-btn text-decoration-none" aria-label="لوحة التحكم (مساحة العمل)" title="لوحة التحكم — مساحة العمل" @if (request()->routeIs('admin.dashboard')) aria-current="page" @endif>
                     <i class="bi bi-speedometer2" aria-hidden="true"></i>
                 </a>
+                @if (in_array(auth()->user()->type, ['employee', 'super-admin'], true))
+                    <a href="{{ route('admin.paths.tree') }}" class="btn {{ request()->routeIs('admin.paths.tree') ? 'btn-primary' : 'btn-light' }} topbar-btn text-decoration-none"
+                       aria-label="شجرة المشاريع" title="شجرة المشاريع حسب المسار" @if (request()->routeIs('admin.paths.tree')) aria-current="page" @endif>
+                        <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    </a>
+                @endif
                 <a href="{{ route('admin.portal') }}" class="btn btn-light topbar-btn text-decoration-none" aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
                     <i class="bi bi-house-door" aria-hidden="true"></i>
                 </a>
