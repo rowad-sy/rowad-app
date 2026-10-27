@@ -288,3 +288,23 @@ test('simple plans require a manager role holder and a valid same-day interval',
     ]))->assertRedirect()->assertSessionHasErrors('events.0.event_end_time');
     expect(MediaPlan::count())->toBe(0);
 });
+
+test('super-admin can delete locked media plans while ordinary users cannot', function () {
+    $center = Center::create(['name' => 'مركز الحذف']);
+    $creator = simpleMediaUser();
+    simpleMediaPermission($creator, ['can_create' => true, 'can_view' => true, 'can_delete' => true]);
+    $manager = simpleMediaUser();
+    simpleProjectsManager($manager);
+
+    $this->actingAs($creator)->post('/admin/media-plans', simpleMediaPayload($center, [
+        simpleMediaEvent('2026-11-26', '09:00', '10:00', 'خطة مقفلة'),
+    ]))->assertRedirect();
+    $plan = MediaPlan::firstOrFail();
+    $this->actingAs($manager)->post("/admin/media-plans/{$plan->id}/pm2-decide", ['decision' => 'approve'])->assertRedirect();
+
+    $this->actingAs($creator)->delete("/admin/media-plans/{$plan->id}")->assertStatus(403);
+    $superAdmin = User::factory()->create(['type' => 'super-admin', 'must_change_password' => false]);
+    $this->actingAs($superAdmin)->delete("/admin/media-plans/{$plan->id}")->assertRedirect();
+
+    expect(MediaPlan::find($plan->id))->toBeNull();
+});

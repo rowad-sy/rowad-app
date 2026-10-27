@@ -368,10 +368,11 @@ class MediaPlanController extends Controller
 
     public function destroy(MediaPlan $plan)
     {
-        abort_if($plan->isLocked(), 403, 'الخطة مُقفلة بعد أول موافقة — لا يمكن حذفها');
-        if ($plan->isSimple() && auth()->user()->type !== 'super-admin') {
+        $user = auth()->user();
+        abort_if($plan->isLocked() && $user->type !== 'super-admin', 403, 'الخطة مُقفلة بعد أول موافقة — لا يمكن حذفها');
+        if ($plan->isSimple() && $user->type !== 'super-admin') {
             abort_unless((int) $plan->created_by === (int) auth()->id(), 403, 'حذف الخطة متاح لمنشئها فقط قبل الاعتماد.');
-            abort_unless(PermissionHelper::canAccessRecord(auth()->user(), MediaPlan::class, 'delete', $plan), 403, 'الخطة خارج نطاق صلاحية الحذف.');
+            abort_unless(PermissionHelper::canAccessRecord($user, MediaPlan::class, 'delete', $plan), 403, 'الخطة خارج نطاق صلاحية الحذف.');
         }
 
         $plan->delete();
