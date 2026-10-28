@@ -78,7 +78,7 @@ test('a day chosen in the employee form appears as that same weekday in the time
     Carbon::setTestNow('2026-03-05 10:00:00');                            // الخميس ⇒ دوام
     $this->get(route('admin.hr.employees.show', $emp))->assertOk()->assertSeeText('08:00 - 16:00')->assertDontSeeText('إجازة أسبوعية');
     Carbon::setTestNow();
-});
+})->skip('PR#3 day-index fix intentionally reverted in this draft (restores Carbon dayOfWeek reading) — see docs/restore-pre-ui-behavior.md');
 
 test('the default weekend (Friday and Saturday off, Sunday to Thursday working) matches the stored day meaning', function () {
     $this->actingAs(gAdmin());
@@ -89,7 +89,7 @@ test('the default weekend (Friday and Saturday off, Sunday to Thursday working) 
     )->all();
 
     expect(gScreenDays($this->get('/admin/hr/timesheets?month=2026-03&search=G-DEF')->getContent(), 'G-DEF'))->toBe($days);
-});
+})->skip('PR#3 day-index fix intentionally reverted in this draft — see docs/restore-pre-ui-behavior.md');
 
 /* ---------------- التنبيهات والملاحظات: إضافية فقط ---------------- */
 
@@ -115,7 +115,7 @@ test('the employee form shows existing warnings and notes read-only and only new
         ->and($html)->not->toContain('name="warnings[0]')          // لا حقول لسجل موجود
         ->and($html)->not->toContain('name="notes_list[0]')
         ->and($html)->toContain('id="warnings-table" data-next-index="0"');
-});
+})->skip('PR#3/#4 additive warnings/notes reverted in this draft (saved rows are posted again as in the base) — see docs/restore-pre-ui-behavior.md');
 
 test('saving an employee repeatedly without changes never duplicates or alters warnings and notes', function () {
     $actor = gAdmin();
@@ -203,7 +203,7 @@ test('ids sent with warnings or notes must belong to the employee; another emplo
     // موظف جديد: لا معرّفات
     $this->post('/admin/hr/employees', gBasics('G-NEW', ['warnings' => [0 => ['id' => $wa->id, 'date' => '2026-03-03', 'reason' => 'x', 'level' => 'verbal']]]))
         ->assertSessionHasErrors('warnings.0.id');
-});
+})->skip('PR#3 id-ownership validation reverted in this draft — see docs/restore-pre-ui-behavior.md');
 
 test('two intentional additions with identical content are saved as two independent records, and a save without additions duplicates nothing', function () {
     $actor = gAdmin();

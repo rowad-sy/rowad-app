@@ -42,7 +42,7 @@
                         <td>{{ $warehouse->center?->name ?? '—' }}</td>
                         <td>{{ Str::limit($warehouse->notes, 60) ?? '—' }}</td>
                         <td>
-                            <a href="{{ route('admin.logistics.warehouses.items.index', $warehouse) }}" class="btn btn-sm btn-outline-info">
+                            <a href="{{ route('admin.logistics.warehouses.items', $warehouse) }}" class="btn btn-sm btn-outline-info">
                                 <i class="bi bi-box-seam me-1"></i> عرض المحتويات
                             </a>
                             @canPermission('App\Models\Admin\Logistics\Warehouse', 'edit')

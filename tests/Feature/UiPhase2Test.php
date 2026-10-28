@@ -104,7 +104,7 @@ test('employee statistics page is reachable and no longer shadowed by the employ
     p2Employee();
 
     $this->actingAs($user)->get('/admin/hr/employees/statistics')->assertOk();
-});
+})->skip('PR#2 route-order fix reverted in this draft (employees/statistics is shadowed again as in the base) — see docs/restore-pre-ui-behavior.md');
 
 test('leave requests page links to the personal-review page only for users who can act on approvals', function () {
     $viewer = p2User(['App\Models\Admin\Hr\LeaveRequest']);

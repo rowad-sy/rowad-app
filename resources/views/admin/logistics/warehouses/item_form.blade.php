@@ -4,7 +4,7 @@
 
 @section('logistics-content')
 <x-page-header :title="isset($item) ? 'تعديل المادة' : 'إضافة مادة'"
-               :breadcrumb="[['label' => $warehouse->name, 'url' => route('admin.logistics.warehouses.items.index', $warehouse)], ['label' => isset($item) ? $item->name : 'جديد']]" />
+               :breadcrumb="[['label' => $warehouse->name, 'url' => route('admin.logistics.warehouses.items', $warehouse)], ['label' => isset($item) ? $item->name : 'جديد']]" />
 
 <div class="row">
     <div class="col-md-6">
@@ -36,8 +36,7 @@
                         <label class="form-label">الكمية <span class="text-danger">*</span></label>
                         <input type="number" name="quantity"
                                class="form-control @error('quantity') is-invalid @enderror"
-                               value="{{ old('quantity', $item->quantity ?? '1') }}" required min="0" step="1" inputmode="numeric" aria-describedby="quantityHelp">
-                        <div class="form-text" id="quantityHelp">عدد صحيح (0 أو أكبر)؛ لا تُقبل الكسور.</div>
+                               value="{{ old('quantity', $item->quantity ?? '1') }}" required min="0" step="any">
                         @error('quantity') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-6">
@@ -53,7 +52,7 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg me-1"></i> حفظ
                     </button>
-                    <a href="{{ route('admin.logistics.warehouses.items.index', $warehouse) }}" class="btn btn-outline-secondary">إلغاء</a>
+                    <a href="{{ route('admin.logistics.warehouses.items', $warehouse) }}" class="btn btn-outline-secondary">إلغاء</a>
                 </div>
             </form>
         </div>
